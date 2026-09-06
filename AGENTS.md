@@ -4,6 +4,14 @@
 - Treat approved project documentation and architectural decisions as the source of truth for implementation.
 - Use Russian as the working language for project design documentation unless the task requires another language.
 
+# User-facing communication
+
+- The default language for user interaction is Russian.
+- Write all user-facing reports, section headings, review findings, questions, warnings and explanations in Russian.
+- Use English only where appropriate for machine-significant or technical values, including code, Git commands, file and branch names, commit messages, pull request titles, identifiers and exact technical terms.
+- Do not switch a report to English solely because the source prompt, API, GitHub or technical documentation uses English.
+- If the user explicitly requests another language for a specific task, use it only for that task.
+
 # Git and GitHub workflow
 
 For this repository, Codex may autonomously perform routine Git and GitHub

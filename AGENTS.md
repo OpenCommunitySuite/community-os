@@ -32,13 +32,14 @@ Allowed without additional confirmation:
 - set upstream for a task branch;
 - create a GitHub pull request targeting main;
 - update the same branch and PR after fixes or review feedback;
-- inspect PR status, checks and comments.
+- inspect PR status, checks and comments;
+- after a task PR has been successfully merged into main, delete that PR's task branch locally and remotely without additional confirmation only when the branch is not main/default/protected and its head commit is confirmed reachable from the current origin/main.
 
 Codex must STOP and ask for explicit confirmation before:
 - merging any pull request into main;
 - pushing directly to main;
 - force-push or push --force-with-lease;
-- deleting local or remote branches;
+- deleting local or remote branches except the verified automatic post-merge cleanup described above;
 - rebasing or otherwise rewriting published history;
 - git reset --hard;
 - git clean with destructive options;
@@ -78,6 +79,8 @@ Mandatory workflow rules:
     - summaries.
 14. Preserve repository architecture and documentation conventions.
 15. If task scope is ambiguous, stop before modifying additional unrelated files.
+16. Automatic post-merge branch cleanup is permitted only for the task branch of the PR just merged after explicit merge authorization. Before deletion, verify that the PR is merged, the current origin/main contains the resulting merge, and the task branch head is reachable from origin/main. Never delete main, the default branch, a protected branch, an unmerged branch, a branch with commits not reachable from origin/main, or an unrelated historical branch under this automatic rule.
+17. Historical branch cleanup outside the immediately completed task is a separate maintenance operation: inspect all candidate branches first and delete them only when the user has explicitly requested or confirmed that cleanup.
 
 # Community OS architecture workflow
 

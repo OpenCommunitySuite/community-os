@@ -1693,3 +1693,51 @@ Placement, hostname и Tenant не являются identity Community. Изме
 **Archive** — обратимое согласно применимой Lifecycle Policy состояние обслуживания Community, отличное от final deletion.
 
 Subscription lifecycle не является Community lifecycle. Final deletion выполняется только как отдельная explicit и auditable platform operation.
+
+---
+
+# 128. Functional Module и Platform Functional Module
+
+**Functional Module** — техническая модульная граница, объединяющая связанные domain/application capabilities, владеющая своими internals и публикующая явный application-facing contract. Functional Module не тождественен bounded context, service, process, assembly, database schema или deployment unit автоматически.
+
+**Platform Functional Module** — Functional Module, реализующий отдельную platform responsibility, например применимую capability Control Plane, без присвоения ownership предметных фактов Community.
+
+---
+
+# 129. Module Public Contract
+
+**Module Public Contract** — минимальный явно опубликованный application-facing contract module для разрешённого использования другими modules. Он может определять применимые commands, queries, result/value contracts, published application events и access contracts к опубликованным Read Models / Projections, но не включает internal domain objects, repositories, implementation classes или persistence details.
+
+Module Public Contract не является Shared Kernel. Наличие общего physical storage или техническая доступность internal type не делает его частью public contract.
+
+---
+
+# 130. Read Model / Projection
+
+**Read Model / Projection** — опубликованное derived read-side representation с определёнными producer/owner, scope, visibility и freshness semantics.
+
+Read Model / Projection не является source of truth, частью Domain model или основанием для command-side mutation. Он остаётся отдельной архитектурной категорией и не сливается автоматически с Module Public Contracts или Shared Kernel.
+
+---
+
+# 131. Runtime Host и Workload Class
+
+**Runtime Host** — composition/runtime entry point процесса, запускающий разрешённые application capabilities, но не владеющий domain semantics. **Web/API Host** обслуживает применимые интерактивные transport/API entry points, а **Worker Host** выполняет persistent/background work через те же Application и Domain boundaries без privileged bypass.
+
+**Workload Class** — логическая техническая категория исполнения background work, позволяющая независимо назначать и масштабировать workloads. Она не является bounded context, Functional Module или владельцем данных.
+
+---
+
+# 132. Process Coordinator
+
+**Process Coordinator** — специализированная application-level orchestration конкретного сложного multi-step process через опубликованные contracts и events.
+
+Coordinator хранит только применимый orchestration progress/context, не присваивает ownership фактов участвующих modules и не является universal Workflow Engine или universal State Machine.
+
+---
+
+# 133. Shared Kernel
+
+**Shared Kernel** — минимальный набор действительно фундаментальных и стабильных technical/semantic primitives с повышенным порогом включения.
+
+Shared Kernel не является common domain model и не включает domain entities, repositories, application services, shared business rules или DTO только из-за их использования несколькими modules. Общий semantic concept не становится shared type автоматически.

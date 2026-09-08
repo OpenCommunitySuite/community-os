@@ -136,7 +136,9 @@ Roadmap не является технической архитектурой, �
 
 Проектирование схемы PostgreSQL не должно начинаться до принятия архитектурных границ и принципов истории и конфигурации.
 
-Шесть технических решений этапа приняты в `ADR-012.md`–`ADR-017.md`. ADR-012 фиксирует commercial multi-tenant SaaS, различия Community, Tenant и коммерческих понятий, ответственность Control Plane, Community Placement, Subject Identity Anchor, provisioning, onboarding, readiness и Go-Live. ADR-013 фиксирует logical modular monolith, module и application boundaries, Web/API Host и Worker Host, public contracts, read models, event и transaction boundaries, minimal Shared Kernel и architecture enforcement. ADR-014 фиксирует persistence boundaries, tenant isolation, storage и recovery. ADR-015 фиксирует authentication, authorization, secrets и technical/security audit. ADR-016 фиксирует reliable background/integration runtime. ADR-017 фиксирует production delivery, observability и operational readiness. Последовательность архитектурных решений Stage K завершена, а concrete Implementation Baseline не начат.
+Архитектурные решения Stage K приняты в `ADR-012.md`–`ADR-017.md`. ADR-012 фиксирует commercial multi-tenant SaaS, различия Community, Tenant и коммерческих понятий, ответственность Control Plane, Community Placement, Subject Identity Anchor, provisioning, onboarding, readiness и Go-Live. ADR-013 фиксирует logical modular monolith, module и application boundaries, Web/API Host и Worker Host, public contracts, read models, event и transaction boundaries, minimal Shared Kernel и architecture enforcement. ADR-014 фиксирует persistence boundaries, tenant isolation, storage и recovery. ADR-015 фиксирует authentication, authorization, secrets и technical/security audit. ADR-016 фиксирует reliable background/integration runtime. ADR-017 фиксирует production delivery, observability и operational readiness.
+
+`ADR-018.md` принимает primary application stack и solution composition, а `IMPLEMENTATION_BASELINE.md` фиксирует согласованные implementation decisions Q1–Q12, development workflow и testing strategy. Implementation Baseline завершён на уровне документации; application/bootstrap implementation не начат.
 
 ## 5. Очередь документов и решений
 
@@ -161,6 +163,8 @@ Roadmap не является технической архитектурой, �
 | 14 | [`ADR-015.md`](adr/ADR-015.md) | Authentication, authorization, secrets и technical/security audit | ADR-010, ADR-012–ADR-014 и принятая архитектура | ADR-016, ADR-017, Implementation Baseline и реализацию | DONE |
 | 15 | [`ADR-016.md`](adr/ADR-016.md) | Reliable background and integration runtime | ADR-011–ADR-015 и принятая архитектура | ADR-017, Implementation Baseline и реализацию | DONE |
 | 16 | [`ADR-017.md`](adr/ADR-017.md) | Production delivery, observability и operational readiness | ADR-012–ADR-016 и принятая архитектура | Implementation Baseline и реализацию | DONE |
+| 17 | [`ADR-018.md`](adr/ADR-018.md) | Основной application stack и solution structure | ADR-001–ADR-017 | Implementation Baseline и реализацию | DONE |
+| 18 | [`IMPLEMENTATION_BASELINE.md`](../implementation/IMPLEMENTATION_BASELINE.md) | Concrete implementation decisions Q1–Q12 | ADR-001–ADR-018 | Application bootstrap и реализацию | DONE |
 
 ## 6. Зависимости этапов
 
@@ -190,13 +194,13 @@ Roadmap не является технической архитектурой, �
 
 ## 7. Вопросы, намеренно оставленные открытыми
 
-Эта roadmap не выбирает и не фиксирует:
+После ADR-018 и Implementation Baseline намеренно остаются открытыми:
 
-- физическую структуру PostgreSQL, SQL, ORM или детальную модель хранения;
+- exact PostgreSQL schema, persistence mappings, SQL implementation и детальную модель хранения;
 - конкретные API endpoints, форматы обмена, DTO, JSON-схемы, протоколы и механизмы реализации принятых API boundaries;
-- язык программирования, прикладные и интерфейсные фреймворки;
-- способ разделения приложений или их развёртывания;
-- очереди, кэш, конкретные облачные сервисы и инфраструктурные платформы;
+- exact supported toolchain/package versions до bootstrap pinning;
+- granular `.sln`/`.csproj`, frontend tooling и project/folder decomposition;
+- concrete worker/job, queue, cache, cloud, observability и infrastructure products;
 - event sourcing, CQRS, конкретные механизмы авторизации, исполнения правил или интеграций;
 - бухгалтерский план счетов и юридические правила конкретной юрисдикции.
 
@@ -204,8 +208,8 @@ Roadmap не является технической архитектурой, �
 
 ## 8. Следующий шаг
 
-Архитектурная последовательность Stage K — **«Техническая архитектура»** — завершена принятием ADR-012–ADR-017.
+Архитектурная последовательность Stage K — **«Техническая архитектура»** — завершена принятием ADR-012–ADR-017. ADR-018 и Implementation Baseline фиксируют переход от этой архитектуры к concrete stack и implementation conventions.
 
-`ADR-017.md` о production delivery, observability и operational readiness принят. Следующий шаг — подготовка concrete Implementation Baseline на основе принятых архитектурных границ; этим статусным изменением Implementation Baseline и implementation не начинаются, а эта roadmap не объявляет обязательным конкретный stack/provider/tooling.
+`ADR-018.md` и `IMPLEMENTATION_BASELINE.md` приняты. Следующий шаг — отдельная scoped application bootstrap task с version/toolchain pinning, build/test skeleton и без пересмотра принятых границ. Этой документационной задачей bootstrap и application implementation не начаты.
 
 Этапы B и J завершены принятием соответственно ADR-010 и ADR-011. Техническая архитектура должна реализовать их семантические границы, не пересматривая владение предметными понятиями и не превращая способы интеграции или доступа в предметную модель.

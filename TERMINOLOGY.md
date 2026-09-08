@@ -1837,3 +1837,47 @@ Storage Locator не является Document, Revision, Representation, File/b
 **Security Audit** — append-oriented technical record security-sensitive operations с безопасной attribution, scope, target, reason/correlation и result metadata.
 
 Security Audit не является domain history/provenance, operational log/metric/trace или universal domain Audit Event. User/Community security views являются purpose-filtered projections, а не raw Security Audit.
+
+---
+
+# 146. Persistent Work, Operation и Attempt
+
+**Persistent Work** — durable technical work, obligation и state которой сохраняются при потере process. Один **Persistent Work Item** представляет одну stable **Operation**; в этом common runtime contract stable Persistent Work identity является stable Operation identity. Retry или допустимый Resume сохраняет Operation identity и создаёт отдельную **Attempt** identity.
+
+Materially new intent, Correction, Replacement или deliberate new Replay создают новую linked Operation. Persistent Work не является universal domain Job, universal Workflow или новым bounded context.
+
+---
+
+# 147. Durable Delivery Record и Transactional Outbox
+
+**Durable Delivery Record** — technical record delivery/publication obligation с собственной delivery identity. Он не является semantic Event/fact или Persistent Work Operation.
+
+**Transactional Outbox** или semantic equivalent атомарно фиксирует local state transition и required durable publication/continuation intent в одной local ACID transaction. Dispatch после commit может повторяться.
+
+---
+
+# 148. Idempotency и Inbox / durable duplicate recognition
+
+**Idempotency** — свойство qualified effect/Operation boundary, при котором повторное исполнение не создаёт непреднамеренный дополнительный effect. Equal payload или hash сами по себе не доказывают duplicate.
+
+**Inbox** — один из возможных technical mechanisms durable duplicate recognition. Он не является universal mandatory component: допустимы authoritative local uniqueness, guarded transition или другой semantically equivalent mechanism.
+
+---
+
+# 149. Known Success, Known Failure и Unknown Outcome
+
+**Known Success**, **Known Failure** и **Unknown Outcome** — разные состояния знания о результате effect. Unknown Outcome не является success или failure и не превращается автоматически в failure после определённого числа retries; он может требовать provider idempotency/status, independent evidence/reconciliation или attributable manual resolution.
+
+---
+
+# 150. Terminal / Quarantined Persistent Work
+
+**Terminal / Quarantined Persistent Work** — condition, в котором automatic processing остановлен и требуется explicit resolution. Work, её identity, Attempt history и causation не удаляются. Resume сохраняет Operation identity только при сохранении того же unresolved obligation, intent и idempotency boundary; иначе создаётся linked new Operation.
+
+Quarantined не означает автоматически Cancelled, Compensated или forever impossible.
+
+---
+
+# 151. Cancellation Request
+
+**Cancellation Request** — запрос прекратить future execution на explicit safe boundary. Cancellation Requested не означает, что execution уже остановлено, и не является Compensation. Committed local/external effects не отменяются автоматически; Compensation/Correction является отдельным context-owned и historically traceable action.

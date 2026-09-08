@@ -1617,3 +1617,79 @@
 **Повторное голосование** — новое самостоятельное голосование, исторически связанное с предыдущим голосованием и причиной повторения, если она предметно значима.
 
 Оно не является новой версией предыдущего голосования и не переписывает его. Повторное голосование использует собственную применимую версию правила и имеет собственный исходный снимок прав, где он применим.
+
+---
+
+# 119. Tenant
+
+**Tenant** — техническая область изоляции и обслуживания данных или runtime resources в SaaS.
+
+Tenant не является сообществом и не определяет его стабильную идентичность. Одно и то же понятие Community сохраняется при изменении технического размещения.
+
+---
+
+# 120. Customer / Billing Account и Subscription
+
+**Customer / Billing Account** — коммерческая сторона и учётная область расчётов с оператором SaaS.
+
+**Subscription** — коммерческое предоставление возможностей Community OS на определённых условиях. Customer/Billing Account и Subscription не являются сообществом, субъектом, лицевым счётом или финансовым фактом обслуживаемой Community. Допустимая первоначальная связь одной Subscription с одной Community не является фундаментальной кардинальностью.
+
+---
+
+# 121. Plan, Entitlement, Quota и Lifecycle Policy
+
+**Plan** — коммерческая композиция возможностей и лимитов SaaS. Имя Plan не является предметным условием Community OS.
+
+**Entitlement** — предоставленная коммерческая возможность. **Quota** — применимое количественное или объёмное ограничение. **Lifecycle Policy** — platform-side политика применимого lifecycle. Эти понятия не заменяют друг друга, Community configuration, Capability Readiness или Operational State.
+
+---
+
+# 122. Control Plane
+
+**Control Plane** — отдельная platform responsibility, управляющая коммерческим и техническим обслуживанием Community, включая Subscription, Entitlements, provisioning, Placement, routing и infrastructure lifecycle там, где они применимы.
+
+Control Plane не является универсальным предметным контекстом и не владеет Finance, Governance, Resources, Documents или другими предметными фактами Community.
+
+---
+
+# 123. Community Placement
+
+**Community Placement** — управляемая Control Plane техническая связь Community с её текущими persistence locations.
+
+**Placement Resolver** — архитектурная ответственность определения текущего Placement по stable Community ID.
+
+**Placement Generation / Version** — определимая версия эффективного Placement, позволяющая обнаружить stale routing или использование прежнего места хранения.
+
+Placement, hostname и Tenant не являются identity Community. Изменение Placement не изменяет stable Community ID или ownership предметных данных.
+
+---
+
+# 124. Subject Identity Anchor
+
+**Subject Identity Anchor** — опциональный минимальный стабильный platform identity anchor, необходимый для устойчивой multi-community attribution.
+
+Он не является Subject, полным профилем лица или глобальным каталогом всех Subjects, не создаётся автоматически для каждого импортированного Subject и не предоставляет cross-community visibility. Community Subject может существовать без Anchor и без пользовательской учётной записи; Community-specific Subject records остаются у соответствующей Community.
+
+---
+
+# 125. Provisioning и onboarding
+
+**Provisioning** — persistent, observable и resumable Control Plane operation, создающая техническую способность обслуживать Community. Provisioning не является distributed transaction, onboarding или Go-Live.
+
+**Onboarding** — возобновляемая подготовка configuration и данных Community после технического provisioning и до operational activation. Onboarding не является обязательным линейным UI wizard.
+
+---
+
+# 126. Readiness Assessment и Go-Live
+
+**Readiness Assessment** — объяснимая оценка конкретного состояния и configuration Community относительно применимых условий готовности. Она не является одним mutable boolean; успешный Go-Live требует актуальной оценки без unresolved BLOCKERS.
+
+**Go-Live** — explicit, historically significant platform operation перехода подготовленной Community к ACTIVE. Go-Live не создаёт автоматически предметные факты, первую кампанию приглашений, первый billing run или выполнение интеграций. Actor такой platform operation не обязан быть Subject, но должен иметь применимую technical authorization; domain attribution сохраняется там, где она требуется.
+
+---
+
+# 127. Archive
+
+**Archive** — обратимое согласно применимой Lifecycle Policy состояние обслуживания Community, отличное от final deletion.
+
+Subscription lifecycle не является Community lifecycle. Final deletion выполняется только как отдельная explicit и auditable platform operation.

@@ -1802,7 +1802,9 @@ Storage Locator не является Document, Revision, Representation, File/b
 
 # 141. Authentication Method, Factor, Challenge и Assurance Policy
 
-**Authentication Method** — связанное с Technical Identity средство аутентификации. **Authentication Factor** — категория evidence, используемого в authentication decision. **Authentication Challenge** — short-lived proof, запрошенный для authentication или recovery; его одноразовое значение не является password.
+**Authentication Method** — связанное с Technical Identity средство аутентификации. **Authentication Factor** — категория evidence, используемого в authentication decision. **Authentication Challenge** — краткоживущий запрос аутентификационного подтверждения, созданный для конкретной попытки authentication или recovery.
+
+Предъявляемые в ответ one-time code, TOTP value, cryptographic response или другое применимое evidence/proof не являются самим Authentication Challenge. Это различие не вводит обязательную отдельную сущность response или protocol/persistence model. OTP value не является password.
 
 **Challenge Delivery Channel** — transport доставки одноразового challenge, например email, SMS или Telegram. Канал не является автоматически независимым strong factor. **Recovery Method / Channel** — средство или канал восстановления контроля над Account; оно не должно неявно обходить требуемую assurance. **Assurance Policy** — context/risk-sensitive policy допустимых methods, factors, challenges и step-up. Эти понятия не создают universal Identity domain entity.
 

@@ -88,7 +88,10 @@ Community OS создаётся не как программа для одног
 - [терминология](docs/TERMINOLOGY.md);
 - [предметная модель](docs/DOMAIN_MODEL.md);
 - [карта архитектурных решений](docs/architecture/ARCHITECTURE_ROADMAP.md);
-- [архитектурные решения (ADR)](docs/architecture/adr/).
+- [архитектурные решения (ADR)](docs/architecture/adr/);
+- [Implementation Baseline](docs/implementation/IMPLEMENTATION_BASELINE.md);
+- [workflow разработки](docs/implementation/DEVELOPMENT.md);
+- [стратегия тестирования](docs/implementation/TESTING.md).
 
 ---
 

@@ -136,7 +136,7 @@ Roadmap не является технической архитектурой, �
 
 Проектирование схемы PostgreSQL не должно начинаться до принятия архитектурных границ и принципов истории и конфигурации.
 
-Первые три технических решения этапа приняты в `ADR-012.md`, `ADR-013.md` и `ADR-014.md`. ADR-012 фиксирует commercial multi-tenant SaaS, различия Community, Tenant и коммерческих понятий, ответственность Control Plane, Community Placement, Subject Identity Anchor, provisioning, onboarding, readiness и Go-Live. ADR-013 фиксирует logical modular monolith, module и application boundaries, Web/API Host и Worker Host, public contracts, read models, event и transaction boundaries, minimal Shared Kernel и architecture enforcement. ADR-014 фиксирует persistence boundaries, tenant isolation, storage и recovery. Принятие этих ADR не означает завершения Stage K; security, reliable jobs, integrations implementation и production operations требуют последующих решений.
+Первые четыре технических решения этапа приняты в `ADR-012.md`, `ADR-013.md`, `ADR-014.md` и `ADR-015.md`. ADR-012 фиксирует commercial multi-tenant SaaS, различия Community, Tenant и коммерческих понятий, ответственность Control Plane, Community Placement, Subject Identity Anchor, provisioning, onboarding, readiness и Go-Live. ADR-013 фиксирует logical modular monolith, module и application boundaries, Web/API Host и Worker Host, public contracts, read models, event и transaction boundaries, minimal Shared Kernel и architecture enforcement. ADR-014 фиксирует persistence boundaries, tenant isolation, storage и recovery. ADR-015 фиксирует authentication, authorization, secrets и technical/security audit. Принятие этих ADR не означает завершения Stage K; reliable jobs, integrations implementation и production operations требуют последующих решений.
 
 ## 5. Очередь документов и решений
 
@@ -158,7 +158,7 @@ Roadmap не является технической архитектурой, �
 | 11 | `ADR-012.md` | SaaS tenancy, Control Plane, Community Placement и lifecycle | ADR-001–ADR-011 | Последующие технические ADR Stage K | DONE |
 | 12 | `ADR-013.md` | Runtime architecture, границы модулей, приложений и API | ADR-001–ADR-012 | Последующие технические ADR Stage K | DONE |
 | 13 | `ADR-014.md` | Persistence, tenant isolation, storage и recovery | ADR-012, ADR-013 и принятая архитектура | ADR-015–ADR-017, Implementation Baseline и реализацию | DONE |
-| 14 | `ADR-015.md` | Authentication, authorization, secrets и technical/security audit | ADR-010, ADR-012–ADR-014 и принятая архитектура | ADR-016, ADR-017, Implementation Baseline и реализацию | PROPOSED |
+| 14 | `ADR-015.md` | Authentication, authorization, secrets и technical/security audit | ADR-010, ADR-012–ADR-014 и принятая архитектура | ADR-016, ADR-017, Implementation Baseline и реализацию | DONE |
 | 15 | Последующие технические ADR | Reliable background/integration runtime и production operations | ADR-012–ADR-015 и принятая архитектура | Implementation Baseline и реализацию | PLANNED |
 
 ## 6. Зависимости этапов
@@ -203,8 +203,8 @@ Roadmap не является технической архитектурой, �
 
 ## 8. Следующий шаг
 
-Основным следующим незавершённым архитектурным этапом остаётся этап K — **«Техническая архитектура»**. Его решения ADR-012, ADR-013 и ADR-014 приняты; Stage K остаётся ongoing.
+Основным следующим незавершённым архитектурным этапом остаётся этап K — **«Техническая архитектура»**. Его решения ADR-012, ADR-013, ADR-014 и ADR-015 приняты; Stage K остаётся ongoing.
 
-ADR-015 об authentication, authorization, secrets и technical/security audit подготовлен со статусом **Proposed / Предложено** и требует отдельного принятия. После его принятия следующим техническим решением должен стать ADR-016 о reliable background/integration runtime; ADR-017 сохраняет deployment/operations scope. Stage K остаётся ongoing, implementation не начата, а эта roadmap не объявляет обязательным конкретный stack/provider/tooling.
+ADR-015 об authentication, authorization, secrets и technical/security audit принят. Следующим техническим решением Stage K должен стать ADR-016 о reliable background/integration runtime; ADR-017 сохраняет deployment/operations scope. Stage K остаётся ongoing, implementation не начата, а эта roadmap не объявляет обязательным конкретный stack/provider/tooling.
 
 Этапы B и J завершены принятием соответственно ADR-010 и ADR-011. Техническая архитектура должна реализовать их семантические границы, не пересматривая владение предметными понятиями и не превращая способы интеграции или доступа в предметную модель.

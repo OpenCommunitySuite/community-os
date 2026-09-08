@@ -136,7 +136,7 @@ Roadmap не является технической архитектурой, �
 
 Проектирование схемы PostgreSQL не должно начинаться до принятия архитектурных границ и принципов истории и конфигурации.
 
-Первые пять технических решений этапа приняты в `ADR-012.md`, `ADR-013.md`, `ADR-014.md`, `ADR-015.md` и `ADR-016.md`. ADR-012 фиксирует commercial multi-tenant SaaS, различия Community, Tenant и коммерческих понятий, ответственность Control Plane, Community Placement, Subject Identity Anchor, provisioning, onboarding, readiness и Go-Live. ADR-013 фиксирует logical modular monolith, module и application boundaries, Web/API Host и Worker Host, public contracts, read models, event и transaction boundaries, minimal Shared Kernel и architecture enforcement. ADR-014 фиксирует persistence boundaries, tenant isolation, storage и recovery. ADR-015 фиксирует authentication, authorization, secrets и technical/security audit. ADR-016 фиксирует reliable background/integration runtime. `ADR-017.md` предложен для production delivery, observability и operational readiness и требует отдельного owner acceptance. Stage K остаётся ongoing, а concrete Implementation Baseline не начат.
+Шесть технических решений этапа приняты в `ADR-012.md`–`ADR-017.md`. ADR-012 фиксирует commercial multi-tenant SaaS, различия Community, Tenant и коммерческих понятий, ответственность Control Plane, Community Placement, Subject Identity Anchor, provisioning, onboarding, readiness и Go-Live. ADR-013 фиксирует logical modular monolith, module и application boundaries, Web/API Host и Worker Host, public contracts, read models, event и transaction boundaries, minimal Shared Kernel и architecture enforcement. ADR-014 фиксирует persistence boundaries, tenant isolation, storage и recovery. ADR-015 фиксирует authentication, authorization, secrets и technical/security audit. ADR-016 фиксирует reliable background/integration runtime. ADR-017 фиксирует production delivery, observability и operational readiness. Последовательность архитектурных решений Stage K завершена, а concrete Implementation Baseline не начат.
 
 ## 5. Очередь документов и решений
 
@@ -160,7 +160,7 @@ Roadmap не является технической архитектурой, �
 | 13 | `ADR-014.md` | Persistence, tenant isolation, storage и recovery | ADR-012, ADR-013 и принятая архитектура | ADR-015–ADR-017, Implementation Baseline и реализацию | DONE |
 | 14 | `ADR-015.md` | Authentication, authorization, secrets и technical/security audit | ADR-010, ADR-012–ADR-014 и принятая архитектура | ADR-016, ADR-017, Implementation Baseline и реализацию | DONE |
 | 15 | `ADR-016.md` | Reliable background and integration runtime | ADR-011–ADR-015 и принятая архитектура | ADR-017, Implementation Baseline и реализацию | DONE |
-| 16 | `ADR-017.md` | Production delivery, observability и operational readiness | ADR-012–ADR-016 и принятая архитектура | Implementation Baseline и реализацию | PROPOSED |
+| 16 | `ADR-017.md` | Production delivery, observability и operational readiness | ADR-012–ADR-016 и принятая архитектура | Implementation Baseline и реализацию | DONE |
 
 ## 6. Зависимости этапов
 
@@ -183,10 +183,10 @@ Roadmap не является технической архитектурой, �
                                                             ↓
                                                 Этап J: интеграции (завершён)
                                                             ↓
-                                         Этап K: техническая архитектура
+                         Этап K: техническая архитектура (архитектурные решения завершены)
 ```
 
-Этапы B, C, E, D, F, G, H, I и J завершены в пределах собственной ответственности. Намеренно оставленная ADR-009 этапу B сквозная семантика идентичности, полномочий, авторизации и доступа определена ADR-010 без пересмотра архитектуры этапа I. ADR-011 определил интеграционные семантические границы без пересмотра владения предметной семантикой. Основным следующим незавершённым архитектурным этапом является K.
+Этапы B, C, E, D, F, G, H, I, J и последовательность архитектурных решений Stage K завершены в пределах собственной ответственности. Намеренно оставленная ADR-009 этапу B сквозная семантика идентичности, полномочий, авторизации и доступа определена ADR-010 без пересмотра архитектуры этапа I. ADR-011 определил интеграционные семантические границы без пересмотра владения предметной семантикой. Реализация и concrete Implementation Baseline не являются завершёнными этапами этой roadmap.
 
 ## 7. Вопросы, намеренно оставленные открытыми
 
@@ -204,8 +204,8 @@ Roadmap не является технической архитектурой, �
 
 ## 8. Следующий шаг
 
-Основным следующим незавершённым архитектурным этапом остаётся этап K — **«Техническая архитектура»**. Его решения ADR-012, ADR-013, ADR-014, ADR-015 и ADR-016 приняты; Stage K остаётся ongoing.
+Архитектурная последовательность Stage K — **«Техническая архитектура»** — завершена принятием ADR-012–ADR-017.
 
-ADR-015 об authentication, authorization, secrets и technical/security audit принят, как и `ADR-016.md` о reliable background/integration runtime. `ADR-017.md` о production delivery, observability и operational readiness предложен и требует отдельного owner acceptance. Stage K остаётся ongoing, concrete Implementation Baseline и implementation не начаты, а эта roadmap не объявляет обязательным конкретный stack/provider/tooling.
+`ADR-017.md` о production delivery, observability и operational readiness принят. Следующий шаг — подготовка concrete Implementation Baseline на основе принятых архитектурных границ; этим статусным изменением Implementation Baseline и implementation не начинаются, а эта roadmap не объявляет обязательным конкретный stack/provider/tooling.
 
 Этапы B и J завершены принятием соответственно ADR-010 и ADR-011. Техническая архитектура должна реализовать их семантические границы, не пересматривая владение предметными понятиями и не превращая способы интеграции или доступа в предметную модель.

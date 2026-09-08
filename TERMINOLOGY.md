@@ -1797,3 +1797,43 @@ Storage Locator не является Document, Revision, Representation, File/b
 **Selective Community Recovery** — exceptional controlled recovery procedure для отдельной Community через isolated temporary restore copy, extraction, verification и reconciliation с current authoritative Placement.
 
 Она не является rollback production Shared Placement, ordinary import или обычной domain correction и не должна откатывать state других Communities.
+
+---
+
+# 141. Authentication Method, Factor, Challenge и Assurance Policy
+
+**Authentication Method** — связанное с Technical Identity средство аутентификации. **Authentication Factor** — категория evidence, используемого в authentication decision. **Authentication Challenge** — краткоживущий запрос аутентификационного подтверждения, созданный для конкретной попытки authentication или recovery.
+
+Предъявляемые в ответ one-time code, TOTP value, cryptographic response или другое применимое evidence/proof не являются самим Authentication Challenge. Это различие не вводит обязательную отдельную сущность response или protocol/persistence model. OTP value не является password.
+
+**Challenge Delivery Channel** — transport доставки одноразового challenge, например email, SMS или Telegram. Канал не является автоматически независимым strong factor. **Recovery Method / Channel** — средство или канал восстановления контроля над Account; оно не должно неявно обходить требуемую assurance. **Assurance Policy** — context/risk-sensitive policy допустимых methods, factors, challenges и step-up. Эти понятия не создают universal Identity domain entity.
+
+---
+
+# 142. Workload Identity
+
+**Workload Identity** — Technical Identity автоматизированного runtime/workload с explicit purpose и scope. Она не является User Account, Subject или носителем Domain Power и не требует fake System Subject.
+
+---
+
+# 143. Support Elevation и Break-glass
+
+**Support Elevation** — explicit scoped, purpose-bound, time-limited и auditable технический доступ support operator под собственной Technical Identity.
+
+**Break-glass** — exceptional explicitly activated privileged capability с усиленной assurance, ограниченными scope/time, reason, audit и обязательным termination/review. Оба понятия отличны от impersonation, Subject Representation и Domain Power.
+
+---
+
+# 144. Secret Reference и Secret Material
+
+**Secret Reference** — opaque technical handle на защищённый secret с owner/purpose/scope/version/lifecycle metadata. Он не является normal plaintext retrieval capability.
+
+**Secret Material** — защищённое credential/key-sensitive value, доступное только authorized runtime use. Оно не является ordinary configuration и никогда не включается в logs, Security Audit или domain provenance.
+
+---
+
+# 145. Security Audit
+
+**Security Audit** — append-oriented technical record security-sensitive operations с безопасной attribution, scope, target, reason/correlation и result metadata.
+
+Security Audit не является domain history/provenance, operational log/metric/trace или universal domain Audit Event. User/Community security views являются purpose-filtered projections, а не raw Security Audit.

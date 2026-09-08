@@ -1886,7 +1886,7 @@ Quarantined не означает автоматически Cancelled, Compensa
 
 # 152. Failure Domain
 
-**Failure Domain** — infrastructure scope, внутри которого общий physical/operational failure может одновременно нарушить доступность нескольких components или Placements. Он не является Community, Tenant, bounded context или гарантией независимого выживания каждой Community в Shared Placement.
+**Failure Domain** — infrastructure scope, внутри которого общий physical/operational failure может одновременно нарушить доступность нескольких components или Placements. Failure Domain не тождествен Region: один Region может содержать несколько Failure Domains. Он не является Community, Tenant, bounded context или гарантией независимого выживания каждой Community в Shared Placement.
 
 ---
 

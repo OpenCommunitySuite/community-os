@@ -1741,3 +1741,59 @@ Coordinator хранит только применимый orchestration progres
 **Shared Kernel** — минимальный набор действительно фундаментальных и стабильных technical/semantic primitives с повышенным порогом включения.
 
 Shared Kernel не является common domain model и не включает domain entities, repositories, application services, shared business rules или DTO только из-за их использования несколькими modules. Общий semantic concept не становится shared type автоматически.
+
+---
+
+# 134. Persistence Boundary и Transactional Persistence Boundary
+
+**Persistence Boundary** — логическая граница ownership, schema state и recovery responsibility для определённого persistence state. Она не является bounded context или Functional Module автоматически и не требует сама по себе отдельного server, process, database, catalog или schema.
+
+**Transactional Persistence Boundary** — Persistence Boundary, внутри которой для конкретной operation фактически доступны одна local ACID transaction и enforceable local constraints. Она ограничивает local atomicity и не предполагает distributed transaction с другой boundary.
+
+---
+
+# 135. Platform Persistence Boundary
+
+**Platform Persistence Boundary** — Persistence Boundary для state, принадлежащего platform и Control Plane responsibilities, включая применимые User Account, Subject Identity Anchor, SaaS commercial state, Community registry и Placement catalog.
+
+Она не содержит global full Subject profile и не получает ownership Community-specific Subject records или предметных фактов Community.
+
+---
+
+# 136. Community Placement Persistence Boundary
+
+**Community Placement Persistence Boundary** — authoritative Persistence Boundary Community-owned facts в resolved Community Placement.
+
+Она может быть Shared или Dedicated при одной logical persistence/isolation model. Изменение boundary или physical location не изменяет stable Community identity и domain ownership.
+
+---
+
+# 137. Community Scope и Trusted Community Context
+
+**Community Scope** — явная attribution данных или operation к конкретной Community. Для Community-owned record эта attribution является invariant и не выводится только из hostname, Tenant, Placement или object identifier.
+
+**Trusted Community Context** — сформированный из разрешённого application execution context transaction-scoped technical DB context, используемый вместе с explicit Community Scope, RLS и constraints. Он не является arbitrary client input, Subject, authorization или domain admissibility сам по себе.
+
+---
+
+# 138. Schema State / Schema Version
+
+**Schema State / Schema Version** — technical compatibility state структуры persistence boundary, необходимый для controlled migration и проверки совместимости runtime.
+
+Schema Version отличается от Placement Generation, Rule Version, Document Revision, Voting snapshot/version и других domain-significant versions.
+
+---
+
+# 139. Storage Locator
+
+**Storage Locator** — заменяемое technical указание текущего места binary content в object storage.
+
+Storage Locator не является Document, Revision, Representation, File/blob identity, другим domain identity или authorization credential. Его изменение не изменяет автоматически identity связанного domain concept.
+
+---
+
+# 140. Selective Community Recovery
+
+**Selective Community Recovery** — exceptional controlled recovery procedure для отдельной Community через isolated temporary restore copy, extraction, verification и reconciliation с current authoritative Placement.
+
+Она не является rollback production Shared Placement, ordinary import или обычной domain correction и не должна откатывать state других Communities.

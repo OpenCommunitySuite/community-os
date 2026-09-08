@@ -1881,3 +1881,41 @@ Quarantined не означает автоматически Cancelled, Compensa
 # 151. Cancellation Request
 
 **Cancellation Request** — запрос прекратить future execution на explicit safe boundary. Cancellation Requested не означает, что execution уже остановлено, и не является Compensation. Committed local/external effects не отменяются автоматически; Compensation/Correction является отдельным context-owned и historically traceable action.
+
+---
+
+# 152. Failure Domain
+
+**Failure Domain** — infrastructure scope, внутри которого общий physical/operational failure может одновременно нарушить доступность нескольких components или Placements. Он не является Community, Tenant, bounded context или гарантией независимого выживания каждой Community в Shared Placement.
+
+---
+
+# 153. Immutable Artifact и Promotion
+
+**Immutable Artifact** — uniquely identified build output, содержание которого не изменяется между verification и Production. **Artifact Promotion** — controlled перенос той же artifact identity через Environment boundaries без отдельной production rebuild.
+
+Environment-specific configuration, Secret References/material, endpoints и credentials не являются частью immutable artifact content автоматически.
+
+---
+
+# 154. Runtime Readiness, Liveness и Draining
+
+**Runtime Readiness** — technical condition, в котором runtime instance способен принимать новую работу своего типа. Она не является Community Readiness или Capability Readiness.
+
+**Liveness** — condition жизнеспособности самого process; temporary external dependency failure не означает автоматически non-live process. **Draining** — condition, в котором instance прекратил admission новой работы и имеет bounded opportunity завершить, checkpoint или безопасно прервать уже начатую работу.
+
+---
+
+# 155. Operational Maintenance и Degraded Mode
+
+**Operational Maintenance** — scoped technical admission condition для planned/required operational change. **Degraded Mode** — scoped condition reduced availability конкретных functions/dependencies, при котором продолжаются только explicitly safe operations.
+
+Они не являются Community lifecycle state, Community/Capability Readiness или domain fact и не обходят authorization, domain admissibility, tenant isolation и current-sensitive gates.
+
+---
+
+# 156. Capacity Envelope
+
+**Capacity Envelope** — измеримый operating range конкретной runtime, storage, Workload Class, Placement или provider boundary с определимыми saturation signals, headroom и response options.
+
+Capacity Envelope не является fixed universal limit Community/users/objects, commercial Quota или обещанием absolute tenant isolation; exact values и scaling rules принадлежат Implementation Baseline/operations policy.

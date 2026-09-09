@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="TngTech.ArchUnitNET.xUnitV3" />
+    <PackageReference Include="xunit.v3" />
+    <ProjectReference Include="../../src/CommunityOS.Modules.Community/CommunityOS.Modules.Community.csproj" />
+    <ProjectReference Include="../../src/CommunityOS.Web/CommunityOS.Web.csproj" />
+    <ProjectReference Include="../../src/CommunityOS.Worker/CommunityOS.Worker.csproj" />
+  </ItemGroup>
+</Project>

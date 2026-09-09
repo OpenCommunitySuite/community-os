@@ -7,7 +7,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCommunityModule();
 
 builder.Services.AddHealthChecks()
-    .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["startup", "live", "ready"]);
+    .AddCheck("startup", () => HealthCheckResult.Healthy(), tags: ["startup"])
+    .AddCheck("live", () => HealthCheckResult.Healthy(), tags: ["live"])
+    .AddCheck("ready", () => HealthCheckResult.Healthy(), tags: ["ready"]);
 
 var app = builder.Build();
 

@@ -10,17 +10,19 @@ namespace CommunityOS.ArchitectureTests;
 
 public class ModuleBoundaryTests
 {
+    private static readonly ReflectionAssembly WebAssembly = ReflectionAssembly.Load("CommunityOS.Web");
+    private static readonly ReflectionAssembly WorkerAssembly = ReflectionAssembly.Load("CommunityOS.Worker");
+
     private static readonly Architecture Architecture = new ArchLoader()
         .LoadAssemblies(
-            ReflectionAssembly.Load("CommunityOS.Web"),
-            ReflectionAssembly.Load("CommunityOS.Worker"),
+            WebAssembly,
+            WorkerAssembly,
             typeof(Modules.Community.Infrastructure.CommunityModule).Assembly)
         .Build();
 
     private const string DomainNamespace = @"^CommunityOS\.Modules\.[^.]+\.Domain(\..+)?$";
     private const string ApplicationNamespace = @"^CommunityOS\.Modules\.[^.]+\.Application(\..+)?$";
     private const string InfrastructureNamespace = @"^CommunityOS\.Modules\.[^.]+\.Infrastructure(\..+)?$";
-    private const string HostNamespace = @"^CommunityOS\.(Web|Worker)(\..+)?$";
 
     [Fact]
     public void Domain_Does_Not_Depend_On_Application_Infrastructure_Or_Hosts()
@@ -30,7 +32,7 @@ public class ModuleBoundaryTests
             .Should().NotDependOnAny(Types().That()
                 .ResideInNamespaceMatching(ApplicationNamespace)
                 .Or().ResideInNamespaceMatching(InfrastructureNamespace)
-                .Or().ResideInNamespaceMatching(HostNamespace))
+                .Or().ResideInAssembly(WebAssembly, WorkerAssembly))
             .Because("Domain must stay independent of Application, Infrastructure and Hosts")
             .WithoutRequiringPositiveResults();
 
@@ -44,7 +46,7 @@ public class ModuleBoundaryTests
             .That().ResideInNamespaceMatching(ApplicationNamespace)
             .Should().NotDependOnAny(Types().That()
                 .ResideInNamespaceMatching(InfrastructureNamespace)
-                .Or().ResideInNamespaceMatching(HostNamespace))
+                .Or().ResideInAssembly(WebAssembly, WorkerAssembly))
             .Because("Application must stay independent of Infrastructure and Hosts")
             .WithoutRequiringPositiveResults();
 

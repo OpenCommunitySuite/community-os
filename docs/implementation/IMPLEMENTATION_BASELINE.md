@@ -17,11 +17,11 @@
 
 Repository является monorepo, backend — logical modular monolith. Functional Module boundaries выражаются явно и проверяются автоматически там, где это объективно возможно. Bounded Context не тождествен runtime module/project/service.
 
-Web/API Host и Worker Host запускаются отдельно, но используют общую Domain/Application реализацию. Не фиксируются преждевременно десятки projects; одновременно недопустим giant project без границ. Exact solution/project layout устанавливается bootstrap task согласно [ADR-018](../architecture/adr/ADR-018.md).
+Web/API Host и Worker Host запускаются отдельно, но используют общую Domain/Application реализацию. Не фиксируются преждевременно десятки projects; одновременно недопустим giant project без границ. Concrete bootstrap composition определена в разделе 16 согласно [ADR-018](../architecture/adr/ADR-018.md).
 
 Не вводятся автоматически Generic Repository, universal Unit of Work, MediatR/CQRS framework, AutoMapper или иные enterprise patterns без конкретной необходимости.
 
-Exact .NET major/LTS, SDK и package versions должны быть проверены по актуальному support/compatibility state и закреплены reproducible bootstrap manifest до первого application build; этот документ не угадывает будущую версию.
+Initial supported application line — .NET 10 LTS с Target Framework `net10.0`; ASP.NET Core и EF Core используют major 10, Npgsql и `Npgsql.EntityFrameworkCore.PostgreSQL` — совместимую major-линию 10. Exact SDK и package patches закрепляются reproducibly в bootstrap configuration и обновляются по version policy раздела 16.
 
 ## 3. PostgreSQL persistence (Q3)
 
@@ -36,7 +36,7 @@ Exact .NET major/LTS, SDK и package versions должны быть провер
 - Local cross-module ACID допустим только внутри одного resolved persistence boundary согласно ADR-013/014.
 - Initial connection pooling — Npgsql application pooling. PgBouncer не добавляется без demonstrated need.
 
-До bootstrap фиксируются конкретный supported PostgreSQL major и current-minor policy после актуальной проверки Npgsql/EF/runtime compatibility и достаточного support horizon. Exact schema, `numeric(p,s)`, RLS SQL, isolation levels, migration library details и pool sizes deferred.
+Initial supported PostgreSQL major — 18. Development, integration tests и production используют проверенный supported servicing minor линии 18.x. Concrete servicing/image pin должен быть reproducible и не использует floating `latest`; он обновляется по version policy раздела 16. Exact schema, `numeric(p,s)`, RLS SQL, isolation levels, migration library details и pool sizes deferred.
 
 ## 4. Identifiers, time, numeric и concurrency (Q4)
 
@@ -147,6 +147,8 @@ Normal CI не зависит от production credentials или live Telegram/P
 
 Build artifacts имеют immutable Build Identity linked to Source Revision. Accepted artifact продвигается без rebuild. Compiler/tests/architecture gates authoritative независимо от human- или AI-assisted implementation.
 
+Concrete .NET testing baseline определён разделом 16 и [TESTING.md](TESTING.md): xUnit.net v3 линии 4.x на Microsoft Testing Platform v2, ArchUnitNET и Testcontainers for .NET с real PostgreSQL 18.x. Standard entry points — `dotnet build` и `dotnet test`.
+
 ## 11. Packaging (Q11)
 
 Initial packaging следует ADR-018:
@@ -229,8 +231,8 @@ MQTT deferred; Resource Accounting работает без него. Future flow
 
 ## 14. Explicit deferrals
 
-- exact .NET/PostgreSQL/package versions until verified bootstrap pinning;
-- exact `.sln`/`.csproj` and directory decomposition;
+- exact servicing/patch pins после первоначальной bootstrap фиксации и их последующие controlled updates внутри принятых major-линий;
+- дальнейшая `.sln`/`.csproj` и directory decomposition за пределами минимального bootstrap состава;
 - DB schema/migrations/RLS SQL/isolation/token representation;
 - endpoint catalog and API tooling;
 - Argon2/session/CSRF libraries and parameters;
@@ -243,4 +245,69 @@ MQTT deferred; Resource Accounting работает без него. Future flow
 
 ## 15. Readiness to implement
 
-Implementation Baseline decisions Q1–Q12 are accepted. Application implementation has not started. Before the first code-producing bootstrap task, it must pin actual supported toolchain/database/package versions and define exact commands without changing the architectural decisions above.
+Implementation Baseline decisions Q1–Q12 и bootstrap decisions B1–B4 are accepted. Application implementation has not started. Следующий code-producing task — строго ограниченный Application Bootstrap из раздела 16; он фиксирует concrete servicing/package/image pins в repository configuration и создаёт только согласованный skeleton без business functionality.
+
+## 16. Accepted bootstrap decisions B1–B4
+
+### B1. Toolchain и database versions
+
+- Initial supported application major — .NET 10 LTS; Target Framework — `net10.0`; ASP.NET Core используется в той же major-линии.
+- EF Core initial major — 10.
+- Npgsql и `Npgsql.EntityFrameworkCore.PostgreSQL` используют совместимую major-линию 10.
+- PostgreSQL initial supported database major — 18. Development, integration tests и production используют проверенный supported servicing minor 18.x.
+- Concrete .NET SDK, NuGet packages и PostgreSQL container image фиксируются reproducibly в repository bootstrap configuration. Floating `latest` не является version contract; image pin должен иметь однозначную immutable identity, достаточную для воспроизведения.
+- Servicing/patch updates внутри принятых major-линий выполняются как controlled dependency/toolchain update с build и applicable tests и сами по себе не требуют нового ADR.
+- Переход на новую .NET, EF Core, Npgsql или PostgreSQL major-линию является отдельным controlled upgrade decision. PostgreSQL major upgrade требует compatibility, migration, backup, Staging и rollback-or-roll-forward review.
+
+Текущие servicing numbers не являются вечными архитектурными константами. На момент принятия B1 официально поддерживаются .NET 10 LTS, EF Core 10, Npgsql provider 10 и PostgreSQL 18; concrete bootstrap pins проверяются повторно непосредственно при создании configuration files.
+
+### B2. Solution, project и module boundaries
+
+`Bounded Context != Functional Module != .NET Project`. Physical solution ориентируется прежде всего на Functional Module boundaries, а не на mechanical project-per-layer или project-per-Bounded-Context.
+
+- Реально реализуемый Functional Module первоначально имеет один основной production assembly/project.
+- Domain, Application и Infrastructure внутри module логически разделены namespaces/folders и architecture tests.
+- Separate Domain/Application/Infrastructure projects вводятся только при доказанной необходимости более сильной compile-time isolation.
+- Direct dependencies между implementation assemblies разных Functional Modules запрещены. Synchronous cross-module interaction использует public Module Contract.
+- Lightweight `*.Contracts` project создаётся только при появлении реального cross-module consumer; пустые Contracts projects заранее не создаются.
+- Module Contract не содержит EF entities, `DbContext`, repositories, internal Domain entities или Infrastructure services.
+- Web и Worker — separate executable composition roots. Hosts владеют wiring/technical surfaces, но не business logic и не обходят Application layer.
+- BuildingBlocks/Shared Kernel остаётся минимальным. `Common`/`Utils` dumping ground запрещён; shared project появляется только для доказанного shared concept/capability.
+- EF mapping ownership принадлежит Functional Module, но module ownership не требует отдельного `DbContext` для каждого module или Bounded Context и не отменяет допустимый local cross-module ACID внутри одного resolved persistence boundary.
+- Compiler/project graph является первой линией dependency protection; architecture tests — второй линией для объективно формализуемых правил.
+- Frontend находится в monorepo, но вне .NET project graph.
+- Пустые projects для будущих Modules/Bounded Contexts заранее не создаются.
+
+### B3. Testing и tooling baseline
+
+- Test framework — xUnit.net v3 линии 4.x с Microsoft Testing Platform v2; standard test entry point — `dotnet test`.
+- Mandatory external assertion library отсутствует: baseline использует xUnit assertions. Fluent Assertions 8 не включён, поскольку commercial use требует paid license. Дополнительная assertion library возможна только при обоснованной необходимости и license review.
+- Architecture tests используют ArchUnitNET и его xUnit v3 integration. Compiler/project graph остаётся первой линией защиты; architecture tests дополняют её объективно формализуемыми structural guarantees.
+- PostgreSQL integration tests используют Testcontainers for .NET и real PostgreSQL 18.x с concrete reproducible verified image pin. SQLite, EF InMemory и mocks не доказывают PostgreSQL/RLS semantics.
+- Mandatory mocking framework отсутствует. Простые fakes/stubs предпочтительны, когда достаточны; mocking library добавляется только при реальной необходимости.
+- Test boundaries: `CommunityOS.UnitTests`, `CommunityOS.IntegrationTests`, `CommunityOS.ArchitectureTests`. Пустой UnitTests project и test project per Functional Module заранее не создаются.
+- Initial architecture tests проверяют как минимум: Domain не зависит от Application, Infrastructure или Hosts; Application не зависит от Infrastructure или Hosts; cross-module implementation dependencies запрещены. Дополнительные host/module rules добавляются только когда корректно формализуемы.
+- Standard developer/CI entry points — `dotnet build` и `dotnet test`.
+- Code coverage допустим как diagnostic metric; arbitrary coverage threshold не является acceptance criterion.
+- Mandatory development/test dependencies должны быть Open Source и разрешать бесплатное commercial use. Dependency с paid/commercial-use licensing не становится mandatory baseline без отдельного обоснованного решения.
+
+### B4. Первый Application Bootstrap
+
+Первый implementation increment после принятия B1–B4 — **Application Bootstrap**, не business vertical slice. Он создаёт только минимальные production projects:
+
+- `CommunityOS.Web`;
+- `CommunityOS.Worker`;
+- `CommunityOS.Modules.Community`.
+
+`CommunityOS.Modules.Community` является реальной Functional Module boundary, а не Registry/Core/Common supermodule. Bootstrap не создаёт искусственные Domain entities/use cases ради наполнения и не создаёт будущие modules заранее.
+
+Bootstrap явно не реализует Control Plane, authentication, User Account, Subject, fake user/Subject, temporary authorization model, Finance, import, Resource Accounting или business endpoints.
+
+- Web bootstrap — executable composition root только с необходимыми technical/operational surfaces, включая applicable health/readiness/liveness ADR-017. Operational endpoints не являются Web/Public domain API.
+- Worker bootstrap — independently runnable composition root без Persistent Work/outbox/inbox/scheduler/retry/quarantine engine.
+- Integration bootstrap использует Testcontainers, pinned PostgreSQL 18.x и real Npgsql connection для минимального connectivity smoke test без domain schema.
+- Bootstrap не создаёт fake/global `DbContext`, domain database schema, empty migration, production migration runner или RLS schema implementation. EF Core/Npgsql dependencies могут быть подготовлены, но concrete `DbContext`/persistence composition появляется с первым real persistent slice.
+- Bootstrap не создаёт BuildingBlocks/SharedKernel, `*.Contracts`, frontend или Platform Public Site projects.
+- `CommunityOS.ArchitectureTests` и `CommunityOS.IntegrationTests` создаются. `CommunityOS.UnitTests` создаётся только при появлении real Domain behavior; fake behavior ради unit test запрещён.
+
+Bootstrap accepted, когда pinned .NET 10 toolchain воспроизводимо собирает solution; Web и Worker запускаются независимо; Community Functional Module участвует в composition; architecture tests реально выполняются; PostgreSQL 18 Testcontainers connectivity smoke test проходит; `dotnet build` и `dotnet test` проходят; business functionality отсутствует.

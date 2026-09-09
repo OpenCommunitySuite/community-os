@@ -6,7 +6,9 @@
 
 Tests выбираются по гарантии, которую необходимо доказать, а не по фиксированной test pyramid, названию framework или arbitrary coverage percentage. Один тест может покрывать несколько levels; название test type не заменяет доказательство relevant boundary.
 
-Exact .NET/JavaScript test frameworks, container-test library, CI vendor и commands выбираются bootstrap task и не являются частью этого документа.
+.NET testing baseline: xUnit.net v3 линии 4.x, Microsoft Testing Platform v2 и standard entry point `dotnet test`. Architecture tests используют ArchUnitNET с xUnit v3 integration; PostgreSQL integration tests — Testcontainers for .NET. Concrete package versions и PostgreSQL image фиксируются reproducibly при bootstrap. JavaScript test framework и CI vendor остаются deferred.
+
+Mandatory external assertion и mocking libraries отсутствуют. Используются xUnit assertions; простые fakes/stubs предпочтительны, когда достаточны. Fluent Assertions 8 не входит в baseline из-за paid commercial-use licensing. Любая обязательная development/test dependency должна быть Open Source и разрешать бесплатное commercial use либо требовать отдельного обоснованного решения.
 
 ## 2. Test classes
 
@@ -22,16 +24,16 @@ Exact .NET/JavaScript test frameworks, container-test library, CI vendor и comm
 
 Machine-checkable проверки должны объективно контролировать:
 
-- Functional Module dependency directions;
-- отсутствие forbidden Domain → infrastructure/transport references;
-- separate Web/API и Worker compositions;
-- отсутствие direct cross-boundary persistence access;
-- explicit public contracts;
-- запрет direct serialization EF/Domain models как API contracts, где это проверяемо.
+- Domain не зависит от Application, Infrastructure или Hosts;
+- Application не зависит от Infrastructure или Hosts;
+- direct cross-module implementation dependencies запрещены;
+- separate Web/API и Worker compositions и дополнительные module/host rules — только там, где их можно корректно формализовать.
+
+Compiler/project graph является первой линией защиты; ArchUnitNET tests — второй. Architecture tests не должны имитировать гарантию, которую выбранная physical project graph фактически не обеспечивает.
 
 ### PostgreSQL integration и RLS
 
-Проверки выполняются против real supported PostgreSQL. Они покрывают migrations, transactions, optimistic concurrency, targeted locking where introduced, trusted transaction-scoped Community context, connection reuse/pooling safety, RLS isolation и fail-closed behavior.
+Проверки выполняются через Testcontainers for .NET против real PostgreSQL 18.x с concrete verified reproducible image pin. Они покрывают migrations, transactions, optimistic concurrency, targeted locking where introduced, trusted transaction-scoped Community context, connection reuse/pooling safety, RLS isolation и fail-closed behavior.
 
 EF InMemory, SQLite и mocks могут ускорять отдельные tests, но не являются доказательством PostgreSQL/RLS semantics.
 
@@ -83,7 +85,7 @@ Artifact smoke test подтверждает startup/readiness основных 
 
 Могут существовать fast local/PR suite и более полные integration/security/migration/recovery suites. Classification определяется duration/dependencies/risk; critical merge guarantee не может быть навсегда вынесена в необязательный manual run.
 
-Exact commands, parallelism, retries, test database lifecycle и schedule фиксируются после bootstrap.
+Standard entry points — `dotnet build` и `dotnet test`. Exact suite selection, parallelism, retries, test database lifecycle и schedule фиксируются по мере появления соответствующих tests.
 
 ## 4. Test data и observability
 
@@ -104,3 +106,9 @@ Implementation slice готов к PR, когда:
 - known untested risk явно deferred/accepted, а не скрыт;
 - architecture checks не обходятся;
 - diff не содержит credentials/PII/unrelated implementation.
+
+## 7. Bootstrap test boundaries
+
+Первый Application Bootstrap создаёт `CommunityOS.ArchitectureTests` и `CommunityOS.IntegrationTests`. Integration suite поднимает pinned PostgreSQL 18.x, открывает real Npgsql connection и выполняет minimal connectivity smoke test без domain schema.
+
+`CommunityOS.UnitTests` появляется только вместе с real Domain behavior; пустой project и fake behavior ради демонстрации теста не создаются. Test project per Functional Module также не создаётся заранее.

@@ -47,10 +47,14 @@ Generated implementation проходит те же compiler, formatting, static
 
 ## 5. Reproducibility и data safety
 
-Local и CI workflows должны использовать один reproducible set of build/test commands. Exact commands фиксируются bootstrap task после создания toolchain manifests.
+Local и CI workflows должны использовать один reproducible set of build/test commands. Для .NET baseline standard entry points — `dotnet build` и `dotnet test`; Application Bootstrap фиксирует необходимые toolchain/package/image pins в repository configuration.
 
 Secrets, production credentials и real personal data запрещены в tests, fixtures, examples, logs и documentation. Используются synthetic/minimized data и controlled external sandboxes.
 
 ## 6. Git/PR discipline
 
 Применяется root [AGENTS.md](../../AGENTS.md): clean baseline, task branch, complete diff review, task-only commit, normal push и PR в `main`. Merge, force push, history rewrite и branch deletion выполняются только в пределах явно разрешённой policy.
+
+## 7. Первый implementation increment
+
+Первый code-producing increment — ограниченный **Application Bootstrap** согласно [B4](IMPLEMENTATION_BASELINE.md#b4-первый-application-bootstrap), не business vertical slice. Он создаёт только согласованные hosts, Community Functional Module и architecture/integration test boundaries; business functionality, domain schema и reliable-work engine в него не входят.

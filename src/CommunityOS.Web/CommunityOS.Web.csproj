@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\CommunityOS.Modules.Community\CommunityOS.Modules.Community.csproj" />
+  </ItemGroup>
+
+</Project>

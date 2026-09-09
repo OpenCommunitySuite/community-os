@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CommunityOS.Modules.Community/CommunityOS.Modules.Community.csproj" />
+    <Project Path="src/CommunityOS.Web/CommunityOS.Web.csproj" />
+    <Project Path="src/CommunityOS.Worker/CommunityOS.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CommunityOS.ArchitectureTests/CommunityOS.ArchitectureTests.csproj" />
+    <Project Path="tests/CommunityOS.IntegrationTests/CommunityOS.IntegrationTests.csproj" />
+  </Folder>
+</Solution>

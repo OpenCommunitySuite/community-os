@@ -58,7 +58,7 @@ BP-ACCESS-001 не создаёт и не изменяет автоматиче�
 
 Эти факты могут быть основаниями или входными данными процесса, но сохраняют собственную предметную семантику.
 
-BP-ACCESS-001 относится к human-access через User Account. Workload Identity, Support Elevation, Break-glass, Integration Identity и иные технические identities регулируются ADR-015 и не входят в данный пользовательский процесс.
+BP-ACCESS-001 относится к human-access через User Account. Workload Identity, Support Elevation, Break-glass, Integration Identity и иные технические identities регулируются ADR-015 и не входят в данный пользовательский процесс. Технический Community Admin, bootstrap/admin recovery и аналогичный административно-технический доступ ADR-015 также находятся вне BP-ACCESS-001 в той мере, в которой не выполняется предметное действие от определимого Community Subject; если предметная семантика требует Subject, техническая административная роль его не заменяет.
 
 ## 4. Связанные понятия
 
@@ -92,7 +92,7 @@ BP-ACCESS-001 относится к human-access через User Account. Worklo
 
 **Access Decision** — исторически значимое решение о предоставлении, изменении или отказе в доступе там, где отдельное решение требуется.
 
-**Access Grant** используется в смысле ADR-015: предоставление определённых Access Rights определённому User Account в определённом Scope с применимыми условиями и историей отзыва/истечения.
+**Access Grant** используется в смысле ADR-015. В рамках настоящего human-access процесса его grantee является User Account; более широкие grants для допустимых Technical Identities остаются за пределами этого BP.
 
 Рабочие понятия настоящего BP не становятся автоматически отдельными фундаментальными сущностями DOMAIN_MODEL.
 

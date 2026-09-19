@@ -1119,22 +1119,23 @@ Candidate B = 600
 
 ## 41. Нормативные последствия
 
-Предварительно новый ADR и новая фундаментальная сущность не требуются.
+Новый ADR и новая фундаментальная сущность не требуются.
 
-После review следует проверить необходимость точечной синхронизации DOMAIN_MODEL/TERMINOLOGY:
+По итогам внутреннего и независимого review выполнена точечная нормативная синхронизация:
 
-- уточнить Refund как новый Payment, исполняющий Financial Obligation to return;
-- зафиксировать отсутствие фундаментальной Refund entity;
-- при необходимости уточнить влияние confirmed return obligation на доступность исходной суммы для Initial Allocation.
+- DOMAIN_MODEL 0.12 — Refund определён как специализированный финансовый процесс/смысл: ordinary Financial Obligation to return исполняется новым Payment; закреплены return origin и отсутствие universal 1:1 original Payment ↔ Refund;
+- TERMINOLOGY 0.10 — уточнены Refund, контекстное Financial Obligation to return и процессные derived values refundable/committed refundable amount;
+- BP-FIN-ALLOCATION-001 — current effective financial use зеркально учитывает committed refundable amount при явной связи return obligation с конкретной source financial amount/state;
+- REFERENCE_CANDIDATE_MATRIX — REF-FIN-005 закрыт решением, следующим процессом определён BP-FIN-004.
 
-ADR-006 уже содержит базовый инвариант:
+`Refundable amount` и `committed refundable amount` не становятся фундаментальными сущностями или сохраняемыми универсальными состояниями.
+
+ADR-006 содержательно изменять не потребовалось; его базовый инвариант сохраняется:
 
 ```text
 Refund = separate money movement
 Refund ≠ modification of original Payment
 ```
-
-и предварительно не требует нового архитектурного решения.
 
 ## 42. Решения review
 
@@ -1157,9 +1158,8 @@ Refund ≠ modification of original Payment
 
 ## 43. Следующий шаг
 
-1. внутренний review против ADR-004/005/006/010/011, DOMAIN_MODEL, TERMINOLOGY, BP-FIN-BANK-001, BP-FIN-ALLOCATION-001, BP-FIN-001 и BP-FIN-002;
-2. проверка сценариев пилотного СТ и supplier refund;
-3. независимый review Claude;
-4. point fixes;
-5. нормативная синхронизация и закрытие REF-FIN-005;
-6. переход к BP-FIN-004 — разовое/внецикловое начисление.
+После финальной сверки настоящего Draft и синхронизированных нормативных документов BP-FIN-003 может быть принят как рабочая предметная основа.
+
+Следующий финансовый процесс — `BP-FIN-004 — разовое/внецикловое начисление`.
+
+Зачёт/set-off/netting без реального движения денег остаётся вне scope настоящего BP и требует отдельного предметного рассмотрения, если появится практический сценарий пилота.

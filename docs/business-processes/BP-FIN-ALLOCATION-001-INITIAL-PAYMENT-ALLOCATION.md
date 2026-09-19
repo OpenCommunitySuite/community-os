@@ -740,7 +740,7 @@ Water       → 400
 
 Результат остаётся Proposal/Requires Decision; автоматический расчёт сам по себе не создаёт Payment Allocation.
 
-## 33. Инварианты процесса
+## 32. Инварианты процесса
 
 1. Payment ≠ Payment Allocation.
 2. Payment Allocation ≠ Allocation Proposal.
@@ -760,21 +760,21 @@ Water       → 400
 16. Newly confirmed Allocation within a confirmation scope cannot exceed the Payment amount available at confirmation time.
 17. Total current effective financial use of a Payment cannot exceed the Payment amount.
 18. Partial Allocation is valid.
-18. Unallocated Remainder ≠ Advance.
-19. Unallocated Remainder ≠ Overpayment.
-20. Arithmetic excess ≠ automatic Overpayment.
-21. Arithmetic excess ≠ automatic Advance.
-22. No fake Financial Obligation is created to consume a remainder.
-23. Payer Subject may differ from obligated Subject.
-24. Cross-subject Allocation requires explicit sufficient basis.
-25. Cross-account Allocation requires explicit sufficient basis.
-26. Personal Account is context, not Payment Allocation.
-27. Allocation Proposal must be revalidated when significant inputs change.
-28. Concurrent processing must not over-allocate Payment.
-29. Allocation correction does not rewrite the source Payment.
-30. Refund ≠ Reallocation.
-31. Allocation does not create Bank Transaction.
-32. Allocation does not depend on payment channel.
+19. Unallocated Remainder ≠ Advance.
+20. Unallocated Remainder ≠ Overpayment.
+21. Arithmetic excess ≠ automatic Overpayment.
+22. Arithmetic excess ≠ automatic Advance.
+23. No fake Financial Obligation is created to consume a remainder.
+24. Payer Subject may differ from obligated Subject.
+25. Cross-subject Allocation requires explicit sufficient basis.
+26. Cross-account Allocation requires explicit sufficient basis.
+27. Personal Account is context, not Payment Allocation.
+28. Allocation Proposal must be revalidated when significant inputs change.
+29. Concurrent processing must not over-allocate Payment.
+30. Allocation correction does not rewrite the source Payment.
+31. Refund ≠ Reallocation.
+32. Allocation does not create Bank Transaction.
+33. Allocation does not depend on payment channel.
 34. Initial Allocation applies to both incoming and outgoing Payment where the financial semantics supports it.
 35. Advance ≠ Payment Allocation.
 36. Overpayment ≠ Payment Allocation and is not a target of Initial Allocation.

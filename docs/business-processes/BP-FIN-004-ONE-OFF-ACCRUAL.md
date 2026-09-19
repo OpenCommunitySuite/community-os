@@ -137,10 +137,29 @@ Accrual может:
 
 - создать одно Financial Obligation;
 - участвовать в создании нескольких Financial Obligations;
+- определить/зафиксировать финансовый результат для obligation, которое предметно возникло из иного основания;
 - не создавать obligation при нулевом либо ином допустимом результате;
 - иметь другой допустимый финансовый результат согласно специализированной семантике.
 
 Универсальная кардинальность `1 Accrual = 1 Financial Obligation` не вводится.
+
+### 7.1. Obligation inception ≠ Accrual confirmation
+
+Момент возникновения Financial Obligation не обязан совпадать с моментом технического или предметного confirmation Accrual.
+
+Например, компетентное решение может установить, что обязательство возникает 1 сентября, а расчёт/фиксация индивидуальной суммы в Community OS выполняется 5 сентября.
+
+Если applicable semantics устанавливает obligation inception независимо от Accrual recording:
+
+```text
+business basis / rule
+→ obligation inception
+→ later Accrual calculation/recording
+```
+
+Community OS сохраняет оба момента и не подменяет их друг другом.
+
+Настоящий BP не backdate-ит confirmation event, но допускает исторически определимый obligation inception на достаточном основании.
 
 ## 8. Стороны Financial Obligation
 
@@ -260,6 +279,14 @@ Resolved target set является частью process provenance, а не о
 обычно означает набор объяснимых обязательств соответствующих сторон, а не одно обязательство «группы участков» на 50 000.
 
 Совместное/солидарное обязательство допускается только если существует отдельное предметное основание, а не как следствие batch processing.
+
+Также не вводится универсальная кардинальность:
+
+```text
+1 target case = 1 Accrual identity
+```
+
+Одно общее решение/расчётное действие может иметь несколько target-specific результатов, а специализированная семантика может требовать отдельных Accrual identities. Архитектура на этом этапе требует не конкретной cardinality, а того, чтобы каждый historically significant target result, его basis, inputs, liable party и Financial Obligation были объяснимы.
 
 ## 14. Accrual Proposal / Preview
 
@@ -477,6 +504,8 @@ first correct recognition in September
 
 Late initial recognition не переписывает system history так, будто техническая фиксация произошла в прошлом.
 
+При этом Financial Obligation могло предметно возникнуть раньше записи Accrual, если это прямо следует из historical basis/rule. В таком случае obligation inception и late Accrual recording сохраняются как разные временные факты.
+
 Если historical Accrual уже существовал и теперь пересчитывается — это BP-FIN-005.
 
 ## 27. Due Date
@@ -561,6 +590,8 @@ new Accrual / new Obligation
 новый obligation может изменить возможность их последующего применения, но не связывает их с obligation сам по себе.
 
 Фактическое применение средств выполняется соответствующим Payment Allocation/Reallocation/Advance process согласно применимой семантике.
+
+Applicable policy может координировать создание obligation и немедленное применение уже существующего Advance/Payment в одном пользовательском или автоматическом business interaction, но это остаются отдельные domain actions/results. Сам Accrual не превращается в Payment Allocation.
 
 ## 31. Debt / Overdue
 
@@ -1083,48 +1114,82 @@ current/latest rule
 ≠ automatically applicable historical rule
 ```
 
+### 45.26. Obligation arose before Accrual recording
+
+Decision dated 1 September validly establishes a target contribution and rule says obligation inception = 1 September.
+
+Individual calculation/confirmation in Community OS occurs 5 September.
+
+```text
+obligation inception = 1 Sep
+Accrual calculation/recording = 5 Sep
+due date = 1 Oct
+```
+
+System does not rewrite recording time to 1 September and does not shift obligation inception to 5 September merely for technical convenience.
+
+### 45.27. Immediate application of existing Advance is coordinated, not merged
+
+Owner has purpose-compatible Advance 1000.
+
+New Obligation = 700.
+
+Applicable policy allows automatic application immediately after obligation creation.
+
+One business interaction may produce:
+
+```text
+Accrual / Obligation
++
+separate Advance application / Payment Allocation result
+```
+
+Accrual itself still does not become Allocation.
+
 ## 46. Инварианты
 
 1. One-off/out-of-cycle is process initiation/timing semantics, not a new fundamental Accrual type.
 2. BP-FIN-004 creates initial Accrual; it does not correct/recalculate/cancel an existing confirmed Accrual.
 3. Negative Accrual is not a universal correction/storno mechanism.
 4. Accrual ≠ Financial Obligation.
-5. Accrual may create one or multiple Financial Obligations according to applicable semantics.
-6. Personal Account ≠ debtor Subject.
-7. Object/Plot ≠ debtor Subject.
-8. Voting rule does not define financial liability automatically.
-9. Liable party must be determined from applicable business basis/rule.
-10. Fake Unknown Debtor is not created.
-11. Group selection criteria and resolved target set remain historically explainable.
-12. Later group/ownership/membership changes do not silently rewrite confirmed Accrual.
-13. Group Accrual does not imply one joint group obligation.
-14. Accrual Proposal/Preview ≠ confirmed Accrual.
-15. Explicit fixed amount may be valid without artificial Tariff when basis directly defines it.
-16. Operator-entered amount alone is not sufficient accrual basis.
-17. Tariff ≠ full Accrual Rule.
-18. Accrual Article ≠ basis/rule/tariff/obligation.
-19. Resource fact ≠ Accrual.
-20. Penalty requires specialized applicable rule; arbitrary manual penalty is not allowed.
-21. Amount requires currency; implicit conversion is not defined.
-22. Zero calculation does not require a fake zero Financial Obligation.
-23. Period/date semantics remain distinct.
-24. Arbitrary accrual date ≠ arbitrary backdating.
-25. Late first recognition can remain Initial Accrual when no historical Accrual existed.
-26. Existing historical Accrual requiring change belongs to BP-FIN-005.
-27. Due Date ≠ Accrual date.
-28. One-off Accrual does not replace/suppress regular Accrual without explicit semantics.
-29. Equal date/amount/article/account does not prove duplicate.
-30. Technical retry ≠ new Accrual.
-31. New Accrual/Obligation does not automatically allocate existing Payment/Advance/Unallocated Remainder.
-32. Accrual does not automatically create Expense, Supplier Obligation, Budget Item or Funding Source.
-33. Payment Intent/recommended payment ≠ Accrual.
-34. Confirmation requires revalidation of materially significant inputs.
-35. Interdependent target scope is not silently partially confirmed.
-36. Independent target cases may be confirmed separately only when applicable semantics allow it.
-37. Technical access right ≠ domain authority.
-38. Confirmed Accrual is not silently edited/deleted.
-39. Correction/recalculation/cancellation after confirmation belongs to BP-FIN-005 or specialized owning process.
-40. No universal Accrual Batch, Accrual Proposal, Correction or Storno entity is introduced.
+5. Accrual may create one or multiple Financial Obligations or determine a result for an obligation arising from another sufficient basis.
+6. Obligation inception ≠ Accrual confirmation/recording automatically.
+7. No universal 1 target case = 1 Accrual identity cardinality is introduced.
+8. Personal Account ≠ debtor Subject.
+9. Object/Plot ≠ debtor Subject.
+10. Voting rule does not define financial liability automatically.
+11. Liable party must be determined from applicable business basis/rule.
+12. Fake Unknown Debtor is not created.
+13. Group selection criteria and resolved target set remain historically explainable.
+14. Later group/ownership/membership changes do not silently rewrite confirmed Accrual.
+15. Group Accrual does not imply one joint group obligation.
+16. Accrual Proposal/Preview ≠ confirmed Accrual.
+17. Explicit fixed amount may be valid without artificial Tariff when basis directly defines it.
+18. Operator-entered amount alone is not sufficient accrual basis.
+19. Tariff ≠ full Accrual Rule.
+20. Accrual Article ≠ basis/rule/tariff/obligation.
+21. Resource fact ≠ Accrual.
+22. Penalty requires specialized applicable rule; arbitrary manual penalty is not allowed.
+23. Amount requires currency; implicit conversion is not defined.
+24. Zero calculation does not require a fake zero Financial Obligation.
+25. Period/date semantics remain distinct.
+26. Arbitrary accrual date ≠ arbitrary backdating.
+27. Late first recognition can remain Initial Accrual when no historical Accrual existed.
+28. Existing historical Accrual requiring change belongs to BP-FIN-005.
+29. Due Date ≠ Accrual date.
+30. One-off Accrual does not replace/suppress regular Accrual without explicit semantics.
+31. Equal date/amount/article/account does not prove duplicate.
+32. Technical retry ≠ new Accrual.
+33. New Accrual/Obligation does not automatically allocate existing Payment/Advance/Unallocated Remainder.
+34. Accrual does not automatically create Expense, Supplier Obligation, Budget Item or Funding Source.
+35. Payment Intent/recommended payment ≠ Accrual.
+36. Confirmation requires revalidation of materially significant inputs.
+37. Interdependent target scope is not silently partially confirmed.
+38. Independent target cases may be confirmed separately only when applicable semantics allow it.
+39. Technical access right ≠ domain authority.
+40. Confirmed Accrual is not silently edited/deleted.
+41. Correction/recalculation/cancellation after confirmation belongs to BP-FIN-005 or specialized owning process.
+42. No universal Accrual Batch, Accrual Proposal, Correction or Storno entity is introduced.
 
 ## 47. Что намеренно не решается
 

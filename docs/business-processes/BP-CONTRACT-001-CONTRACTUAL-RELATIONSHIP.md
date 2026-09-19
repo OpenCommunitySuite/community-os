@@ -170,7 +170,7 @@ Contractual Relationship относится к существующему кон
 
 Следовательно, перенос Contractual Relationship в финансовый контекст смешал бы само отношение с одним из возможных видов его последствий.
 
-При нормативной синхронизации ADR-002 §6.4 должен быть уточнён явно: Contractual Relationship добавляется в ключевые понятия исторических отношений Subject↔Community, а ADR-002 §6.6 сохраняет ownership Supplier, Financial Obligation, Payment, Expense и других финансовых фактов.
+ADR-002 §6.4 синхронизирован явно: Contractual Relationship добавлен в ключевые понятия исторических отношений Subject↔Community, а ADR-002 §6.6 сохраняет ownership Supplier, Financial Obligation, Payment, Expense и других финансовых фактов.
 
 Это не создаёт новый bounded context «Contracts».
 

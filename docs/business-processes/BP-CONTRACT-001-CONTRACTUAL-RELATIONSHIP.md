@@ -121,7 +121,33 @@ Subject
 
 **Contractual Relationship** — самостоятельное исторически значимое отношение между конкретным Community и определённым Subject, возникшее на договорном или ином согласованном основании и описывающее предметно значимую область их взаимодействия.
 
+Contractual Relationship вводится только тогда, когда само договорное отношение имеет самостоятельный предметный смысл для Community OS и не исчерпывается уже существующим специализированным отношением.
+
 До нормативной синхронизации это определение является рабочим термином BP.
+
+## 5.1. Граница со специализированными отношениями
+
+Наличие договора, соглашения или Contract Document само по себе не означает, что требуется отдельный Contractual Relationship.
+
+Если предмет отношений уже принадлежит более специализированной модели и она полностью сохраняет необходимую семантику, именно специализированное отношение остаётся предметным источником истины.
+
+Примеры:
+
+- трудовой договор может быть основанием/документом **Служебного / трудового отношения** и не требует второго параллельного Contractual Relationship только из-за формы договора;
+- договор аренды участка между Owner и Tenant, где Community не является стороной, относится к Subject↔Object Use/Lease semantics;
+- представительство, оформленное документом, остаётся Representation, а не Contractual Relationship;
+- Membership не превращается в Contractual Relationship из-за наличия заявления, соглашения или документа.
+
+Гражданско-правовой договор с внешним исполнителем, поставка, банковское обслуживание, использование инфраструктуры и другие отношения Community с внешним Subject могут использовать Contractual Relationship, если такое отношение имеет собственную identity, предмет, период или последствия.
+
+Сохраняется принцип:
+
+```text
+presence of contract/agreement
+≠ automatic Contractual Relationship
+```
+
+Это правило не вводит универсальную иерархию типов отношений; ownership семантики определяется существующими предметными контекстами.
 
 ## 6. Архитектурное владение
 
@@ -946,14 +972,16 @@ Subjects
 37. Bank Subject, External Integration Party и bank counterparty data различаются.
 38. Private Subject↔Subject agreement без Community не создаёт Contractual Relationship with Community.
 39. One-off operation не требует relationship автоматически.
-40. Technical admin role не создаёт domain authority.
-41. Conflict не разрешается last-write-wins.
-42. UI Counterparty не требует domain Counterparty entity.
-43. Contractual Relationship принадлежит одному Community и не становится global cross-community relation.
-44. Automatic recognition допустим только по явному правилу и не создаёт фиктивного system Subject.
-45. Contractual Relationship может быть Basis производного факта, не становясь этим фактом и не скрывая собственное Basis отношения.
-46. Новый файл, последнее полученное значение или CRUD update не определяют автоматически тип предметного изменения relationship.
-47. Изменение текущей конфигурации допустимых relation kinds не переписывает исторически признанные relationships автоматически.
+40. Наличие договора/соглашения не создаёт Contractual Relationship, если предмет полностью принадлежит существующему специализированному отношению.
+41. Трудовой договор не дублирует Служебное / трудовое отношение автоматически.
+42. Technical admin role не создаёт domain authority.
+43. Conflict не разрешается last-write-wins.
+44. UI Counterparty не требует domain Counterparty entity.
+45. Contractual Relationship принадлежит одному Community и не становится global cross-community relation.
+46. Automatic recognition допустим только по явному правилу и не создаёт фиктивного system Subject.
+47. Contractual Relationship может быть Basis производного факта, не становясь этим фактом и не скрывая собственное Basis отношения.
+48. Новый файл, последнее полученное значение или CRUD update не определяют автоматически тип предметного изменения relationship.
+49. Изменение текущей конфигурации допустимых relation kinds не переписывает исторически признанные relationships автоматически.
 
 ## 52. Нормативная синхронизация после принятия BP
 

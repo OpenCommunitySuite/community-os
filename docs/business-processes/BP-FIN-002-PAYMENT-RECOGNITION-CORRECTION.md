@@ -97,6 +97,32 @@ Personal Account, Financial Obligation и Payment Allocation не являютс
 
 Настоящий BP не становится универсальным механизмом исправления любых source-данных.
 
+### 5.4. Изменилась версия mapping / recognition rule
+
+Появление новой версии mapping, semantic contract или recognition rule само по себе не является основанием ретроактивно исправлять уже признанные Payments.
+
+Сохраняются различия:
+
+```text
+new rule/mapping version
+≠ evidence that historical Payment recognition was wrong
+≠ automatic re-recognition
+≠ automatic Payment correction
+```
+
+Новая версия применяется к уже признанному Payment только если существует отдельное предметное основание и применимая policy прямо допускает re-recognition/correction исторического результата.
+
+При таком решении должны быть определимы:
+
+- исходная фактически использованная версия;
+- новая применяемая версия;
+- основание ретроактивного пересмотра;
+- authority;
+- значимые входные данные;
+- последствия для уже возникших финансовых результатов.
+
+Требования ADR-005 и ADR-011 к исторически определимой версии и отличимости re-recognition сохраняются.
+
 ## 6. Модель identity Payment
 
 Identity Payment принадлежит финансовому контексту и относится к признанному предметному факту Payment. Она не определяется количеством Bank Transactions, строк выписки, кассовых документов или иных source representations.
@@ -197,7 +223,21 @@ Invalidation означает:
 
 Invalidation не означает, что реальное банковское или иное source movement исчезло.
 
-Invalidation является специализированным результатом настоящего процесса, а не универсальным `Payment Status` или общей state machine для всех Payments.
+Payment recognition invalidation является специализированным outcome настоящего процесса, а не универсальным `Payment Status` или общей state machine для всех Payments.
+
+Она означает, что ранее признанный Payment больше не считается effective именно потому, что ошибочным было само Payment recognition.
+
+При этом:
+
+```text
+Payment recognition invalidation
+≠ Refund
+≠ source/external Cancellation
+≠ deletion of Payment history
+≠ universal Cancellation state
+```
+
+Это специализированная предметная процедура изменения исторически значимого финансового результата в смысле ADR-004/ADR-006. Она может быть близка к общему смыслу «отмены результата», но настоящий BP не вводит универсальную сущность или lifecycle `Cancellation` и не отождествляет domain invalidation Payment с integration Cancellation из ADR-011.
 
 Например:
 
@@ -274,9 +314,54 @@ same domain Payment
 → corrected recognized characteristics
 ```
 
+### 11.1. Amount
+
+Если корректная сумма Payment остаётся ненулевой и evidence подтверждает continuity того же domain Payment, identity может сохраняться.
+
+Если корректная сумма равна нулю:
+
+```text
+corrected amount = 0
+→ no effective Payment
+→ recognition invalidation
+```
+
+если только evidence не показывает, что первоначальное recognition ошибочно объединяло/заменяло другие реальные Payments и должна применяться модель §6.3.
+
+Нулевая сумма не моделируется как «Payment с amount = 0» только ради сохранения identity.
+
+### 11.2. Direction
+
+Direction является отдельной предметной характеристикой Payment и не выводится из технического знака числовой суммы.
+
+Correction direction сама по себе не уничтожает Payment identity автоматически.
+
+Если evidence подтверждает, что речь остаётся о том же domain Payment, identity может сохраниться с исправленным direction.
+
+Если изменение direction показывает, что первоначально признанный Payment фактически был другим движением либо должен быть заменён другим Payment, применяются §6.2/§6.3.
+
+### 11.3. Currency
+
+Currency correction может сохранять Payment identity при подтверждённой continuity того же domain Payment.
+
+Настоящий BP:
+
+- фиксирует correction currency;
+- требует revalidation materially affected dependent results;
+- не вводит implicit currency conversion;
+- не определяет exchange rate, conversion moment или multi-currency allocation algorithm.
+
+Если зависимый Allocation, Financial Obligation, Expense, Financing либо иной результат требует конвертации или сопоставления денежных единиц, disposition принадлежит owning process этого результата.
+
+### 11.4. Time
+
+Correction предметного времени может сохранять Payment identity при достаточном основании continuity.
+
+Она не изменяет молча время первоначального recognition и не делает correction time равным movement time.
+
 Если изменение показывает, что первоначальная Payment identity объединяла несколько самостоятельных Payments либо представляла другой предметный Payment, применяется модель §6.3.
 
-Изменение суммы/валюты/direction/time требует revalidation зависимых финансовых результатов.
+Любое materially significant изменение amount/currency/direction/time требует revalidation зависимых финансовых результатов.
 
 ## 12. Duplicate Payment recognition
 
@@ -484,6 +569,18 @@ Intent не переписывается автоматически из-за co
 Не требуется универсальный Dependency entity или полный глобальный dependency graph.
 
 Owning contexts/processes сохраняют ответственность за собственную семантику.
+
+Это относится одинаково к incoming и outgoing Payment.
+
+В частности, correction исходящего Payment:
+
+- не отменяет Expense автоматически;
+- не отменяет Financial Obligation Community автоматически;
+- не создаёт и не удаляет Financing/Funding linkage автоматически;
+- не переписывает источник финансирования;
+- может потребовать revalidation этих результатов их owning process.
+
+Связь Payment с Expense/Financing может остаться valid, потребовать специализированного изменения, потерять basis либо перейти в Requires Decision согласно §25.
 
 ## 25. Dependent disposition
 
@@ -805,6 +902,119 @@ replacement recognitions:
 
 Если replacement Payments должны исполнять обязательства, для них выполняется Initial Allocation согласно `BP-FIN-ALLOCATION-001`. Старые Allocation #P16 не relink/reassign молча к новым Payment identities.
 
+### 33.16. Amount correction до нуля
+
+Payment #P20 был признан на 1000.
+
+Достоверная correction source/evidence устанавливает, что фактическая сумма соответствующего domain Payment равна нулю и другого Payment за этим recognition не существует.
+
+```text
+#P20 amount 1000
+→ corrected amount 0
+→ Payment recognition invalidated
+```
+
+Нулевой Payment не сохраняется как effective fact только ради continuity identity.
+
+Если evidence вместо этого показывает другой Payment или несколько Payments, применяется §6.3.
+
+### 33.17. Direction correction
+
+Сценарий A — continuity сохраняется:
+
+```text
+Payment #P21
+initial direction = incoming
+corrected direction = outgoing
+evidence confirms same domain Payment
+→ preserve #P21 identity
+→ revalidate dependent results
+```
+
+Сценарий B — continuity разрушена:
+
+evidence показывает, что первоначальный incoming Payment был ошибочным recognition, а реальное outgoing движение является отдельным предметным Payment.
+
+```text
+#P21 → invalidated
+replacement outgoing Payment → owning recognition process
+```
+
+### 33.18. Currency-only correction
+
+Payment #P22 признан как 1000 UAH, но достоверный source correction устанавливает 1000 EUR при сохранении continuity того же domain Payment.
+
+```text
+#P22 identity preserved
+currency UAH → EUR
+```
+
+Зависимые Allocation/Obligation/Expense/Financing проходят revalidation.
+
+BP-FIN-002 не выбирает exchange rate и не выполняет implicit conversion. Если dependent process требует conversion, это его собственная семантика.
+
+### 33.19. Новая версия mapping без новых evidence
+
+Payment #P23 был признан по mapping v1.
+
+Позже опубликован mapping v2, который при обработке тех же source data дал бы другой результат.
+
+Сам факт появления v2 не исправляет #P23 автоматически.
+
+Correction/re-recognition возможны только если applicable policy разрешает ретроактивное применение и существует отдельное предметное основание. Должны сохраняться фактически использованные версии и reason.
+
+### 33.20. Invalidation Payment при существующем Overpayment
+
+Payment #P24 ранее участвовал в финансовом состоянии, из которого возник Overpayment 200.
+
+Позже recognition #P24 invalidated.
+
+Overpayment не удаляется молча и не сохраняется автоматически. Его owning financial semantics должна revalidate происхождение и effective state.
+
+Результатом может быть сохранение, изменение, прекращение применимости либо Requires Decision; настоящий BP не задаёт универсальный алгоритм.
+
+### 33.21. Duplicate Payments с собственными Allocations
+
+Один реальный Payment ошибочно признан как #P25 и #P26.
+
+Оба Payment успели получить разные подтверждённые Allocation.
+
+Evidence надёжно показывает, что #P26 — duplicate.
+
+```text
+#P25 → remains valid
+#P26 → invalidated
+Allocations of #P26 → lose effective basis as dependent consequence
+Allocations of #P25 → revalidated independently
+```
+
+Allocation #P26 не переносится автоматически на #P25.
+
+### 33.22. Исходящий Payment с Expense / Financing
+
+Community признала outgoing Payment #P27 = 5000 поставщику. С Payment связаны существующий Financial Obligation, Expense и Financing linkage.
+
+Позже payer/recipient interpretation Payment исправлена либо Payment invalidated.
+
+Correction #P27:
+
+- не удаляет Expense автоматически;
+- не отменяет Financial Obligation автоматически;
+- не переписывает Financing/Funding Source автоматически;
+- требует disposition каждого materially affected dependent result его owning process.
+
+Если сам Payment остаётся valid с исправленной interpretation, зависимые результаты могут остаться valid. Если Payment invalidated, они revalidated относительно отсутствия его effective financial effect.
+
+### 33.23. Correction после изменения зависимого Obligation
+
+Payment #P28 был распределён на Financial Obligation, которое позднее независимо изменили/закрыли отдельным допустимым процессом.
+
+После этого обнаруживается ошибка Payment recognition.
+
+Перед подтверждением correction используется текущее effective state Obligation и исторически значимая последовательность изменений.
+
+Correction не восстанавливает прежнее состояние Obligation молча и не считает прошлое состояние текущим. Dependent disposition определяется по актуальному effective state с сохранением истории.
+
 ## 34. Инварианты
 
 1. Payment Recognition Correction ≠ Payment Allocation.
@@ -844,6 +1054,14 @@ replacement recognitions:
 35. Correction time ≠ original movement time.
 36. Historical recognition is not silently backdated away.
 37. Technical retry ≠ new domain correction.
+38. Corrected amount = 0 does not remain an effective zero-amount Payment; recognition is invalidated unless wrong cardinality requires replacement Payment(s).
+39. Payment direction is a domain characteristic, not the technical sign of amount.
+40. Direction correction does not destroy Payment identity automatically; continuity evidence decides preserve vs invalidate/replace.
+41. Currency correction does not authorize implicit conversion of dependent financial results.
+42. New mapping/rule version alone does not retroactively correct already recognized Payment.
+43. Re-recognition under another rule/mapping version requires applicable policy, explicit basis and historical version provenance.
+44. Payment recognition invalidation is a specialized BP-FIN-002 outcome, not Refund, source Cancellation or universal Payment Status.
+45. Outgoing Payment correction does not automatically cancel Expense, Financial Obligation, Funding Source or Financing linkage.
 
 ## 35. Что намеренно не решается
 
@@ -858,7 +1076,7 @@ replacement recognitions:
 - accounting reversals/storno;
 - BAS/BAF postings;
 - tax/accounting period closing;
-- multi-currency conversion;
+- multi-currency conversion mechanics, exchange rates and conversion rules; currency correction самого Payment и запуск dependent revalidation входят в настоящий BP;
 - chargeback/dispute;
 - fraud investigation;
 - legal dispute resolution;
@@ -880,9 +1098,18 @@ replacement recognitions:
 
 ## 37. Нормативные последствия
 
-Предварительно новый ADR и новая фундаментальная сущность не требуются.
+Новый ADR и новая фундаментальная сущность не требуются.
 
-По результатам внутреннего review отдельный фундаментальный Payment Status также не требуется: invalidation остаётся специализированной исторически прослеживаемой семантикой настоящего процесса.
+Отдельный фундаментальный Payment Status также не требуется.
+
+`Payment recognition invalidation` остаётся специализированным исторически прослеживаемым outcome настоящего процесса: ранее признанный Payment перестаёт считаться effective из-за ошибочности самого recognition, при сохранении исходной истории и provenance.
+
+Этот outcome:
+
+- не является Refund;
+- не является source/external Cancellation;
+- не вводит универсальную lifecycle/state machine;
+- не требует универсальной сущности Correction.
 
 Настоящий BP использует уже существующие:
 
@@ -893,29 +1120,36 @@ replacement recognitions:
 - Advance;
 - Overpayment;
 - Debt;
+- Expense;
+- Funding Source / Financing;
 - provenance/authority/history semantics.
 
-Специализированное исправление Payment recognition является бизнес-процессом финансового контекста и не вводит универсальную сущность `Correction`.
+По результатам внутреннего и независимого review требуется точечная синхронизация:
 
-После review необходимо проверить, требуется ли только точечная синхронизация DOMAIN_MODEL/TERMINOLOGY по identity/invalidation semantics Payment.
+- DOMAIN_MODEL — дополнить Payment semantics правилами identity continuity и recognition invalidation;
+- TERMINOLOGY — аналогично уточнить Payment;
+- BP-FIN-001 — зеркально уточнить, что потеря effective effect Allocation исключительно вследствие invalidation исходного Payment относится к BP-FIN-002 и не является Reallocation несуществующих средств.
 
-## 38. Открытые вопросы для review
+ADR-006/ADR-011 содержательно изменять не требуется.
 
-Перед принятием Draft следует независимо проверить:
+## 38. Решения review
 
-1. достаточно ли правила continuity «same domain Payment → preserve identity» без привязки identity к source cardinality;
-2. достаточно ли process-level invalidation semantics без отдельного фундаментального Payment Status;
-3. корректна ли граница между dependent consequence of invalidated Payment и Reallocation;
-4. достаточно ли границы, при которой replacement Payment recognition остаётся в owning channel/source process и не превращает BP-FIN-002 в universal recognition workflow;
-5. нужен ли отдельный специализированный термин для correction action либо название BP достаточно без новой сущности;
-6. достаточно ли provenance/disposition для зависимых Advance/Overpayment/Expense links без universal dependency model;
-7. не требуется ли дополнительная нормативная синхронизация ADR-006 для duplicate/wrong-cardinality Payment recognition.
+Внутренний и независимый review зафиксировали:
+
+1. Payment identity определяется continuity domain Payment, а не source identity/cardinality.
+2. Corrected amount = 0 приводит к recognition invalidation, если evidence не требует wrong-cardinality replacement.
+3. Direction correction не уничтожает identity автоматически; решение зависит от continuity evidence.
+4. Currency correction входит в BP как correction характеристики и trigger revalidation, но conversion mechanics остаётся у owning dependent process.
+5. Новая версия mapping/rule сама по себе не является основанием ретроактивной correction; требуется отдельное основание/policy.
+6. Payment recognition invalidation является специализированным process outcome без нового фундаментального Payment Status.
+7. Loss of Allocation effective effect вследствие invalidated Payment является dependent consequence BP-FIN-002, а не Reallocation несуществующих средств.
+8. Replacement Payment recognition остаётся у owning channel/source process.
+9. Outgoing Payment / Expense / Financing покрываются той же dependent-disposition моделью; automatic cascade запрещён.
+10. Новый ADR, универсальный Correction, Payment Status и Dependency Graph не требуются.
 
 ## 39. Следующий шаг
 
-1. внутренний review против ADR-004/005/006/010/011, DOMAIN_MODEL, TERMINOLOGY, BP-FIN-001, BP-FIN-ALLOCATION-001 и BP-FIN-BANK-001;
-2. проверка на реальных сценариях пилотного СТ;
-3. независимый review Claude;
-4. point fixes;
-5. нормативная синхронизация и закрытие REF-FIN-004;
-6. переход к BP-FIN-003 — Refund.
+1. выполнить точечную нормативную синхронизацию DOMAIN_MODEL / TERMINOLOGY / BP-FIN-001;
+2. обновить REFERENCE_CANDIDATE_MATRIX и закрыть REF-FIN-004;
+3. после финальной проверки принять BP-FIN-002;
+4. перейти к BP-FIN-003 — Refund.

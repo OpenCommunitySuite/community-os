@@ -62,7 +62,7 @@ Payment Recognition Correction
 - происхождение;
 - основание признания.
 
-Ошибка в одной из этих характеристик может относиться к Payment Recognition Correction, если после исправления речь продолжает идти о том же реальном движении денежных средств.
+Ошибка в одной из этих характеристик может относиться к Payment Recognition Correction, если после исправления evidence подтверждает continuity того же предметного Payment.
 
 Personal Account, Financial Obligation и Payment Allocation не являются частью identity Payment сами по себе.
 
@@ -618,7 +618,7 @@ Correction scope определяет, какие существующие recog
 Перед подтверждением correction должны быть повторно проверены:
 
 - source evidence;
-- identity реального движения;
+- continuity/identity domain Payment и поддерживающие source evidence;
 - текущая effective interpretation Payment;
 - correction basis;
 - authority;

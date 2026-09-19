@@ -287,7 +287,9 @@ Matching является отдельным этапом и не означае
 
 Новое, ранее не встречавшееся designation в populated Community само по себе не доказывает существование нового Object. Такой кандидат проходит обычный identification по §11. Результат `Create` допустим, если source semantics и migration policy дают достаточные основания считать объект новым и отсутствуют признаки того, что речь идёт о переименовании, ошибке source, разделении/объединении или другом изменении уже существующего Object.
 
-Если смысл нового designation неоднозначен, результат остаётся Unresolved/Conflict до предметного resolution. После go-live регулярная синхронизация и обработка новых объектов вне первоначальной миграции не превращаются автоматически в BP-IMPORT-001.
+Если смысл нового designation неоднозначен, результат остаётся Unresolved/Conflict до предметного resolution. В частности, пока предметная семантика разделения, объединения и иных преобразований Object отдельно не определена, наличие признаков такого преобразования не должно автоматически приводить ни к созданию нового Object, ни к изменению существующего.
+
+После go-live регулярная синхронизация и обработка новых объектов вне первоначальной миграции не превращаются автоматически в BP-IMPORT-001.
 
 ### 12.4. Неизвестный собственник
 
@@ -646,7 +648,9 @@ Failure или conflict Ownership не обязан блокировать Objec
 
 Recognition group является рабочим понятием процесса, а не фундаментальной domain entity.
 
-Recognition group не получает собственного непрозрачного итогового статуса вместо результатов входящих в неё кандидатов. Для каждого migration item сохраняется собственный результат либо явное состояние `Not Processed` с причиной. Если кандидат не был признан только из-за unresolved/conflict/rejection другого обязательного dependency, это должно быть объяснимо как dependency-blocked result и не превращает сам кандидат автоматически в Rejected.
+Recognition group не получает собственного непрозрачного итогового статуса вместо результатов входящих в неё кандидатов. Для каждого migration item сохраняется собственный результат.
+
+Если кандидат сам по себе не имеет domain conflict/rejection, но его recognition невозможен из-за unresolved/conflict/rejection обязательной dependency, используется отдельная семантика `Blocked by Dependency`. Она означает зависимое предметное ожидание разрешения другого migration item и не является ни Rejected, ни Technical Failed / Not Processed. Причина блокировки и связанный dependency item должны быть определимы.
 
 ## 27. Результаты item processing
 
@@ -657,9 +661,12 @@ Recognition group не получает собственного непрозр�
 - No Change;
 - Unresolved;
 - Conflict;
-- Rejected.
+- Rejected;
+- Blocked by Dependency.
 
-Technical Failed / Not Processed относится к выполнению процесса и не является domain rejection. `Not Processed` также может означать, что recognition не выполнялся из-за неудовлетворённой обязательной dependency; причина блокировки и связанный item должны быть определимы.
+`Blocked by Dependency` означает, что собственный recognition item не выполнен из-за обязательной зависимости от другого unresolved/conflict/rejected item. Это не превращает зависимый кандидат в Rejected и не является технической ошибкой.
+
+Technical Failed / Not Processed относится только к выполнению процесса и не является domain rejection или dependency-blocking.
 
 Created, Reused и No Change являются различными успешными результатами.
 
@@ -985,8 +992,8 @@ Ownership
 45. Существенное расхождение с preview не применяется молча.
 46. Recognition выполняется обычными domain semantics и не обходит invariants.
 47. Created, Reused и No Change различаются.
-48. Conflict, Unresolved и Rejected различаются.
-49. Technical failure не является domain rejection.
+48. Conflict, Unresolved, Rejected и Blocked by Dependency различаются.
+49. Technical failure / Not Processed не является domain rejection или Blocked by Dependency.
 50. Migration provenance не заменяет domain history.
 51. Retry не равен Re-import.
 52. Re-recognition с новой mapping version исторически отличим от initial recognition.
@@ -998,7 +1005,7 @@ Ownership
 58. Повторная обработка successful elements не должна создавать duplicates.
 59. Несколько имён в legacy owner presentation не означают автоматически ни co-ownership, ни ownership transition, ни последовательность исторических Owners.
 60. Новое designation при re-import populated Community не создаёт новый Object автоматически и проходит обычный identification.
-61. Failure/unresolved другого члена recognition group не делает зависимый кандидат Rejected автоматически; dependency-blocking должно быть объяснимо отдельно.
+61. Failure/unresolved другого члена recognition group не делает зависимый кандидат Rejected или Not Processed автоматически; dependency-blocking имеет отдельную объяснимую семантику `Blocked by Dependency`.
 62. Строгая кардинальность Personal Account↔Object для конкретной миграции должна быть явно установлена migration policy и не выводится из source pattern.
 63. Частичная временная информация source не превращается в более точную effective date; при невозможности domain recognition она сохраняется в provenance, а точная граница остаётся unknown.
 

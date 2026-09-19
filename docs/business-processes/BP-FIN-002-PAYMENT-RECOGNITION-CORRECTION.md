@@ -99,18 +99,31 @@ Personal Account, Financial Obligation и Payment Allocation не являютс
 
 ## 6. Модель identity Payment
 
-Identity Payment определяется реальным движением денежных средств, которое финансовый контекст признаёт как один предметный Payment.
+Identity Payment принадлежит финансовому контексту и относится к признанному предметному факту Payment. Она не определяется количеством Bank Transactions, строк выписки, кассовых документов или иных source representations.
+
+В частности:
+
+```text
+source representation identity/cardinality
+≠ Payment identity/cardinality
+```
+
+Это сохраняет принятую в `BP-FIN-BANK-001` возможность:
+
+- one Bank Transaction → multiple Payments;
+- multiple Bank Transactions → one Payment;
+- Bank Transaction → no Payment.
 
 Исправление recognition не означает автоматически создание нового Payment.
 
 Используются три базовые модели.
 
-### 6.1. То же реальное движение, исправляется интерпретация
+### 6.1. Тот же предметный Payment, исправляется интерпретация
 
-Если после исправления речь по-прежнему идёт о том же одном реальном движении денежных средств:
+Если evidence подтверждает, что после исправления речь по-прежнему идёт о том же предметном факте Payment, его identity сохраняется независимо от того, одним или несколькими source representations он подтверждается:
 
 ```text
-same real-world Payment
+same domain Payment
 + corrected interpretation
 → preserve Payment identity
 ```
@@ -118,11 +131,11 @@ same real-world Payment
 Примеры:
 
 - исправлена сторона Payment;
-- исправлен direction при однозначно том же движении;
-- уточнены сумма/валюта/время после подтверждённой source correction, но movement identity остаётся той же;
-- исправлено основание recognition без замены реального движения другим.
+- исправлен direction при сохранении identity предметного Payment;
+- уточнены сумма/валюта/время после подтверждённой source correction, но предметная identity Payment сохраняется;
+- исправлено основание recognition без замены одного предметного Payment другим.
 
-Payment identity сохраняется.
+Payment identity сохраняется только при достаточном основании continuity; совпадение одного external ID, одной Bank Transaction, суммы или времени само по себе не является универсальным критерием.
 
 Первоначально признанные значения и последующее исправление остаются исторически объяснимыми.
 
@@ -146,25 +159,29 @@ Payment не удаляется физически и не превращает�
 - техническое дублирование породило лишний Payment;
 - bank movement был ошибочно интерпретирован как движение между сторонами финансового отношения.
 
-### 6.3. Неверная кардинальность реальных Payments
+### 6.3. Неверная кардинальность предметных Payments
 
-Если один признанный Payment фактически представляет несколько самостоятельных реальных Payments:
+Если один признанный Payment фактически объединяет несколько самостоятельных предметных Payments:
 
 ```text
 old recognized Payment
 → recognition invalidated
 
-real Payment A → new Payment identity A
-real Payment B → new Payment identity B
+replacement Payment A → recognition by applicable owning process
+replacement Payment B → recognition by applicable owning process
 ...
 ```
 
-Если несколько признанных Payments фактически относятся к одному реальному Payment:
+Новые Payment identities возникают в соответствующем recognition process, а не создаются настоящим BP как универсальным channel-independent recognition workflow.
+
+Для банковского источника применяется граница recognition, установленная `BP-FIN-BANK-001`; для наличного или иного канала — соответствующий специализированный процесс.
+
+Если несколько признанных Payments фактически относятся к одному предметному Payment:
 
 - ошибочные recognitions не сливаются посредством silent rewrite;
-- определяется, существует ли одна уже признанная identity, которая достоверно соответствует реальному Payment;
+- определяется, существует ли одна уже признанная identity, которая достоверно соответствует предметному Payment;
 - если да, она может быть сохранена, а дублирующие recognitions invalidated;
-- если ни одна существующая identity не может предметно считаться корректным представлением реального Payment, ошибочные recognitions invalidated и корректный Payment получает новую identity.
+- если ни одна существующая identity не может предметно считаться корректным представлением Payment, ошибочные recognitions invalidated, а replacement Payment признаётся применимым owning process с новой identity.
 
 Нельзя произвольно выбрать одну старую identity только ради технического удобства.
 
@@ -243,19 +260,19 @@ Personal Account является контекстом взаиморасчёт�
 
 ## 11. Исправление amount / currency / direction / time
 
-Исправление этих характеристик может сохранять Payment identity только если evidence подтверждает, что речь идёт о том же реальном движении денежных средств.
+Исправление этих характеристик может сохранять Payment identity только если evidence подтверждает continuity того же предметного Payment.
 
-Например, corrected bank source уточнил сумму одной и той же Bank Transaction.
+Source correction может при этом сохранить либо изменить identity исходной Bank Transaction согласно `BP-FIN-BANK-001`; это само по себе не определяет Payment identity.
 
 Тогда:
 
 ```text
-same movement
+same domain Payment
 → same Payment identity
 → corrected recognized characteristics
 ```
 
-Если изменение показывает, что первоначальная identity объединяла несколько движений либо представляла другое движение, применяется модель изменения кардинальности §6.3.
+Если изменение показывает, что первоначальная Payment identity объединяла несколько самостоятельных Payments либо представляла другой предметный Payment, применяется модель §6.3.
 
 Изменение суммы/валюты/direction/time требует revalidation зависимых финансовых результатов.
 
@@ -480,11 +497,16 @@ Owning contexts/processes сохраняют ответственность за
 
 Взаимозависимый correction scope должен быть предметно целостным.
 
-Нельзя подтвердить correction так, чтобы:
+Correction scope определяет, какие существующие recognitions исправляются совместно. Он не превращает настоящий BP в универсальный механизм recognition replacement Payments.
 
-- одна часть старого recognition стала invalidated;
-- зависимые новые Payments были созданы лишь частично;
-- а итоговое effective financial state стало внутренне противоречивым.
+Если correction выявляет необходимость replacement Payment(s):
+
+- старое ошибочное recognition может быть invalidated согласно настоящему BP;
+- необходимость replacement recognition и его связь с correction должны быть объяснимы;
+- replacement Payment(s) признаются применимым owning recognition process;
+- состояние неизвестного или ещё не завершённого replacement recognition не маскируется сохранением заведомо ошибочного Payment как будто он корректен.
+
+Не требуется универсальная all-or-nothing техническая транзакция между correction и всеми внешними/канальными recognition processes.
 
 Настоящий BP не предписывает техническую транзакцию или locking mechanism.
 
@@ -642,7 +664,7 @@ Evidence подтверждает один реальный Payment.
 
 #P3 сохраняется, #P4 invalidated. Дублирующие зависимые финансовые эффекты #P4 revalidated/corrected.
 
-### 33.5. Один Payment ошибочно объединяет несколько движений
+### 33.5. Один Payment ошибочно объединяет несколько предметных Payments
 
 Community OS признала:
 
@@ -650,16 +672,18 @@ Community OS признала:
 Payment #P5 = 3000
 ```
 
-Позже evidence показывает три самостоятельных движения по 1000.
+Позже evidence показывает, что предметно должны существовать три самостоятельных Payments по 1000.
 
 ```text
 #P5 → invalidated
-new Payment #P6 = 1000
-new Payment #P7 = 1000
-new Payment #P8 = 1000
+
+applicable recognition process:
+  → new Payment #P6 = 1000
+  → new Payment #P7 = 1000
+  → new Payment #P8 = 1000
 ```
 
-#P5 не переиспользуется как identity одного из новых Payments без отдельного предметного основания.
+#P5 не переиспользуется как identity одного из replacement Payments без отдельного предметного основания. `BP-FIN-002` не создаёт #P6–#P8 самостоятельно, если их recognition принадлежит специализированному channel/source process.
 
 ### 33.6. Несколько recognitions относятся к одному Payment
 
@@ -667,7 +691,7 @@ new Payment #P8 = 1000
 
 Если #P9 однозначно является корректным representation реального Payment, #P9 сохраняется, #P10 invalidated.
 
-Если ни одна identity не может быть признана корректной без произвольного выбора, обе invalidated и создаётся новый Payment #P11.
+Если ни одна identity не может быть признана корректной без произвольного выбора, обе invalidated, а новый Payment #P11 признаётся применимым owning recognition process.
 
 ### 33.7. Source correction меняет amount
 
@@ -747,9 +771,9 @@ Payment #P14 проходит correction, одновременно другой 
 4. Payment Recognition Correction ≠ Bank Transaction correction.
 5. Payment Recognition Correction ≠ universal Financial Correction.
 6. Source correction precedes Payment correction where the source fact itself is wrong.
-7. Same real-world Payment with corrected interpretation preserves Payment identity where evidence supports continuity.
+7. Same domain Payment with corrected interpretation preserves Payment identity where evidence supports continuity; source identity/cardinality does not define Payment identity/cardinality.
 8. Recognition of a non-existent Payment is invalidated, not silently deleted.
-9. Wrong cardinality may require invalidating old identity and recognizing new Payment identities.
+9. Wrong cardinality may require invalidating old identity and recognition of replacement Payment identities by the applicable owning recognition process.
 10. Duplicate Payment identities are not silently merged.
 11. Identity is not preserved merely for implementation convenience.
 12. Original recognition remains historically explainable.
@@ -833,12 +857,13 @@ Payment #P14 проходит correction, одновременно другой 
 
 Перед принятием Draft следует независимо проверить:
 
-1. достаточно ли identity rule «same real-world movement → preserve identity» для amount/currency/direction corrections либо нужны дополнительные ограничения;
+1. достаточно ли правила continuity «same domain Payment → preserve identity» без привязки identity к source cardinality;
 2. достаточно ли process-level invalidation semantics без отдельного фундаментального Payment Status;
 3. корректна ли граница между dependent consequence of invalidated Payment и Reallocation;
-4. нужен ли отдельный специализированный термин для correction action либо название BP достаточно без новой сущности;
-5. достаточно ли provenance/disposition для зависимых Advance/Overpayment/Expense links без universal dependency model;
-6. не требуется ли дополнительная нормативная синхронизация ADR-006 для duplicate/wrong-cardinality Payment recognition.
+4. достаточно ли границы, при которой replacement Payment recognition остаётся в owning channel/source process и не превращает BP-FIN-002 в universal recognition workflow;
+5. нужен ли отдельный специализированный термин для correction action либо название BP достаточно без новой сущности;
+6. достаточно ли provenance/disposition для зависимых Advance/Overpayment/Expense links без universal dependency model;
+7. не требуется ли дополнительная нормативная синхронизация ADR-006 для duplicate/wrong-cardinality Payment recognition.
 
 ## 39. Следующий шаг
 

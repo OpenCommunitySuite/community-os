@@ -166,6 +166,8 @@ Financial Obligation to return:
 
 Создание return obligation не требует нового фундаментального типа Financial Obligation.
 
+Непогашенная часть Financial Obligation to return участвует в обычной семантике Debt как непогашенная часть обязательства. Отдельный `Refund Debt` не вводится.
+
 ## 8. Предметный commitment возвращаемой суммы
 
 Само существование любого Financial Obligation to return не «потребляет» произвольный Payment и не создаёт автоматическую связь с любыми средствами Community.
@@ -1134,22 +1136,24 @@ Refund ≠ modification of original Payment
 
 и предварительно не требует нового архитектурного решения.
 
-## 42. Открытые вопросы для review
+## 42. Решения review
 
-Перед принятием Draft следует независимо проверить:
+Внутренний и независимый review зафиксировали:
 
-1. достаточно ли моделировать Refund без отдельной fundamental entity;
-2. всегда ли Refund должен проходить через Financial Obligation to return, включая немедленный refund;
-3. корректна ли модель `committed refundable amount`: source amount исключается из несовместимого использования только при явной связи действующего return obligation с конкретной source financial amount/state, без отдельного Reservation;
-4. достаточно ли provenance-связи с source financial state без универсальной Original Payment ↔ Refund relation entity;
-5. корректна ли direction-neutral модель для supplier refund;
-6. не смешивается ли refund basis с Financial Obligation basis;
-7. достаточно ли границы Refund vs Payment correction / Reallocation / Bank Reversal;
-8. правильно ли моделируются Overpayment / Advance / Unallocated Remainder при признании return obligation;
-9. достаточно ли обычного Payment Allocation для исполнения return obligation;
-10. нужна ли зеркальная корректировка BP-FIN-ALLOCATION-001 по доступности суммы, committed to Refund;
-11. не требуется ли минимальное уточнение ADR-006 или достаточно DOMAIN_MODEL/TERMINOLOGY;
-12. нужны ли дополнительные правила для refund recipient ≠ beneficiary return obligation.
+1. Refund моделируется без отдельной fundamental entity: это специализированный процесс/смысл, фактическое исполнение которого является новым Payment.
+2. Даже immediate Refund использует ordinary Financial Obligation to return; obligation может возникнуть и быть исполнено в одном коротком business interaction, но не исчезает как предметный факт.
+3. `Committed refundable amount` является derived process value и частью `current effective financial use` только при явной связи действующего return obligation с конкретной source financial amount/state; отдельный Reservation/Reserve не вводится.
+4. BP-FIN-ALLOCATION-001 зеркально учитывает такой commitment при вычислении available amount.
+5. Refund требует возвратного происхождения, прослеживаемого к одному или нескольким prior real money movements либо финансовому состоянию, возникшему из них; произвольная новая выплата без refund origin находится вне BP-FIN-003.
+6. Универсальная Original Payment ↔ Refund relation entity не требуется; provenance должна объяснять source financial state и связь, когда она предметно определима.
+7. Direction-neutral модель принята: owner refund обычно outgoing, supplier refund может быть incoming.
+8. `Refund basis` не является отдельной сущностью; это контекстная роль предметного основания Financial Obligation to return.
+9. Overpayment / Advance / Unallocated Remainder сохраняют собственную семантику; recognition return obligation создаёт commitment возвращаемой части и исключает несовместимое использование, а фактическое исполнение Refund отражается owning semantics соответствующего состояния.
+10. Ordinary Payment Allocation достаточно для исполнения return obligation; Initial Allocation выполняется BP-FIN-ALLOCATION-001, последующее изменение confirmed Allocation — BP-FIN-001.
+11. Refund Payment recognition принадлежит applicable owning channel/source process; BP-FIN-003 не вводит universal Payment Recognition workflow.
+12. Новый ADR, Refund Status/Ledger/Reservation и отдельный Refund Debt не требуются.
+13. Cross-subject payer/recipient допускается только при достаточном основании с provenance; Personal Account остаётся optional context.
+14. Set-off/netting без реального money movement не является Refund и остаётся вне scope настоящего BP.
 
 ## 43. Следующий шаг
 

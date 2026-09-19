@@ -120,6 +120,17 @@ operator entered amount
 
 Техническая возможность создать начисление не является основанием финансового требования.
 
+Документ, файл или протокол может оформлять/подтверждать decision либо иное основание, но:
+
+```text
+Document
+≠ Accrual
+≠ Financial Obligation
+≠ valid decision automatically
+```
+
+Компетентность и предметная применимость решения определяются governance/owning semantics; наличие загруженного документа само по себе не создаёт начисление.
+
 ## 7. Accrual ≠ Financial Obligation
 
 Сохраняется нормативное различие:
@@ -364,6 +375,18 @@ fixed amount
 Если тариф сам является versioned rule, применяются ADR-005 semantics.
 
 External supplier tariff не становится internal Community tariff автоматически.
+
+Если arithmetic calculation включает precision, rounding, minimum/maximum, step, allocation order либо другие правила, materially влияющие на сумму, фактически применённые semantics должны быть исторически определимы.
+
+Глобальный rounding rule для всех Accrual не вводится.
+
+Для group calculation правило должно различать, где это влияет на результат:
+
+- calculate-and-round per target;
+- calculate aggregate then distribute;
+- другой установленный порядок.
+
+Эти варианты не считаются эквивалентными автоматически.
 
 ## 18. Accrual Article
 
@@ -758,6 +781,7 @@ Automatic confirmation допускается только по explicit policy,
 - amount/currency;
 - rule and version;
 - tariff/used values;
+- precision/rounding/calculation-order semantics when materially significant;
 - source resource/other inputs;
 - authority/automatic policy;
 - created Financial Obligations;
@@ -1150,6 +1174,36 @@ separate Advance application / Payment Allocation result
 
 Accrual itself still does not become Allocation.
 
+### 45.28. Rounding order matters
+
+Decision uses rate 0.333 UAH per unit for several targets.
+
+Applicable rule says each target result is rounded independently to currency precision.
+
+System must not silently replace this with:
+
+```text
+sum raw values
+→ round aggregate
+→ redistribute
+```
+
+if that would change target-specific obligations.
+
+Used precision/rounding/order remain explainable.
+
+### 45.29. Uploaded protocol is evidence, not automatic Accrual
+
+Protocol file is uploaded and contains text about a target contribution.
+
+Until the applicable governance semantics establish that a valid competent decision exists and is applicable:
+
+```text
+uploaded protocol
+→ evidence/document only
+→ no Accrual automatically
+```
+
 ## 46. Инварианты
 
 1. One-off/out-of-cycle is process initiation/timing semantics, not a new fundamental Accrual type.
@@ -1196,6 +1250,9 @@ Accrual itself still does not become Allocation.
 42. No universal Accrual Batch, Accrual Proposal, Correction or Storno entity is introduced.
 43. Resolved target provenance does not require a universal copied snapshot when owning contexts provide stable historical facts.
 44. Late initial recognition ≠ bulk legacy financial migration.
+45. Document/protocol ≠ Accrual or Financial Obligation automatically.
+46. Material precision/rounding/calculation-order semantics remain historically explainable.
+47. No universal rounding rule is introduced.
 
 ## 47. Что намеренно не решается
 

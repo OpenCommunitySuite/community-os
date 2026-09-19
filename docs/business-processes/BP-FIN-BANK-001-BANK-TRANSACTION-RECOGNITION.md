@@ -13,7 +13,7 @@
 3. проверяет и распознаёт отдельное движение денежных средств;
 4. признаёт самостоятельную `Bank Transaction`;
 5. выполняет её предметную классификацию;
-6. при наличии достаточных оснований передаёт результат специализированным финансовым процессам для признания `Payment`, internal transfer или иных предметных последствий;
+6. при наличии достаточных оснований координирует признание `Payment` либо передачу в иной специализированный финансовый процесс, сохраняя самостоятельную identity каждого предметного результата;
 7. сохраняет исходный банковский факт независимо от последующей классификации.
 
 Процесс является vendor-neutral и не зависит от ПриватБанка, monobank, iPay, Portmone, BAS/BAF либо конкретного формата XLSX/API.
@@ -484,18 +484,23 @@ Payment Intent может дать устойчивый correlation identifier �
 
 Bank Transaction может быть основанием или подтверждением признания Payment.
 
-Payment recognition является отдельным предметным результатом финансового контекста.
+Payment recognition является самостоятельным предметным результатом финансового контекста и не является частью identity либо состояния Bank Transaction.
 
-Один пользовательский/автоматизированный процесс может координировать:
+В банковском сценарии настоящий BP определяет границу, evidence и authority, достаточные для координации:
 
 ```text
-Bank Transaction classification
-→ Payment recognition
+Bank Transaction recognition
+→ classification / matching
+→ Payment recognition where justified
 ```
 
-но semantic distinction сохраняется.
+Один пользовательский или автоматизированный процесс может выполнить эти шаги последовательно, но создаёт разные предметные факты с самостоятельной identity и provenance.
+
+Для банковского Payment должны быть применимы требования ADR-006 к направлению, сумме и валюте, предметно значимым сторонам, времени, происхождению и основанию признания. Classification сама по себе Payment не создаёт.
 
 Если оснований недостаточно, Bank Transaction остаётся признанной без Payment.
+
+Настоящий BP не вводит универсальный channel-independent Payment Recognition workflow. Признание наличного или иного небанковского Payment определяется соответствующим специализированным процессом; общая семантика Payment остаётся нормативно заданной ADR-006.
 
 ## 31. Bank Transaction ↔ Payment cardinality
 
@@ -589,6 +594,8 @@ Account B → incoming Bank Transaction
 
 Если видна только одна сторона перевода, не создаётся синтетическая вторая Bank Transaction. Classification может оставаться provisional/unresolved до reconciliation.
 
+Если позднее поступает вторая Bank Transaction и появляется достаточное основание для надёжного сопоставления, ранее provisional classification первой стороны может быть продолжена и уточнена как own-account transfer. Это является обработкой новых доступных сведений, а не external correction и не correction ранее ошибочного classification.
+
 Настоящий BP не вводит универсальную отдельную entity `InternalTransfer`; необходимость такой identity оценивается по последующим реальным процессам.
 
 ## 37. Other incoming movement
@@ -604,7 +611,15 @@ Account B → incoming Bank Transaction
 
 Не вводится универсальная `Community Receipt` entity только для объединения всех входящих движений.
 
-Предметный смысл определяется специализированным финансовым процессом.
+Отдельный практически значимый случай — внесение на банковский счёт Community агрегированной наличности, ранее принятой от нескольких плательщиков. Такая Bank Transaction отражает движение средств на банковский счёт, но сама по себе:
+
+- не создаёт Payment от лица, физически внёсшего наличность в банк;
+- не создаёт заново индивидуальные Payments плательщиков;
+- не определяет состав и распределение внесённой наличности только по банковским данным.
+
+Индивидуальные наличные Payments признаются соответствующим кассовым процессом. Bank Transaction внесения наличности может быть связана с уже признанными cash-side facts для reconciliation/provenance при наличии достаточного основания. Источник разбивки суммы относится к кассовому контуру или иному независимому основанию, а не выводится из самой Bank Transaction.
+
+Предметный смысл других входящих движений определяется специализированным финансовым процессом.
 
 ## 38. Other outgoing movement
 
@@ -685,6 +700,8 @@ Classification может учитывать назначение/роль ко�
 Текущая роль счёта не переписывает прошлую классификацию.
 
 Импорт/получение ведётся account-scoped, но одно delivery может технически содержать несколько счетов только если semantic contract позволяет надёжное разделение.
+
+Если элементы multi-account delivery нельзя надёжно отнести к конкретным Community Bank Accounts, соответствующие элементы не признаются как Bank Transactions до разрешения account mapping. Система не угадывает счёт и не распределяет записи между счетами эвристически; применяются общие outcomes validation/unresolved/rejected из §17–18 и §47.
 
 ## 45. Bank account lifecycle boundary
 
@@ -848,6 +865,25 @@ Bank Transaction recognized without Subject/PA if bank movement itself is valid.
 
 Bank Transaction recognized; Payment/Expense only through applicable financial process.
 
+### 53.11. Внесение агрегированной наличности на банковский счёт
+
+До банковского внесения применимый кассовый процесс уже признал, например, несколько индивидуальных наличных Payments.
+
+Появившаяся incoming Bank Transaction на общую сумму:
+
+- не создаёт новый Payment от кассира/председателя;
+- не создаёт повторно индивидуальные cash Payments;
+- может быть сопоставлена с cash-side facts для reconciliation/provenance при достаточном основании;
+- остаётся без искусственной разбивки, если независимого источника состава внесённой суммы недостаточно.
+
+### 53.12. Вторая сторона собственного перевода поступила позже
+
+Первая Bank Transaction ранее имела provisional classification. После поступления второй надёжно сопоставимой Bank Transaction classification первой стороны продолжается и уточняется как own-account transfer без изображения этого как correction.
+
+### 53.13. Multi-account delivery без надёжного account mapping
+
+Delivery содержит сведения по нескольким счетам, но отдельные элементы нельзя надёжно отнести к конкретным Community Bank Accounts. Такие элементы не признаются как Bank Transactions до разрешения mapping; счёт не угадывается.
+
 ## 54. Инварианты процесса
 
 1. External bank representation ≠ Bank Transaction.
@@ -900,6 +936,12 @@ Bank Transaction recognized; Payment/Expense only through applicable financial p
 48. Manual significant decisions require attributable authority.
 49. Provenance must support explainability without universal Audit entity.
 50. Bank/vendor-specific API semantics do not define domain model.
+51. Bank-originated Payment recognition may be coordinated by this BP, but Payment remains a separate domain fact governed by ADR-006.
+52. This BP does not define a universal channel-independent Payment Recognition workflow.
+53. Bulk cash deposit does not create a Payment from the physical depositor and does not recreate underlying cash Payments.
+54. Bank Transaction does not determine the composition of an aggregated cash deposit without independent cash-side evidence.
+55. Later arrival of the matching own-account transfer leg may continue provisional classification and is not a correction by itself.
+56. Multi-account delivery without reliable account mapping does not permit guessing a Community Bank Account.
 
 ## 55. Нормативные последствия
 
@@ -944,6 +986,7 @@ ADR-006/011 уже определяют:
 - webhook/polling;
 - statement file schema;
 - universal fuzzy matching score;
+- universal channel-independent Payment Recognition workflow;
 - Payment correction;
 - Refund;
 - Payment Allocation rules;

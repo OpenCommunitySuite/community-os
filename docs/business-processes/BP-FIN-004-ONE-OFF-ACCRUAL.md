@@ -163,7 +163,7 @@ Community OS сохраняет оба момента и не подменяет
 
 ## 8. Стороны Financial Obligation
 
-Для создаваемого Financial Obligation должны быть определимы:
+Для Financial Obligation, которое создаётся, количественно определяется либо связывается с Accrual в настоящем процессе, должны быть определимы:
 
 - обязанная сторона;
 - управомоченная сторона;
@@ -824,7 +824,7 @@ Technical locking mechanism настоящим BP не задаётся.
 5. Для каждого target case определяются debtor Subject и Personal Account context.
 6. Формируется preview.
 7. Перед confirmation revalidate basis, targets, parties, amount and authority.
-8. Confirmed Accrual создаёт соответствующие Financial Obligations.
+8. Confirmed Accrual фиксирует target-specific financial results и, согласно applicable semantics, создаёт соответствующие Financial Obligations либо связывает результат с obligation, возникшим из иного достаточного основания.
 9. Obligations имеют due date согласно decision/rule, если applicable.
 10. Subsequent Payments/Advances не применяются автоматически.
 11. Historical target set и used values сохраняются.

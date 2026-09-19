@@ -1008,13 +1008,13 @@ Subjects
 44. Relation kind и subject matter являются различными понятиями, даже если их текстовые значения совпадают.
 45. Contractual Relationship для аренды Object Community не заменяет Subject↔Object Use/Lease relation, если такое отношение предметно ведётся.
 46. Technical admin role не создаёт domain authority.
-44. Conflict не разрешается last-write-wins.
-45. UI Counterparty не требует domain Counterparty entity.
-46. Contractual Relationship принадлежит одному Community и не становится global cross-community relation.
-47. Automatic recognition допустим только по явному правилу и не создаёт фиктивного system Subject.
-48. Contractual Relationship может быть Basis производного факта, не становясь этим фактом и не скрывая собственное Basis отношения.
-49. Новый файл, последнее полученное значение или CRUD update не определяют автоматически тип предметного изменения relationship.
-50. Изменение текущей конфигурации допустимых relation kinds не переписывает исторически признанные relationships автоматически.
+47. Conflict не разрешается last-write-wins.
+48. UI Counterparty не требует domain Counterparty entity.
+49. Contractual Relationship принадлежит одному Community и не становится global cross-community relation.
+50. Automatic recognition допустим только по явному правилу и не создаёт фиктивного system Subject.
+51. Contractual Relationship может быть Basis производного факта, не становясь этим фактом и не скрывая собственное Basis отношения.
+52. Новый файл, последнее полученное значение или CRUD update не определяют автоматически тип предметного изменения relationship.
+53. Изменение текущей конфигурации допустимых relation kinds не переписывает исторически признанные relationships автоматически.
 
 ## 52. Нормативная синхронизация после принятия BP
 

@@ -576,7 +576,7 @@ Account B → incoming Bank Transaction
 
 Они остаются двумя самостоятельными Bank Transactions, если так представлены банковскими источниками.
 
-После надёжного сопоставления они могут быть классифицированы как две стороны одного own-account transfer relationship/interpretation.
+После надёжного сопоставления они могут быть явно связаны как соответствующие банковские стороны одного перевода между собственными счетами. Такая связь/интерпретация не требует самостоятельной универсальной domain entity `InternalTransfer`.
 
 Такой перевод сам по себе не создаёт:
 
@@ -642,11 +642,14 @@ external correction
 
 1. установить связь correction с исходной external information;
 2. определить semantic contract correction/replacement;
-3. revalidate/re-recognize применимое банковское содержание;
-4. сохранить историю исходного и исправленного source information;
-5. проверить зависимые domain interpretations.
+3. revalidate исправленное банковское содержание;
+4. передать решение финансовому owning context;
+5. сохранить историю исходного и исправленного source information;
+6. проверить зависимые domain interpretations.
 
-External correction не переписывает молча Payment/Expense/Allocation.
+Owning financial context определяет предметный результат: correction существующей Bank Transaction, replacement, новая Bank Transaction либо отсутствие изменения признанного факта. Настоящий BP не устанавливает универсальное правило сохранения или смены Bank Transaction identity при external correction.
+
+External correction не переписывает молча исходную Bank Transaction, Payment, Expense или Allocation.
 
 ## 41. Correction classification
 
@@ -883,7 +886,7 @@ Bank Transaction recognized; Payment/Expense only through applicable financial p
 34. One leg of transfer does not create synthetic other Bank Transaction.
 35. Other incoming movement does not require universal Community Receipt.
 36. Ignored/no-action disposition does not delete Bank Transaction.
-37. External correction preserves source history.
+37. External correction preserves source history and does not assume same/new Bank Transaction identity universally.
 38. Classification correction preserves Bank Transaction source content.
 39. Payment correction belongs to owning financial process.
 40. Reverse-direction movement is not automatically Refund.

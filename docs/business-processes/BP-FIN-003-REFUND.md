@@ -70,6 +70,8 @@ Refund
 
 Возврат допускается только при наличии предметно достаточного основания.
 
+`Refund basis` в настоящем BP — не отдельная fundamental entity. Это предметное основание Financial Obligation to return и соответствующего решения о возврате, которое должно быть объяснимо через существующие факты, отношения, решения, правила и provenance.
+
 Основанием могут быть, например:
 
 - признанное состояние Overpayment;
@@ -152,26 +154,40 @@ Financial Obligation to return:
 
 ## 8. Предметный commitment возвращаемой суммы
 
-Если refund obligation основан на конкретной части ранее признанных средств, подтверждение обязанности вернуть эту часть изменяет её текущий финансовый смысл.
+Само существование любого Financial Obligation to return не «потребляет» произвольный Payment и не создаёт автоматическую связь с любыми средствами Community.
 
-После подтверждения refund obligation соответствующая сумма не может одновременно считаться свободной для иного Initial Allocation или иного несовместимого финансового использования.
+Если return obligation явно основан на конкретной части ранее признанного Payment, Unallocated Remainder, Advance, Overpayment либо иного определимого source financial state, подтверждение обязанности вернуть эту часть изменяет её текущий финансовый смысл.
 
-Это:
+Для такого случая **committed refundable amount** — вычисляемая процессная величина: часть source financial amount, которая уже поддерживает действующее Financial Obligation to return и поэтому не может одновременно использоваться несовместимым образом.
 
-- не техническое резервирование денег на банковском счёте;
-- не блокировка физических денежных средств;
-- не новый `Reserve`;
-- не отдельная fundamental entity.
+`Committed refundable amount`:
 
-Это предметное следствие признанного Financial Obligation to return и его refund basis.
+- не является новой domain entity;
+- не является Payment Allocation;
+- не является отдельным Refund Status;
+- не является техническим резервированием денег на банковском счёте;
+- не блокирует конкретные физические денежные единицы;
+- существует только в связи с определимым refund basis и действующим return obligation.
 
-Если основание впоследствии правомерно изменено либо obligation отменено/изменено специализированным процессом, доступность суммы определяется заново с сохранением истории.
+После подтверждения такого return obligation соответствующая source-сумма не может одновременно считаться свободной для Initial Allocation, действующим Advance/Overpayment в той же части либо иного несовместимого финансового использования.
+
+Если return obligation не имеет связи с конкретной ранее признанной суммой — например создано самостоятельное новое обязательство Community выплатить 500 — никакой произвольный старый Payment не объявляется committed.
+
+Если основание впоследствии правомерно изменено либо obligation отменено/изменено специализированным процессом, доступность source amount определяется заново с сохранением истории.
 
 ## 9. Refund Payment
 
 Фактический возврат средств является новым Payment.
 
-Для него применяются обычные правила Payment:
+Recognition самого движения как Payment выполняется применимым owning channel/source process. Настоящий BP не вводит универсальный channel-independent Payment Recognition workflow.
+
+Например:
+
+- банковское движение проходит границу recognition согласно `BP-FIN-BANK-001`;
+- наличное движение — согласно применимому cash/payment process;
+- иной канал — согласно собственному recognition process.
+
+Для признанного Refund Payment применяются обычные правила Payment:
 
 - direction;
 - amount and currency;
@@ -194,6 +210,8 @@ Original Payment #P1
 
 После recognition Refund Payment его сумма исполняет Financial Obligation to return через обычную семантику `Payment Allocation`.
 
+Первичное Allocation Refund Payment выполняется согласно `BP-FIN-ALLOCATION-001`. Настоящий BP определяет refund basis/context, но не создаёт параллельный механизм Initial Allocation.
+
 Например:
 
 ```text
@@ -207,6 +225,8 @@ Remaining Obligation = 600
 Отдельный фундаментальный `Refund Allocation` не вводится.
 
 Если Payment признан корректно, но его подтверждённое распределение по return obligations позднее оказалось неверным, применяется `BP-FIN-001`.
+
+Payment Allocation Refund Payment не переписывает refund basis и не заменяет сам Financial Obligation to return.
 
 ## 11. Кардинальность
 
@@ -388,21 +408,20 @@ Supplier → Community   Refund Payment
 
 В обоих случаях Refund Payment является обычным Payment с соответствующим direction относительно Community.
 
-## 21. Refund ≠ Expense / Income
+## 21. Refund ≠ Expense / отдельное новое поступление
 
 Исходящий Refund Payment не создаёт Expense автоматически.
 
-Входящий Refund Payment от поставщика не создаёт Income автоматически.
+Входящий Refund Payment от поставщика не создаёт автоматически отдельный предметный смысл нового дохода/поступления только потому, что деньги пришли в Community.
 
 ```text
 Refund Payment
 ≠ Expense
-≠ Income
 ```
 
 Expense, Financing, Funding Source и иные финансово-управленческие смыслы изменяются только согласно их owning semantics.
 
-Например, возврат поставщиком неиспользованной предоплаты может потребовать revalidation Expense/Financing, но не превращается автоматически в новый доход Community.
+Например, возврат поставщиком неиспользованной предоплаты может потребовать revalidation Expense/Financing, но не требует введения отдельной фундаментальной сущности `Income` или `Community Receipt`.
 
 ## 22. Funding Source / Financing
 
@@ -849,6 +868,39 @@ Allocation B = 500
 
 Это остаётся одним Payment с двумя Allocations.
 
+### 37.21. Немедленный Refund
+
+Refund basis и реальное движение могут возникнуть практически одновременно.
+
+Например, ошибочно полученный, но реальный Payment сразу обнаружен и Community немедленно возвращает 1000.
+
+Предметно всё равно различаются:
+
+```text
+refund basis
+→ Financial Obligation to return 1000
+→ new Refund Payment 1000
+→ Initial Allocation to return obligation
+```
+
+Return obligation может возникнуть и быть полностью исполнено в рамках одного короткого business interaction, но не исчезает как предметный факт только потому, что время между возникновением и исполнением минимально.
+
+### 37.22. Refund без одного определимого original Payment
+
+Personal Account имеет признанное Overpayment 900, сформированное исторически из нескольких Payments и последующих перерасчётов.
+
+Применимая семантика устанавливает Return Obligation = 900.
+
+Не требуется искусственно выбирать один original Payment.
+
+Provenance должна объяснять origin financial state, а Refund Payment исполняет return obligation обычным Allocation.
+
+### 37.23. Самостоятельное return obligation без source Payment commitment
+
+Community по отдельному допустимому решению обязана выплатить Owner 500, при этом это obligation не является возвратом конкретной части ранее поступившего Payment.
+
+Return Obligation = 500 может быть исполнено Payment, но никакой произвольный старый Payment Owner не уменьшается и не объявляется committed refundable amount.
+
 ## 38. Инварианты
 
 1. Refund is a business process/financial meaning, not a new fundamental entity.
@@ -860,42 +912,43 @@ Allocation B = 500
 7. Refund ≠ Cancellation.
 8. Refund ≠ Bank Reversal.
 9. Refund Payment ≠ Expense automatically.
-10. Refund Payment ≠ Income automatically.
+10. Incoming Refund Payment does not create a separate fundamental Income/Community Receipt automatically.
 11. Refund request ≠ refund basis.
 12. Refund request ≠ refundable amount.
 13. Original Payment alone does not create right to Refund.
 14. Refundable amount is a derived process value, not a new entity.
-15. Confirmed return obligation prevents incompatible reuse of the same source amount.
+15. Return obligation prevents incompatible reuse only when its refund basis explicitly identifies the corresponding source financial amount/state.
 16. Such prevention is domain financial semantics, not technical reservation.
-17. Return obligation uses ordinary Financial Obligation semantics.
-18. Refund execution uses ordinary Payment semantics.
-19. Refund fulfillment uses ordinary Payment Allocation semantics.
-20. No universal 1:1 cardinality exists between original Payment and Refund Payment.
-21. Partial Refund is valid.
-22. One return obligation may be fulfilled by multiple Payments.
-23. One Refund Payment may fulfill multiple return obligations where applicable.
-24. Cross-subject refund recipient requires explicit sufficient basis.
-25. Refund channel need not equal original payment channel.
-26. Refund direction is not always outgoing relative to Community.
-27. Overpayment may be refund basis but does not automatically require Refund.
-28. Advance may be refund basis but does not automatically require Refund.
-29. Unallocated Remainder may become refund basis only through applicable decision/policy.
-30. Amount committed to return is no longer available for incompatible Initial Allocation.
-31. Refund does not silently undo an existing confirmed Allocation.
-32. Refund does not automatically reopen or cancel original Financial Obligation.
-33. Bank reversal/chargeback does not automatically define Refund.
-34. Bank commission is not automatically part of Refund Payment amount.
-35. Currency conversion is outside this BP.
-36. Refund Payment correction uses BP-FIN-002.
-37. Refund Payment reallocation uses BP-FIN-001.
-38. Source obligation recalculation/cancellation is separate from Refund.
-39. Revalidation precedes execution where significant refund basis/state may have changed.
-40. Double Refund of the same refundable amount is forbidden.
-41. Technical retry ≠ new Refund Payment.
-42. Manual refund decisions require attributable domain authority.
-43. Automatic refund decisions require explicit policy and sufficient evidence.
-44. Provenance must explain refund basis, obligation, Payment and materially affected dependent financial state.
-45. No universal Refund Status, Refund Ledger, Refund Reservation or Correction is introduced.
+17. A return obligation without a specific source-amount relation does not consume an arbitrary historical Payment.
+18. Return obligation uses ordinary Financial Obligation semantics.
+19. Refund execution uses ordinary Payment semantics and the applicable owning recognition process.
+20. Refund fulfillment uses ordinary Payment Allocation semantics via BP-FIN-ALLOCATION-001.
+21. No universal 1:1 cardinality exists between original Payment and Refund Payment.
+22. Partial Refund is valid.
+23. One return obligation may be fulfilled by multiple Payments.
+24. One Refund Payment may fulfill multiple return obligations where applicable.
+25. Cross-subject refund recipient requires explicit sufficient basis.
+26. Refund channel need not equal original payment channel.
+27. Refund direction is not always outgoing relative to Community.
+28. Overpayment may be refund basis but does not automatically require Refund.
+29. Advance may be refund basis but does not automatically require Refund.
+30. Unallocated Remainder may become refund basis only through applicable decision/policy.
+31. Amount committed to return is no longer available for incompatible Initial Allocation.
+32. Refund does not silently undo an existing confirmed Allocation.
+33. Refund does not automatically reopen or cancel original Financial Obligation.
+34. Bank reversal/chargeback does not automatically define Refund.
+35. Bank commission is not automatically part of Refund Payment amount.
+36. Currency conversion is outside this BP.
+37. Refund Payment correction uses BP-FIN-002.
+38. Refund Payment reallocation uses BP-FIN-001.
+39. Source obligation recalculation/cancellation is separate from Refund.
+40. Revalidation precedes execution where significant refund basis/state may have changed.
+41. Double Refund of the same refundable amount is forbidden.
+42. Technical retry ≠ new Refund Payment.
+43. Manual refund decisions require attributable domain authority.
+44. Automatic refund decisions require explicit policy and sufficient evidence.
+45. Provenance must explain refund basis, obligation, Payment and materially affected dependent financial state.
+46. No universal Refund Status, Refund Ledger, Refund Reservation or Correction is introduced.
 
 ## 39. Что намеренно не решается
 
@@ -957,7 +1010,7 @@ Refund ≠ modification of original Payment
 
 1. достаточно ли моделировать Refund без отдельной fundamental entity;
 2. всегда ли Refund должен проходить через Financial Obligation to return, включая немедленный refund;
-3. корректно ли считать confirmed return obligation достаточным предметным основанием исключить соответствующую сумму из доступного Initial Allocation без отдельного Reservation;
+3. корректна ли модель `committed refundable amount`: source amount исключается из несовместимого использования только при явной связи действующего return obligation с конкретной source financial amount/state, без отдельного Reservation;
 4. достаточно ли provenance-связи с source financial state без универсальной Original Payment ↔ Refund relation entity;
 5. корректна ли direction-neutral модель для supplier refund;
 6. не смешивается ли refund basis с Financial Obligation basis;

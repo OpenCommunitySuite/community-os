@@ -114,6 +114,17 @@ refund request
 
 Универсальная формула для всех refund basis не вводится.
 
+Следует различать:
+
+```text
+refundable amount
+≠ outstanding amount of Financial Obligation to return
+```
+
+`Refundable amount` отвечает на вопрос, какую сумму текущий refund basis допускает превратить в обязанность возврата.
+
+После признания Financial Obligation to return исполнение контролируется уже его собственной непогашенной суммой согласно ordinary obligation semantics. Изменение refundable source state не переписывает return obligation молча; при необходимости obligation изменяется отдельным прослеживаемым процессом.
+
 Для одного и того же основания нельзя одновременно использовать одну и ту же сумму как:
 
 - доступную для Initial Allocation;
@@ -355,11 +366,16 @@ new Refund Payment
 
 Refund не обязан семантически «откатывать» исходное обязательство.
 
-## 18. Refund recipient и сторона obligation
+## 18. Стороны Refund Payment и return obligation
 
-Фактический получатель Refund Payment не обязан универсально совпадать с управомоченной стороной return obligation, так же как стороны Payment и Obligation в общей модели могут различаться.
+Фактические стороны Refund Payment не обязаны универсально совпадать со сторонами return obligation, так же как Payment и Obligation в общей финансовой модели являются самостоятельными фактами.
 
-Однако cross-subject refund требует достаточного предметного основания.
+Возможны, например:
+
+- фактический recipient отличается от управомоченной стороны return obligation;
+- фактический payer действует за обязанную сторону по допустимому основанию.
+
+Однако любое такое cross-subject исполнение требует достаточного предметного основания.
 
 Например, возврат может быть перечислен:
 
@@ -370,6 +386,8 @@ Refund не обязан семантически «откатывать» ис�
 Совпадение фамилии, банковского счёта, номера участка или текста назначения само по себе не является достаточным универсальным основанием.
 
 Cross-subject basis сохраняется в provenance.
+
+Personal Account может использоваться как контекст взаиморасчётов для owner refund, но Refund, return obligation и Refund Payment не тождественны Personal Account и не требуют его существования во всех сценариях, например при supplier refund.
 
 ## 19. Refund channel
 
@@ -513,9 +531,18 @@ wrong recognition
 
 Если Refund Payment сам был ошибочно признан, его correction выполняется через `BP-FIN-002`.
 
-## 28. Refund и Reallocation
+## 28. Refund, Reallocation и зачёт
 
 Refund не является Reallocation.
+
+Refund также не является зачётом, переносом остатка или иным способом изменения взаиморасчётов без нового движения денежных средств.
+
+```text
+set-off / internal credit transfer without money movement
+≠ Refund
+```
+
+Если refundable amount вместо выплаты используется для исполнения другого допустимого obligation или иного финансового назначения без обратного движения денег, применяется соответствующий Allocation/Reallocation/settlement process, но не настоящий BP.
 
 Reallocation изменяет финансовый эффект подтверждённого Allocation существующего Payment.
 
@@ -901,6 +928,37 @@ Community по отдельному допустимому решению обя
 
 Return Obligation = 500 может быть исполнено Payment, но никакой произвольный старый Payment Owner не уменьшается и не объявляется committed refundable amount.
 
+### 37.24. Refund Payment превышает outstanding return obligation
+
+Return Obligation = 1000.
+
+Реально признан outgoing Payment = 1100.
+
+Сам факт Payment 1100 не увеличивает return obligation автоматически.
+
+```text
+Initial Allocation to Return Obligation = 1000
+remaining Payment amount = 100
+```
+
+Оставшиеся 100 требуют отдельного допустимого финансового смысла/решения. Они не становятся новым Refund Obligation и не считаются Expense автоматически.
+
+### 37.25. Зачёт вместо возврата
+
+Owner имеет refundable amount 500 и одновременно новое Financial Obligation 500 перед Community.
+
+Community и Owner по допустимой policy выполняют зачёт без обратного движения денег.
+
+Это может изменить effective financial state, но:
+
+```text
+money movement = none
+→ Refund Payment = none
+→ BP-FIN-003 не является процессом фактического исполнения через Refund
+```
+
+Такой settlement должен принадлежать отдельной применимой семантике, а не маскироваться как Refund.
+
 ## 38. Инварианты
 
 1. Refund is a business process/financial meaning, not a new fundamental entity.
@@ -927,28 +985,30 @@ Return Obligation = 500 может быть исполнено Payment, но н�
 22. Partial Refund is valid.
 23. One return obligation may be fulfilled by multiple Payments.
 24. One Refund Payment may fulfill multiple return obligations where applicable.
-25. Cross-subject refund recipient requires explicit sufficient basis.
-26. Refund channel need not equal original payment channel.
-27. Refund direction is not always outgoing relative to Community.
-28. Overpayment may be refund basis but does not automatically require Refund.
-29. Advance may be refund basis but does not automatically require Refund.
-30. Unallocated Remainder may become refund basis only through applicable decision/policy.
-31. Amount committed to return is no longer available for incompatible Initial Allocation.
-32. Refund does not silently undo an existing confirmed Allocation.
-33. Refund does not automatically reopen or cancel original Financial Obligation.
-34. Bank reversal/chargeback does not automatically define Refund.
-35. Bank commission is not automatically part of Refund Payment amount.
-36. Currency conversion is outside this BP.
-37. Refund Payment correction uses BP-FIN-002.
-38. Refund Payment reallocation uses BP-FIN-001.
-39. Source obligation recalculation/cancellation is separate from Refund.
-40. Revalidation precedes execution where significant refund basis/state may have changed.
-41. Double Refund of the same refundable amount is forbidden.
-42. Technical retry ≠ new Refund Payment.
-43. Manual refund decisions require attributable domain authority.
-44. Automatic refund decisions require explicit policy and sufficient evidence.
-45. Provenance must explain refund basis, obligation, Payment and materially affected dependent financial state.
-46. No universal Refund Status, Refund Ledger, Refund Reservation or Correction is introduced.
+25. Refundable amount ≠ outstanding amount of return obligation.
+26. Cross-subject payer/recipient differing from obligation sides requires explicit sufficient basis.
+27. Personal Account is optional context, not Refund identity.
+28. Refund channel need not equal original payment channel.
+29. Refund direction is not always outgoing relative to Community.
+30. Overpayment may be refund basis but does not automatically require Refund.
+31. Advance may be refund basis but does not automatically require Refund.
+32. Unallocated Remainder may become refund basis only through applicable decision/policy.
+33. Amount committed to return is no longer available for incompatible Initial Allocation.
+34. Refund does not silently undo an existing confirmed Allocation.
+35. Refund does not automatically reopen or cancel original Financial Obligation.
+36. Bank reversal/chargeback does not automatically define Refund.
+37. Bank commission is not automatically part of Refund Payment amount.
+38. Currency conversion is outside this BP.
+39. Refund Payment correction uses BP-FIN-002.
+40. Refund Payment reallocation uses BP-FIN-001.
+41. Source obligation recalculation/cancellation is separate from Refund.
+42. Revalidation precedes execution where significant refund basis/state may have changed.
+43. Double Refund of the same refundable amount is forbidden.
+44. Technical retry ≠ new Refund Payment.
+45. Manual refund decisions require attributable domain authority.
+46. Automatic refund decisions require explicit policy and sufficient evidence.
+47. Provenance must explain refund basis, obligation, Payment and materially affected dependent financial state.
+48. No universal Refund Status, Refund Ledger, Refund Reservation or Correction is introduced.
 
 ## 39. Что намеренно не решается
 
@@ -966,6 +1026,7 @@ Return Obligation = 500 может быть исполнено Payment, но н�
 - BAS/BAF postings;
 - tax treatment;
 - legal limitation periods;
+- settlement/set-off/netting without money movement;
 - multi-currency conversion/exchange rates;
 - technical money reservation;
 - database locking/transaction mechanism.

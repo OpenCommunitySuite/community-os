@@ -282,7 +282,16 @@ Contractual Relationship может иметь применимый вид/кл�
 
 Ядро не задаёт закрытый enum.
 
-Relation kind не является identity и не заменяет предмет отношения.
+Следует различать:
+
+```text
+configured/allowed relation kind
+≠ concrete Contractual Relationship
+```
+
+Конфигурация Community может определять допустимые виды отношений и относящиеся к ним политики согласно ADR-003, но она не создаёт конкретное отношение.
+
+Relation kind не является identity и не заменяет предмет отношения. Изменение перечня допустимых видов не переписывает исторически признанные relationships автоматически.
 
 ## 13. Contextual roles
 
@@ -911,6 +920,7 @@ Subjects
 12. Supplier является специализированной семантикой установленного Subject во владении финансового контекста, а не Subject type или отдельной identity.
 13. Contractual role не является Access Role.
 14. Relation kind не является identity.
+14a. Допустимый relation kind как конфигурация не является конкретным Contractual Relationship и не создаёт его.
 15. Subject matter не моделируется universal ContractItem/ContractAsset.
 16. Contractual Relationship не копирует Object/Engineering identity.
 17. Полученная информация не является recognized relationship.
@@ -943,6 +953,7 @@ Subjects
 44. Automatic recognition допустим только по явному правилу и не создаёт фиктивного system Subject.
 45. Contractual Relationship может быть Basis производного факта, не становясь этим фактом и не скрывая собственное Basis отношения.
 46. Новый файл, последнее полученное значение или CRUD update не определяют автоматически тип предметного изменения relationship.
+47. Изменение текущей конфигурации допустимых relation kinds не переписывает исторически признанные relationships автоматически.
 
 ## 52. Нормативная синхронизация после принятия BP
 

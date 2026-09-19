@@ -122,11 +122,13 @@ Payment должен сохранять собственную identity неза
 
 Payment может быть:
 
+- входящим;
+- исходящим;
 - банковским;
 - наличным;
 - иным допустимым способом.
 
-Способ Payment не определяет правила Allocation автоматически.
+Направление и способ Payment не определяют правила Allocation автоматически. Настоящий BP применим как к исполнению обязательств перед Community, так и к исполнению обязательств самого Community перед другими сторонами, если соответствующая финансовая семантика допускает Allocation.
 
 ## 7. Доступная сумма
 
@@ -332,6 +334,15 @@ Unallocated Remainder — часть признанного Payment, котор�
 ## 19. Аванс
 
 Часть Payment может получить смысл Advance при наличии достаточного предметного основания.
+
+При этом:
+
+```text
+Advance
+≠ Payment Allocation
+```
+
+Payment Allocation может связать доступную часть Payment с допустимым финансовым назначением «аванс» и тем самым участвовать в признании соответствующего финансового смысла, но не превращается в сам Advance как отдельное состояние/назначение средств.
 
 Advance может относиться к:
 
@@ -592,6 +603,12 @@ Payment сохраняется полностью, его сумма образ�
 
 Сумма может получить смысл Advance согласно применимой policy без искусственного создания будущего Financial Obligation.
 
+### 31.13. Исходящий Payment по обязательству Community
+
+Community перечисляет 55 000 грн поставщику электроэнергии. Payment признан как исходящий, существует применимое Financial Obligation Community перед Supplier.
+
+Первичное Allocation может связать всю сумму либо её часть с этим Obligation. Сам факт исходящего Payment не создаёт Expense или Obligation и не меняет правила их owning processes.
+
 ## 32. Инварианты процесса
 
 1. Payment ≠ Payment Allocation.
@@ -626,8 +643,10 @@ Payment сохраняется полностью, его сумма образ�
 30. Refund ≠ Reallocation.
 31. Allocation does not create Bank Transaction.
 32. Allocation does not depend on payment channel.
-33. Manual financial decisions require attributable authority.
-34. Provenance must explain confirmed Allocation without universal Audit entity.
+33. Initial Allocation applies to both incoming and outgoing Payment where the financial semantics supports it.
+34. Advance ≠ Payment Allocation.
+35. Manual financial decisions require attributable authority.
+36. Provenance must explain confirmed Allocation without universal Audit entity.
 
 ## 33. Связанные документы
 
@@ -666,14 +685,16 @@ ADR-006, DOMAIN_MODEL и TERMINOLOGY уже определяют:
 - обновить REFERENCE_CANDIDATE_MATRIX, отделив принятую семантику Allocation от отсутствовавшего ранее конкретного Initial Allocation BP;
 - определить место процесса в последовательности Этапа 5.
 
-## 35. Открытые вопросы
+## 35. Решения внутреннего review
 
-До принятия BP необходимо отдельно проверить:
+По результатам сверки с ADR-004/005/006/010, DOMAIN_MODEL, TERMINOLOGY и BP-FIN-001 зафиксировано:
 
-1. достаточно ли общей модели для первичного Allocation исходящего Payment либо первый продуктовый процесс должен быть ограничен входящими Payments;
-2. требуется ли отдельная локальная policy для cross-Personal-Account Allocation первого внедрения;
-3. какие автоматические Allocation rules нужны пилотному СТ как конфигурация, а какие следует оставить на последующий продуктовый этап;
-4. должен ли Advance быть результатом самого Allocation либо отдельным связанным финансовым recognition в конкретных сценариях.
+1. Initial Allocation является direction-neutral и применяется как к incoming, так и к outgoing Payment; отдельный фундаментальный процесс только для входящих Payments не требуется.
+2. Cross-Personal-Account Allocation не запрещается универсально, но требует достаточного предметного основания; специальные ограничения первого СТ относятся к локальной policy/configuration.
+3. Конкретные автоматические приоритеты пилотного СТ не входят в нормативный BP. Они должны определяться только как применимые Allocation Rules/Policy после отдельного продуктового решения.
+4. Advance остаётся отдельным финансовым смыслом: `Advance ≠ Payment Allocation`. Allocation может связать часть Payment с допустимым назначением аванса и участвовать в его recognition, но не сливает эти понятия.
+
+Новый ADR или новая фундаментальная сущность по результатам review не требуются.
 
 ## 36. Следующий шаг
 

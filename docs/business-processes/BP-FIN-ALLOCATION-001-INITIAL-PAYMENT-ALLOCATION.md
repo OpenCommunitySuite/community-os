@@ -138,6 +138,15 @@ Payment может быть:
 
 Совокупный текущий effective financial use одного Payment не может превышать сумму Payment.
 
+В `current effective financial use` может входить не только подтверждённый Payment Allocation. Если согласно `BP-FIN-003` действующее Financial Obligation to return явно связано с конкретной частью этого Payment либо производного от него source financial state, соответствующий `committed refundable amount` уменьшает available amount для Initial Allocation.
+
+При этом:
+
+- committed refundable amount не является Payment Allocation;
+- не является техническим Reservation/Reserve;
+- не создаёт отдельную fundamental entity;
+- не уменьшает произвольный historical Payment, если return obligation не имеет явной связи с соответствующей source financial amount/state.
+
 Если часть Payment уже получила подтверждённое первоначальное распределение и сохраняет действующий финансовый эффект, процесс может распределять только оставшуюся доступную часть без изменения уже подтверждённых Allocation.
 
 Если требуется изменить уже подтверждённую часть, применяется Reallocation.

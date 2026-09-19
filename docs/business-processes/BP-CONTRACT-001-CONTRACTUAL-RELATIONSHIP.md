@@ -154,7 +154,9 @@ Recognition может быть автоматизировано только п
 
 Технический администратор не получает предметное полномочие управлять Contractual Relationship только из факта системной роли.
 
-## 8. Канал получения сведений
+## 8. Канал получения сведений и общая последовательность
+
+### 8.1. Канал получения
 
 Сведения об отношении могут быть получены:
 
@@ -172,6 +174,42 @@ received information
 ```
 
 Для external/imported data применяются ADR-011 и соответствующие migration/integration semantics.
+
+### 8.2. Recognition нового отношения
+
+Общая семантическая последовательность:
+
+```text
+полученные сведения / инициирование
+→ Subject identification
+→ Contractual Relationship identity resolution
+→ validation subject matter / basis / time / roles where applicable
+→ authority / applicable rule check
+→ recognition
+→ explicit context-specific links
+```
+
+Recognition не создаёт автоматически финансовые, документные, ресурсные, объектные или access-факты.
+
+### 8.3. Изменение существующего отношения
+
+Общая последовательность:
+
+```text
+existing Contractual Relationship
+→ новые сведения / действие
+→ classification:
+     correction
+     real modification
+     extension
+     termination
+     new relationship instead
+→ authority / rule check
+→ history-preserving domain change
+→ context-specific consequences handled by owning contexts
+```
+
+Классификация изменения является предметным решением. Она не определяется автоматически техническим CRUD-действием, новым файлом или последним полученным значением.
 
 ## 9. Идентификация Subject
 
@@ -554,7 +592,7 @@ Correction:
 
 ## 32. Финансовые обязательства
 
-Contractual Relationship может быть Basis для нуля, одного или многих Financial Obligations.
+Contractual Relationship как признанное историческое отношение может быть Basis для нуля, одного или многих Financial Obligations. Его собственное Basis и основания производных финансовых фактов остаются различимыми.
 
 Направление не фиксируется на уровне relationship:
 
@@ -903,6 +941,8 @@ Subjects
 42. UI Counterparty не требует domain Counterparty entity.
 43. Contractual Relationship принадлежит одному Community и не становится global cross-community relation.
 44. Automatic recognition допустим только по явному правилу и не создаёт фиктивного system Subject.
+45. Contractual Relationship может быть Basis производного факта, не становясь этим фактом и не скрывая собственное Basis отношения.
+46. Новый файл, последнее полученное значение или CRUD update не определяют автоматически тип предметного изменения relationship.
 
 ## 52. Нормативная синхронизация после принятия BP
 

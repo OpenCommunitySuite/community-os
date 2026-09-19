@@ -526,12 +526,12 @@ external bank representation
 → Bank Transaction
 → Subject/Personal Account matching where reliable
 → incoming Payment recognition
-→ Payment Allocation in separate/related financial process
+→ Initial Payment Allocation according to BP-FIN-ALLOCATION-001 where applicable
 ```
 
 Payment Allocation не является частью банковского текста и не возникает автоматически из purpose text.
 
-Банковский workflow может показать предложенное распределение, рассчитанное по назначению платежа, задолженности, Payment Intent или применимому правилу, и может позволить уполномоченному пользователю изменить предложение до предметной фиксации. Такое предложение не является фактически состоявшимся Payment Allocation, пока соответствующий финансовый процесс не установил распределение.
+Банковский workflow может показать предложенное распределение, рассчитанное по назначению платежа, задолженности, Payment Intent или применимому правилу, и может позволить уполномоченному пользователю изменить предложение до предметной фиксации. Такое предложение не является фактически состоявшимся Payment Allocation. Его первичное подтверждение относится к `BP-FIN-ALLOCATION-001`; изменение уже подтверждённого Allocation относится к `BP-FIN-001`.
 
 ## 33. Incoming payment from external contractual party
 
@@ -894,7 +894,7 @@ Delivery содержит сведения по нескольким счета�
 
 Bank Transaction надёжно сопоставлена с плательщиком/Personal Account и признан incoming Payment. Применимое правило формирует предложение распределить сумму между несколькими обязательствами. Уполномоченный пользователь может изменить предложение до его предметной фиксации.
 
-Предложение распределения не является Payment Allocation само по себе. Фактическое распределение возникает только в owning financial process согласно применимым правилам и сохраняет самостоятельную историю.
+Предложение распределения не является Payment Allocation само по себе. Первичное фактическое распределение возникает согласно `BP-FIN-ALLOCATION-001` и сохраняет самостоятельную историю; последующее изменение подтверждённого Allocation относится к `BP-FIN-001`.
 
 ### 53.15. Источник содержит только дату операции
 
@@ -964,7 +964,7 @@ Imported representation содержит календарную дату без 
 
 ## 55. Нормативные последствия
 
-Предварительно новый ADR и новые фундаментальные сущности не требуются.
+Новый ADR и новые фундаментальные сущности не требуются.
 
 ADR-006/011 уже определяют:
 
@@ -976,11 +976,13 @@ ADR-006/011 уже определяют:
 - correction/re-recognition;
 - multi-community source scope.
 
-После принятия BP следует:
+Повторная сверка после независимого review Claude и практической проверки банковского workflow OSBBX подтвердила, что DOMAIN_MODEL и TERMINOLOGY уже содержат достаточную базовую семантику Bank Transaction / Payment и не требуют дополнительного фундаментального изменения по настоящему BP.
 
-- проверить, нужны ли точечные уточнения DOMAIN_MODEL/TERMINOLOGY;
-- обновить REFERENCE_CANDIDATE_MATRIX;
-- не переносить bank-specific fields в универсальную модель без предметного основания.
+Process-level уточнения настоящего документа — source temporal precision, confirmation/matching boundaries, operational disposition, own-account transfer continuation и multi-account mapping — не требуют новых фундаментальных терминов.
+
+`REFERENCE_CANDIDATE_MATRIX` должна быть синхронизирована закрытием `REF-BANK-001` и конкретизацией `REF-FIN-001`.
+
+Bank-specific fields по-прежнему не переносятся в универсальную модель без предметного основания.
 
 ## 56. Связанные документы
 
@@ -994,6 +996,8 @@ ADR-006/011 уже определяют:
 - ADR-011;
 - ADR-016;
 - `BP-CONTRACT-001-CONTRACTUAL-RELATIONSHIP.md`;
+- `BP-FIN-ALLOCATION-001-INITIAL-PAYMENT-ALLOCATION.md`;
+- `BP-FIN-001-PAYMENT-REALLOCATION.md`;
 - OSBBX reference analysis;
 - Мій Дім Online reference analysis;
 - REFERENCE_CANDIDATE_MATRIX.
@@ -1019,10 +1023,8 @@ ADR-006/011 уже определяют:
 
 ## 58. Следующий шаг
 
-После предметного review:
+Независимый review Claude, практическая проверка по банковскому workflow OSBBX и point fixes завершены.
 
-1. независимое review Claude;
-2. точечные исправления;
-3. при необходимости минимальная нормативная синхронизация;
-4. закрытие `REF-BANK-001`;
-5. переход к `BP-FIN-002 — исправление ошибочного признания платежа`.
+После синхронизации REFERENCE_CANDIDATE_MATRIX и принятия настоящего BP банковский Этап 4 считается завершённым.
+
+Следующий финансовый процесс — `BP-FIN-002 — исправление ошибочного признания платежа`. Initial Payment Allocation уже выделен и принят как самостоятельный `BP-FIN-ALLOCATION-001`.

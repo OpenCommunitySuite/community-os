@@ -309,7 +309,7 @@ Confirmation scope является семантикой процесса и н�
 После подтверждения:
 
 - соответствующая сумма Payment считается распределённой;
-- целевые Financial Obligations получают финансовый эффект согласно их семантике;
+- целевые Financial Obligations либо иные допустимые финансовые назначения получают соответствующий финансовый эффект согласно их owning semantics;
 - подтверждённый Allocation не редактируется молча.
 
 Если позже требуется изменить подтверждённый результат, применяется `BP-FIN-001-PAYMENT-REALLOCATION`.
@@ -740,7 +740,7 @@ Water       → 400
 
 Результат остаётся Proposal/Requires Decision; автоматический расчёт сам по себе не создаёт Payment Allocation.
 
-## 32. Инварианты процесса
+## 33. Инварианты процесса
 
 1. Payment ≠ Payment Allocation.
 2. Payment Allocation ≠ Allocation Proposal.
@@ -757,8 +757,9 @@ Water       → 400
 13. Rule changes do not rewrite historical Allocation.
 14. One Payment may allocate to multiple Financial Obligations.
 15. One Financial Obligation may be fulfilled by multiple Payments.
-16. Total confirmed Allocation cannot exceed the available Payment amount.
-17. Partial Allocation is valid.
+16. Newly confirmed Allocation within a confirmation scope cannot exceed the Payment amount available at confirmation time.
+17. Total current effective financial use of a Payment cannot exceed the Payment amount.
+18. Partial Allocation is valid.
 18. Unallocated Remainder ≠ Advance.
 19. Unallocated Remainder ≠ Overpayment.
 20. Arithmetic excess ≠ automatic Overpayment.
@@ -774,17 +775,17 @@ Water       → 400
 30. Refund ≠ Reallocation.
 31. Allocation does not create Bank Transaction.
 32. Allocation does not depend on payment channel.
-33. Initial Allocation applies to both incoming and outgoing Payment where the financial semantics supports it.
-34. Advance ≠ Payment Allocation.
-35. Overpayment ≠ Payment Allocation and is not a target of Initial Allocation.
-36. Available amount is a derived process value, not a new financial identity or state.
-37. Enumeration order of allocation evidence does not define priority.
-38. A mutually dependent confirmation scope is revalidated and confirmed atomically at the domain level.
-39. Invalidating one required element of a mutually dependent scope prevents partial confirmation of the stale set.
-40. Independent Allocations may have separate confirmation scopes.
-41. Cross-subject/cross-account Allocation must preserve its explicit basis in provenance.
-42. Manual financial decisions require attributable authority.
-43. Provenance must explain confirmed Allocation without universal Audit entity.
+34. Initial Allocation applies to both incoming and outgoing Payment where the financial semantics supports it.
+35. Advance ≠ Payment Allocation.
+36. Overpayment ≠ Payment Allocation and is not a target of Initial Allocation.
+37. Available amount is a derived process value, not a new financial identity or state.
+38. Enumeration order of allocation evidence does not define priority.
+39. A mutually dependent confirmation scope is revalidated and confirmed atomically at the domain level.
+40. Invalidating one required element of a mutually dependent scope prevents partial confirmation of the stale set.
+41. Independent Allocations may have separate confirmation scopes.
+42. Cross-subject/cross-account Allocation must preserve its explicit basis in provenance.
+43. Manual financial decisions require attributable authority.
+44. Provenance must explain confirmed Allocation without universal Audit entity.
 
 ## 33. Связанные документы
 

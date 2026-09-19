@@ -231,6 +231,8 @@ Technical ingestion time не заменяет банковское предме
 
 Если источник предоставляет несколько банковских времён, их смысл определяется source contract; BP не выбирает одно универсальное «transaction date».
 
+Источник может предоставлять только календарную дату без достоверного времени суток. В таком случае сохраняется фактическая точность source; Community OS не должна превращать техническое значение вроде `00:00` в утверждение о реальном времени банковского движения.
+
 ## 14. External transaction identity
 
 Если источник предоставляет устойчивый external transaction ID с известной областью уникальности, он используется согласно semantic contract.
@@ -529,6 +531,8 @@ external bank representation
 
 Payment Allocation не является частью банковского текста и не возникает автоматически из purpose text.
 
+Банковский workflow может показать предложенное распределение, рассчитанное по назначению платежа, задолженности, Payment Intent или применимому правилу, и может позволить уполномоченному пользователю изменить предложение до предметной фиксации. Такое предложение не является фактически состоявшимся Payment Allocation, пока соответствующий финансовый процесс не установил распределение.
+
 ## 33. Incoming payment from external contractual party
 
 Например ISP платит Community за использование опор:
@@ -643,6 +647,8 @@ OSBBX показывает практическую потребность иг�
 при сохранении Bank Transaction и причины такого решения, если это значимо.
 
 Настоящий BP не требует universal `Ignored` domain status.
+
+Если продукт предоставляет действия, визуально похожие на «скрыть», «исключить из обработки» или «считать удалённой», они не означают физическое удаление уже признанной Bank Transaction. Операционная видимость/диспозиция и существование исторического банковского факта различаются; причина значимого исключения должна оставаться объяснимой.
 
 ## 40. Corrected external bank information
 
@@ -884,6 +890,16 @@ Bank Transaction recognized; Payment/Expense only through applicable financial p
 
 Delivery содержит сведения по нескольким счетам, но отдельные элементы нельзя надёжно отнести к конкретным Community Bank Accounts. Такие элементы не признаются как Bank Transactions до разрешения mapping; счёт не угадывается.
 
+### 53.14. Автоматически предложенное распределение платежа
+
+Bank Transaction надёжно сопоставлена с плательщиком/Personal Account и признан incoming Payment. Применимое правило формирует предложение распределить сумму между несколькими обязательствами. Уполномоченный пользователь может изменить предложение до его предметной фиксации.
+
+Предложение распределения не является Payment Allocation само по себе. Фактическое распределение возникает только в owning financial process согласно применимым правилам и сохраняет самостоятельную историю.
+
+### 53.15. Источник содержит только дату операции
+
+Imported representation содержит календарную дату без достоверного времени суток. Bank Transaction может сохранить такую source precision; техническое `00:00` не интерпретируется как фактическое время операции.
+
 ## 54. Инварианты процесса
 
 1. External bank representation ≠ Bank Transaction.
@@ -942,6 +958,9 @@ Delivery содержит сведения по нескольким счета�
 54. Bank Transaction does not determine the composition of an aggregated cash deposit without independent cash-side evidence.
 55. Later arrival of the matching own-account transfer leg may continue provisional classification and is not a correction by itself.
 56. Multi-account delivery without reliable account mapping does not permit guessing a Community Bank Account.
+57. Source temporal precision is preserved; date-only source data does not justify inventing an actual transaction time.
+58. Proposed or automatically calculated allocation ≠ actual Payment Allocation until established by the applicable financial process.
+59. Hide/delete-like UI disposition does not erase an already recognized Bank Transaction.
 
 ## 55. Нормативные последствия
 

@@ -123,7 +123,7 @@ Subject
 
 Contractual Relationship вводится только тогда, когда само договорное отношение имеет самостоятельный предметный смысл для Community OS и не исчерпывается уже существующим специализированным отношением.
 
-До нормативной синхронизации это определение является рабочим термином BP.
+Определение синхронизировано с DOMAIN_MODEL, TERMINOLOGY и ADR-002; настоящий BP остаётся процессным источником детальной семантики.
 
 ## 5.1. Граница со специализированными отношениями
 
@@ -1016,40 +1016,38 @@ Subjects
 52. Новый файл, последнее полученное значение или CRUD update не определяют автоматически тип предметного изменения relationship.
 53. Изменение текущей конфигурации допустимых relation kinds не переписывает исторически признанные relationships автоматически.
 
-## 52. Нормативная синхронизация после принятия BP
+## 52. Нормативная синхронизация
 
-Если BP принимается, требуется рассмотреть:
+По результатам принятия BP выполнена минимальная нормативная синхронизация.
 
 ### DOMAIN_MODEL
 
-- добавить Contractual Relationship в раздел «Отношения субъекта к сообществу»;
-- уточнить Supplier как специализированную финансовую семантику Subject без отдельной identity/type;
-- заменить слишком узкую формулировку Supplier Contract общей моделью Contractual Relationship, сохранив financial ownership Supplier;
-- зафиксировать границы Contractual Relationship / Document / Obligation / Payment / Expense;
-- добавить ISP infrastructure-use validation scenario при необходимости.
+- Contractual Relationship добавлен в раздел «Отношения субъекта к сообществу»;
+- Supplier уточнён как специализированная финансовая семантика установленного Subject без отдельной identity/type;
+- слишком узкая модель Supplier Contract заменена общей границей Contractual Relationship с сохранением financial ownership Supplier;
+- зафиксированы различия Contractual Relationship / Document / Obligation / Payment / Expense / Use.
 
 ### TERMINOLOGY
 
-Добавить/уточнить:
+Добавлены/уточнены:
 
 - Contractual Relationship;
 - contextual contractual role;
 - Supplier;
-- Form of Relationship / ГПХ — уточнить, что юридическая форма сама по себе не определяет owning relation;
-- при необходимости relation kind.
+- Form of Relationship / ГПХ — юридическая форма сама по себе не определяет owning relation.
 
-Не вводить:
+Не введены:
 
-- Counterparty как новую identity;
+- Counterparty как новая identity;
 - PartyRole как universal entity;
 - ContractItem/ContractAsset;
 - универсальный Contract status workflow.
 
 ### ADR-002
 
-Рассмотреть точечное добавление Contractual Relationship в ключевые понятия контекста «Отношения субъекта с сообществом».
+Contractual Relationship явно добавлен в ключевые понятия контекста «Отношения субъекта с сообществом». Финансовый контекст сохраняет ownership Supplier и производных финансовых фактов.
 
-Новый отдельный ADR предварительно не требуется.
+Новый отдельный ADR не требуется.
 
 ## 53. Связанные документы
 
@@ -1092,11 +1090,10 @@ Subjects
 
 ## 55. Следующий шаг
 
-После предметного review BP:
+Предметный и независимый review завершены, нормативная синхронизация выполнена, `REF-SUBJ-001` закрыт решением.
 
-1. проверить совместимость с DOMAIN_MODEL / TERMINOLOGY / ADR-002/004/005/006/009/010/011;
-2. привлечь независимый review Claude;
-3. согласовать оставшиеся вопросы;
-4. выполнить минимальную нормативную синхронизацию;
-5. закрыть REF-SUBJ-001;
-6. перейти к BP-FIN-BANK-001.
+Следующий процесс:
+
+`BP-FIN-BANK-001 — банковские сведения → Bank Transaction → предметная классификация`.
+
+Он должен использовать принятую модель Subject / Contractual Relationship для классификации внешних сторон, не создавая Subject или Contractual Relationship автоматически из банковской строки или реквизитов контрагента.

@@ -197,6 +197,8 @@ Invalidation означает:
 
 Invalidation не означает, что реальное банковское или иное source movement исчезло.
 
+Invalidation является специализированным результатом настоящего процесса, а не универсальным `Payment Status` или общей state machine для всех Payments.
+
 Например:
 
 ```text
@@ -307,7 +309,7 @@ Correction Payment не вызывает универсальный cascade dele
 
 1. **Allocation остаётся эффективным без изменения** — например, исправлена сторона Payment, но cross-subject basis остаётся достаточным.
 2. **Allocation требует Reallocation** — Payment остаётся корректным, но после correction его подтверждённое распределение должно измениться; применяется `BP-FIN-001`.
-3. **Allocation теряет возможность иметь effective effect из-за invalidation Payment** — если самого Payment больше нет как эффективного признанного факта, зависимый Allocation не может продолжать использовать его сумму. История Allocation сохраняется; изменение его effective state является зависимым последствием Payment correction, а не Reallocation несуществующих средств.
+3. **Allocation теряет возможность иметь effective effect из-за invalidation Payment** — если самого Payment больше нет как эффективного признанного факта, зависимый Allocation не может продолжать использовать его сумму. История Allocation сохраняется; прекращение его effective effect должно быть исторически прослеживаемо и связано с Payment correction как с основанием. Это зависимое последствие correction, а не Reallocation несуществующих средств.
 4. **Requires Decision** — если автоматическое решение о зависимом результате недостаточно обосновано.
 
 Настоящий BP не превращает эту координацию в универсальную Correction entity или универсальный cascade engine.
@@ -315,6 +317,10 @@ Correction Payment не вызывает универсальный cascade dele
 ## 14. Correction и Initial Allocation
 
 Если Payment identity сохраняется и после correction остаётся нераспределённая доступная сумма, её первое последующее распределение выполняется согласно `BP-FIN-ALLOCATION-001`.
+
+Если wrong cardinality приводит к recognition replacement Payment(s), старые Allocation ошибочного Payment не «переносятся» на новые Payment identities. Для replacement Payment выполняется собственный Initial Allocation согласно `BP-FIN-ALLOCATION-001`, если для него существует достаточное основание.
+
+При этом history/provenance может явно связывать новое Initial Allocation с correction context и прежним ошибочным recognition, но это не делает действие Reallocation старого Payment.
 
 Correction Payment не считается Initial Allocation.
 
@@ -706,7 +712,7 @@ same Payment identity
 amount 1200 → corrected recognized amount 1020
 ```
 
-Зависимые Allocation/Advance revalidated относительно новой доступной суммы.
+Зависимые Allocation/Advance revalidated относительно новой доступной суммы. Если подтверждённый Allocation больше не помещается в доступную сумму корректного Payment, его изменение выполняется через `BP-FIN-001`, поскольку Payment identity сохраняется.
 
 ### 33.8. Ошибочный Personal Account, Payment корректен
 
@@ -763,6 +769,42 @@ Payment #P14 проходит correction, одновременно другой 
 
 Технический механизм concurrency настоящим BP не задаётся.
 
+### 33.14. Председатель внёс наличность Community на банковский счёт
+
+До внесения Community ранее приняла наличные Payments от нескольких плательщиков. Председатель физически внёс агрегированную наличность на Community Bank Account.
+
+Банк показывает председателя как вносителя. Community OS ошибочно признала:
+
+```text
+incoming Bank Transaction 15 000
+→ Payment #P15 from Chairman 15 000
+```
+
+После correction:
+
+- Bank Transaction сохраняется;
+- Payment #P15 recognition invalidated;
+- Chairman не становится payer на 15 000 только из-за физического внесения;
+- исходные cash Payments не создаются повторно;
+- Refund не возникает;
+- уменьшение наличных средств Community и увеличение средств на банковском счёте относятся к специализированному cash/internal-funds process, а не к Payment от Chairman.
+
+### 33.15. Replacement Payments получают Initial Allocation
+
+Ошибочный Payment #P16 = 3000 имел Allocation на несколько обязательств. Correction устанавливает, что предметно должны существовать три replacement Payments по 1000.
+
+```text
+#P16 → invalidated
+old Allocations → lose effective basis as dependent consequence
+
+replacement recognitions:
+  #P17 = 1000
+  #P18 = 1000
+  #P19 = 1000
+```
+
+Если replacement Payments должны исполнять обязательства, для них выполняется Initial Allocation согласно `BP-FIN-ALLOCATION-001`. Старые Allocation #P16 не relink/reassign молча к новым Payment identities.
+
 ## 34. Инварианты
 
 1. Payment Recognition Correction ≠ Payment Allocation.
@@ -786,20 +828,22 @@ Payment #P14 проходит correction, одновременно другой 
 19. Dependent Allocation must be revalidated after materially significant Payment correction.
 20. Confirmed Allocation that must change while Payment remains valid uses BP-FIN-001.
 21. Allocation cannot retain effective use of a Payment whose recognition is invalidated.
-22. Payment correction does not create or rewrite Financial Obligation.
-23. Payment correction may change effective fulfillment and therefore Debt.
-24. Advance based on corrected Payment must be revalidated.
-25. Overpayment is not an automatic result of Payment correction.
-26. No universal cascade rewrite is introduced.
-27. No universal dependency entity is introduced.
-28. Correction scope must be internally consistent.
-29. Revalidation precedes confirmation when significant inputs may have changed.
-30. Manual correction requires attributable domain authority.
-31. Automatic correction requires explicit policy and sufficiently reliable evidence.
-32. Correction provenance explains why identity was preserved, invalidated or replaced.
-33. Correction time ≠ original movement time.
-34. Historical recognition is not silently backdated away.
-35. Technical retry ≠ new domain correction.
+22. Loss of dependent Allocation effect due to Payment invalidation is historically traceable and is not Reallocation of non-existent funds.
+23. Replacement Payment identity receives its own Initial Allocation; old Allocation is not silently relinked.
+24. Payment correction does not create or rewrite Financial Obligation.
+25. Payment correction may change effective fulfillment and therefore Debt.
+26. Advance based on corrected Payment must be revalidated.
+27. Overpayment is not an automatic result of Payment correction.
+28. No universal cascade rewrite is introduced.
+29. No universal dependency entity is introduced.
+30. Correction scope must be internally consistent.
+31. Revalidation precedes confirmation when significant inputs may have changed.
+32. Manual correction requires attributable domain authority.
+33. Automatic correction requires explicit policy and sufficiently reliable evidence.
+34. Correction provenance explains why identity was preserved, invalidated or replaced.
+35. Correction time ≠ original movement time.
+36. Historical recognition is not silently backdated away.
+37. Technical retry ≠ new domain correction.
 
 ## 35. Что намеренно не решается
 
@@ -837,6 +881,8 @@ Payment #P14 проходит correction, одновременно другой 
 ## 37. Нормативные последствия
 
 Предварительно новый ADR и новая фундаментальная сущность не требуются.
+
+По результатам внутреннего review отдельный фундаментальный Payment Status также не требуется: invalidation остаётся специализированной исторически прослеживаемой семантикой настоящего процесса.
 
 Настоящий BP использует уже существующие:
 

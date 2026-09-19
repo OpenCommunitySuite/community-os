@@ -2,7 +2,7 @@
 
 **Статус:** Working / рабочий документ анализа  
 **Область:** OSBBX, «Мій Дім Online» (МДО), DAH Online  
-**Актуально относительно:** нормативной модели после `BP-FIN-002 — Исправление ошибочного признания платежа`; DOMAIN_MODEL 0.11, TERMINOLOGY 0.9  
+**Актуально относительно:** нормативной модели после `BP-FIN-003 — Возврат денежных средств (Refund)`; DOMAIN_MODEL 0.12, TERMINOLOGY 0.10  
 **Назначение:** единая точка учёта кандидатов, выявленных во внешних референсах, их текущего состояния в Community OS и последовательности дальнейшей проработки.
 
 > Этот документ не является источником продуктовых требований и не заменяет DOMAIN_MODEL, TERMINOLOGY или ADR. Наличие функции у референса не означает, что она должна быть реализована в Community OS.
@@ -53,7 +53,7 @@
 | REF-FIN-003 | Перераспределение платежа | OSBBX | Зафиксирован `BP-FIN-001`; синхронизированы DOMAIN_MODEL и TERMINOLOGY | **Закрыт решением** | Не возвращаться к модели без нового сценария |
 | REF-FIN-015 | Первичное распределение признанного платежа | OSBBX, пилотный СТ | Зафиксирован `BP-FIN-ALLOCATION-001`: Payment recognition отделён от Initial Allocation и Reallocation; Allocation Proposal не является Payment Allocation; поддержаны partial allocation, Unallocated Remainder, Advance, incoming/outgoing Payment, confirmation scope, revalidation и provenance без универсального порядка распределения | **Закрыт решением** | Конкретные Allocation Rules пилотного СТ определять как локальную policy/configuration; не вводить глобальный порядок распределения |
 | REF-FIN-004 | Ошибочное признание платежа | OSBBX, пилотный СТ | Зафиксирован `BP-FIN-002`: Payment Recognition Correction отделён от Bank Transaction correction, Allocation/Reallocation и Refund; определены Payment identity continuity, recognition invalidation, duplicate/wrong-cardinality, dependent disposition, replacement recognition через owning process и provenance без universal Correction/Payment Status | **Закрыт решением** | Не возвращаться к фундаментальной модели без нового сценария; channel/source-specific recognition и dependent corrections оставлять owning processes |
-| REF-FIN-005 | Возврат платежа | OSBBX | Возврат определён как новое движение денег, не изменение исходного платежа; процесс не описан | **Следующий** | Описать отдельный BP возврата |
+| REF-FIN-005 | Возврат платежа | OSBBX, пилотный СТ | Зафиксирован `BP-FIN-003`: refund basis → обычное Financial Obligation to return → новый Payment → Initial Payment Allocation; Refund отделён от Payment correction, Reallocation, Bank Reversal и set-off; отдельные Refund Entity/Status/Ledger/Reservation не вводятся | **Закрыт решением** | Конкретные channel/source recognition, obligation changes и settlement без money movement оставлять owning processes; не вводить universal Refund workflow/entity |
 | REF-FIN-006 | Разовое/внецикловое начисление, отмена, исправление и перерасчёт | OSBBX | Начисление, перерасчёт, отмена и финансовая корректировка различены в ADR-006; конкретные процедуры открыты | **Следующий** | Разобрать семейство бизнес-процессов изменения начислений без универсальной Correction |
 | REF-FIN-007 | Универсальная финансовая Correction / сторно | OSBBX | Универсальная `Correction` сознательно не вводится; используются специализированные действия | **Не вводить отдельно** | Конкретные ошибки моделировать соответствующими бизнес-процессами |
 | REF-FIN-008 | «Поступление сообщества» как отдельная фундаментальная сущность | OSBBX | Отдельная универсальная `Community Receipt` не требуется; движение денег и его предметный смысл разделены | **Не вводить отдельно** | Возвращаться только при появлении сценария, который не покрывается Payment и существующими финансовыми отношениями |
@@ -234,8 +234,8 @@ Subject
 
 1. **BP-FIN-ALLOCATION-001 — первичное распределение признанного платежа** — завершён; channel-independent Initial Allocation отделён от Payment recognition и Reallocation;
 2. **BP-FIN-002 — исправление ошибочного признания платежа** — завершён; Payment identity correction/invalidation отделены от Reallocation, Refund и source correction;
-3. **BP-FIN-003 — возврат платежа** — следующий процесс;
-4. **BP-FIN-004 — разовое/внецикловое начисление**;
+3. **BP-FIN-003 — возврат платежа** — завершён; Refund моделируется новым Payment, исполняющим ordinary Financial Obligation to return на прослеживаемом refund basis;
+4. **BP-FIN-004 — разовое/внецикловое начисление** — следующий процесс;
 5. **BP-FIN-005 — отмена/перерасчёт начисления и последствия для уже выполненных платежей**;
 6. **BP-CASH-001 — приём наличного платежа без смешения платежа, кассового действия и кассового документа**;
 7. **BP-CASH-002 — выдача наличных / исходящий наличный платёж без автоматического создания расхода сообщества**;

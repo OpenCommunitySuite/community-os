@@ -266,6 +266,8 @@ selection rule
 
 Resolved target set является частью process provenance, а не обязательной новой domain entity.
 
+Не требуется копировать полный snapshot всех Subject/Object/Ownership/Membership данных, если использованные historical facts и relations надёжно определимы через их owning contexts. Если target-selection rule имеет собственную версию, она сохраняется/восстанавливается отдельно от calculation rule, когда это существенно.
+
 ## 13. Group Accrual ≠ joint obligation
 
 Массовое начисление по общему решению не означает, что возникает одно общее Financial Obligation на всю группу.
@@ -508,6 +510,8 @@ Late initial recognition не переписывает system history так, б
 
 Если historical Accrual уже существовал и теперь пересчитывается — это BP-FIN-005.
 
+Bulk migration/import ранее существовавших historical Accrual из legacy system не является late initial recognition настоящего BP только потому, что эти записи впервые появляются в Community OS. Такая миграция относится к отдельной financial migration semantics (`REF-IMP-002`) и должна сохранять различие original historical facts и момента их импорта.
+
 ## 27. Due Date
 
 Due Date относится к Financial Obligation и не выводится автоматически из даты Accrual.
@@ -742,7 +746,7 @@ Automatic confirmation допускается только по explicit policy,
 
 - accrual basis;
 - initiating decision/fact;
-- target selection criteria;
+- target selection criteria and their rule/version where applicable;
 - resolved target set;
 - liable parties and how they were resolved;
 - Personal Account/Object context;
@@ -1190,6 +1194,8 @@ Accrual itself still does not become Allocation.
 40. Confirmed Accrual is not silently edited/deleted.
 41. Correction/recalculation/cancellation after confirmation belongs to BP-FIN-005 or specialized owning process.
 42. No universal Accrual Batch, Accrual Proposal, Correction or Storno entity is introduced.
+43. Resolved target provenance does not require a universal copied snapshot when owning contexts provide stable historical facts.
+44. Late initial recognition ≠ bulk legacy financial migration.
 
 ## 47. Что намеренно не решается
 
@@ -1215,7 +1221,8 @@ Accrual itself still does not become Allocation.
 - multi-currency conversion;
 - UI design;
 - database transactions/locking;
-- universal Accrual Batch entity.
+- universal Accrual Batch entity;
+- bulk migration/import of historical Accrual and opening financial state.
 
 ## 48. Связанные документы
 

@@ -48,7 +48,7 @@
 
 | ID | Кандидат / потребность | Источники | Текущее состояние Community OS | Статус | Следующее действие |
 |---|---|---|---|---|---|
-| REF-FIN-001 | Банковская транзакция отдельно от платежа | OSBBX, МДО | `Bank Transaction ≠ Payment`; банковский счёт сообщества и recognition закреплены в DOMAIN_MODEL и ADR-006/011 | **Частично закрыт** | Описать конкретный процесс получения, признания и классификации банковских сведений |
+| REF-FIN-001 | Банковская транзакция отдельно от платежа | OSBBX, МДО | `Bank Transaction ≠ Payment`; зафиксирован `BP-FIN-BANK-001` с recognition/classification, multi-account, duplicate/redelivery, source correction, own-account transfer и связью с Payment без universal 1:1 | **Закрыт решением** | Не возвращаться к фундаментальной границе без нового сценария; конкретные bank integrations описывать semantic contracts |
 | REF-FIN-002 | Несколько банковских счетов сообщества | OSBBX, МДО | Поддержано DOMAIN_MODEL и ADR-006 | **Закрыт решением** | Не требуется отдельного доменного исследования; детали — в локальных банковских интеграциях |
 | REF-FIN-003 | Перераспределение платежа | OSBBX | Зафиксирован `BP-FIN-001`; синхронизированы DOMAIN_MODEL и TERMINOLOGY | **Закрыт решением** | Не возвращаться к модели без нового сценария |
 | REF-FIN-015 | Первичное распределение признанного платежа | OSBBX, пилотный СТ | Зафиксирован `BP-FIN-ALLOCATION-001`: Payment recognition отделён от Initial Allocation и Reallocation; Allocation Proposal не является Payment Allocation; поддержаны partial allocation, Unallocated Remainder, Advance, incoming/outgoing Payment, confirmation scope, revalidation и provenance без универсального порядка распределения | **Закрыт решением** | Конкретные Allocation Rules пилотного СТ определять как локальную policy/configuration; не вводить глобальный порядок распределения |
@@ -68,7 +68,7 @@
 | REF-IMP-002 | Первоначальная миграция финансовых фактов и исходного финансового состояния | OSBBX, МДО | ADR-011 допускает миграцию исторических платежей и иных значимых данных; ADR-006 запрещает превращать баланс в первичный источник финансовой истины | **Backlog** | После финансовых BP определить отдельную миграционную семантику финансовых фактов и, если неизбежно, обоснованного исходного состояния |
 | REF-AUD-002 | Прослеживаемость финансовых исправлений и корректирующих действий | OSBBX | ADR-004/006 требуют provenance и запрета silent rewrite; BP-FIN-001 уже применяет это правило | **Закрыт решением** | Не вводить универсальный Audit/Correction Context; проверять достаточную прослеживаемость в каждом финансовом BP |
 | REF-SUBJ-001 | Универсальная внешняя сторона: субъект → роль → договор → операция/обязательство | OSBBX, МДО | Зафиксирован `BP-CONTRACT-001`: внешняя сторона остаётся Subject; Contractual Relationship имеет собственную identity в контексте Subject↔Community; Counterparty/PartyRole не вводятся; Supplier остаётся финансовой семантикой Subject; Document/Obligation/Payment/Expense/Use отделены | **Закрыт решением** | Не возвращаться к универсальному Counterparty без нового сценария; multi-party agreements и специализированные договорные случаи исследовать только при реальной потребности |
-| REF-BANK-001 | Импорт/признание/классификация банковских сведений | OSBBX, МДО | Общая интеграционная семантика ADR-011 и Bank Transaction ADR-006 уже определены | **Следующий** | `BP-FIN-BANK-001`: конкретный банковский процесс без привязки домена к одному банку |
+| REF-BANK-001 | Импорт/признание/классификация банковских сведений | OSBBX, МДО | Зафиксирован `BP-FIN-BANK-001`: external representation → validation/mapping → Bank Transaction recognition → classification/matching → специализированные финансовые результаты; vendor-specific API semantics не входят в доменную модель | **Закрыт решением** | Конкретные API/XLSX/webhook contracts проектировать отдельно; Payment correction/Refund/Expense остаются специализированными BP |
 | REF-METER-001 | Замена прибора учёта | OSBBX | ADR-007 разделяет Meter, Accounting Point и Meter Installation; история не должна разрываться при замене | **Следующий** | `BP-METER-001`: снятие, конечное показание, новая установка, начальное показание, непрерывность точки учёта |
 | REF-METER-002 | Автоматическое получение/импорт показаний | МДО, OSBBX | ADR-007/011: внешнее значение ≠ Reading; validation/mapping/recognition обязательны | **Следующий** | После базового BP показаний описать автоматический источник как интеграционный процесс |
 | REF-METER-003 | Контрольное снятие и сверка связанных точек учёта | OSBBX, МДО | Control Reconciliation, Calculated Imbalance и Operational Loss уже определены | **Следующий** | Описать практический BP контрольной сверки пилотного СТ |
@@ -205,27 +205,28 @@ Subject
 
 ### Этап 4. BP-FIN-BANK-001 — банковские сведения → Bank Transaction → предметная классификация
 
-**Состояние:** следующий этап.
+**Состояние:** завершён; результат зафиксирован в `BP-FIN-BANK-001-BANK-TRANSACTION-RECOGNITION.md`.
 
 **Зависимость:** ADR-006/011 дают архитектурную основу; принятая модель Этапа 3 определяет Subject / Contractual Relationship и границы внешней стороны для корректной банковской классификации.
 
-Нужно разобрать:
+Зафиксировано:
 
-- получение данных;
-- validation;
-- recognition Bank Transaction;
-- неизвестную сторону;
-- сопоставление с Subject/лицевым счётом;
-- классификацию;
-- связь с Payment;
-- несколько банковских счетов;
-- перевод между собственными счетами;
-- дубли и повторную доставку;
-- исправление внешних банковских данных;
-- исправление интерпретации Community OS;
-- ручное и автоматическое признание.
+- external bank representation ≠ Bank Transaction;
+- Bank Transaction ≠ Payment ≠ Payment Allocation ≠ Expense ≠ Financial Obligation;
+- Bank Transaction может существовать без Subject, Personal Account и Payment;
+- bank counterparty data и purpose text являются matching inputs, а не предметными фактами;
+- несколько Community Bank Accounts поддерживаются;
+- unknown bank account не создаётся автоматически;
+- duplicate/redelivery и corrected external information различаются;
+- classification correction ≠ external source correction;
+- own-account transfer не создаёт внешний доход, Expense или Payment;
+- Bank Transaction↔Payment не имеет universal 1:1 cardinality;
+- bank-originated Payment recognition может координироваться банковским BP без введения universal Payment Recognition workflow;
+- предложенное распределение ≠ Payment Allocation; Initial Allocation принадлежит `BP-FIN-ALLOCATION-001`;
+- aggregate cash deposit не создаёт повторные cash Payments и не делает физического вносителя плательщиком;
+- vendor-specific API/XLSX/webhook semantics остаются за пределами доменной модели.
 
-**Результат:** конкретный банковский BP без банковского API и без привязки доменной модели к ПриватБанку/monobank.
+**Результат:** `REF-BANK-001` и `REF-FIN-001` закрыты решением. Новый ADR и новые фундаментальные сущности не потребовались; DOMAIN_MODEL/TERMINOLOGY не требуют дополнительной синхронизации по итогам BP.
 
 ### Этап 5. Финансовые исключения и операционные финансовые процессы
 
@@ -396,7 +397,7 @@ Appeal
 1. BP-ACCESS-001 — доступ пользователя — завершено
 2. BP-IMPORT-001 — миграция объектов/субъектов/отношений/лицевых счетов — следующий этап
 3. Внешняя сторона / роль / договор
-4. BP-FIN-BANK-001 — банковские сведения и Bank Transaction
+4. BP-FIN-BANK-001 — банковские сведения и Bank Transaction — завершено
 5. Initial Payment Allocation и последующие финансовые исключения
 6. BP-METER-001 — замена прибора
 7. Ресурсные эксплуатационные процессы

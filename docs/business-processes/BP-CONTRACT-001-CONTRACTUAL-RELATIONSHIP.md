@@ -946,42 +946,42 @@ Subjects
 12. Supplier является специализированной семантикой установленного Subject во владении финансового контекста, а не Subject type или отдельной identity.
 13. Contractual role не является Access Role.
 14. Relation kind не является identity.
-14a. Допустимый relation kind как конфигурация не является конкретным Contractual Relationship и не создаёт его.
-15. Subject matter не моделируется universal ContractItem/ContractAsset.
-16. Contractual Relationship не копирует Object/Engineering identity.
-17. Полученная информация не является recognized relationship.
-18. Unknown external party не заменяется fake Subject.
-19. Payment не создаёт relationship автоматически.
-20. Bank Transaction не создаёт relationship автоматически.
-21. Invoice/receipt не создают relationship автоматически.
-22. Contractual Relationship не создаёт Financial Obligation автоматически.
-23. Contractual Relationship не создаёт Accrual автоматически.
-24. Contractual Relationship не создаёт Expense автоматически.
-25. Contractual Relationship не создаёт Use/Ownership автоматически.
-26. Contractual Relationship не создаёт User Account/Access Grant/Voting Right.
-27. Relationship не имеет постоянного финансового направления.
-28. Один relationship может быть Basis для многих Obligations.
-29. Obligation может существовать после termination relationship.
-30. Termination relationship не отменяет historical Payment/Expense/Document.
-31. Real change и correction различаются.
-32. Amendment/extension и new relationship различаются.
-33. Number/date/file сами по себе не определяют amendment vs new relationship.
-34. Subject replacement не выполняется silent edit.
-35. Correction identity не выполняет universal cascade rewrite.
-36. Used historical conditions не переписываются текущими условиями молча.
-37. Bank Subject, External Integration Party и bank counterparty data различаются.
-38. Private Subject↔Subject agreement без Community не создаёт Contractual Relationship with Community.
-39. One-off operation не требует relationship автоматически.
-40. Наличие договора/соглашения не создаёт Contractual Relationship, если предмет полностью принадлежит существующему специализированному отношению.
-41. Трудовой договор не дублирует Служебное / трудовое отношение автоматически.
-42. Technical admin role не создаёт domain authority.
-43. Conflict не разрешается last-write-wins.
-44. UI Counterparty не требует domain Counterparty entity.
-45. Contractual Relationship принадлежит одному Community и не становится global cross-community relation.
-46. Automatic recognition допустим только по явному правилу и не создаёт фиктивного system Subject.
-47. Contractual Relationship может быть Basis производного факта, не становясь этим фактом и не скрывая собственное Basis отношения.
-48. Новый файл, последнее полученное значение или CRUD update не определяют автоматически тип предметного изменения relationship.
-49. Изменение текущей конфигурации допустимых relation kinds не переписывает исторически признанные relationships автоматически.
+15. Допустимый relation kind как конфигурация не является конкретным Contractual Relationship и не создаёт его.
+16. Subject matter не моделируется universal ContractItem/ContractAsset.
+17. Contractual Relationship не копирует Object/Engineering identity.
+18. Полученная информация не является recognized relationship.
+19. Unknown external party не заменяется fake Subject.
+20. Payment не создаёт relationship автоматически.
+21. Bank Transaction не создаёт relationship автоматически.
+22. Invoice/receipt не создают relationship автоматически.
+23. Contractual Relationship не создаёт Financial Obligation автоматически.
+24. Contractual Relationship не создаёт Accrual автоматически.
+25. Contractual Relationship не создаёт Expense автоматически.
+26. Contractual Relationship не создаёт Use/Ownership автоматически.
+27. Contractual Relationship не создаёт User Account/Access Grant/Voting Right.
+28. Relationship не имеет постоянного финансового направления.
+29. Один relationship может быть Basis для многих Obligations.
+30. Obligation может существовать после termination relationship.
+31. Termination relationship не отменяет historical Payment/Expense/Document.
+32. Real change и correction различаются.
+33. Amendment/extension и new relationship различаются.
+34. Number/date/file сами по себе не определяют amendment vs new relationship.
+35. Subject replacement не выполняется silent edit.
+36. Correction identity не выполняет universal cascade rewrite.
+37. Used historical conditions не переписываются текущими условиями молча.
+38. Bank Subject, External Integration Party и bank counterparty data различаются.
+39. Private Subject↔Subject agreement без Community не создаёт Contractual Relationship with Community.
+40. One-off operation не требует relationship автоматически.
+41. Наличие договора/соглашения не создаёт Contractual Relationship, если предмет полностью принадлежит существующему специализированному отношению.
+42. Трудовой договор не дублирует Служебное / трудовое отношение автоматически.
+43. Technical admin role не создаёт domain authority.
+44. Conflict не разрешается last-write-wins.
+45. UI Counterparty не требует domain Counterparty entity.
+46. Contractual Relationship принадлежит одному Community и не становится global cross-community relation.
+47. Automatic recognition допустим только по явному правилу и не создаёт фиктивного system Subject.
+48. Contractual Relationship может быть Basis производного факта, не становясь этим фактом и не скрывая собственное Basis отношения.
+49. Новый файл, последнее полученное значение или CRUD update не определяют автоматически тип предметного изменения relationship.
+50. Изменение текущей конфигурации допустимых relation kinds не переписывает исторически признанные relationships автоматически.
 
 ## 52. Нормативная синхронизация после принятия BP
 

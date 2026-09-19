@@ -270,17 +270,20 @@ Relation kind не является identity и не заменяет предм
 
 Одно отношение может иметь несколько ролей, если это соответствует фактической семантике соглашения.
 
-## 14. Supplier
+## 14. Supplier и финансовый контекст
 
-Supplier остаётся установленным Subject, который в конкретном отношении или финансовом процессе предоставляет Community ресурс, услугу или иное обеспечение.
+Supplier остаётся установленным Subject, используемым финансовым контекстом в специализированной семантике отношений с поставщиком согласно ADR-002/ADR-006.
 
-Supplier:
+Contractual Relationship не получает ownership понятия Supplier и не создаёт отдельную Supplier identity.
 
-- не получает отдельную identity;
-- не является обязательным типом любого внешнего Subject;
-- может одновременно участвовать в другом Contractual Relationship в иной роли.
+Договорное отношение может быть одним из оснований или контекстов финансовых отношений с Supplier, но:
 
-Действующая TERMINOLOGY сейчас использует Supplier широко и приводит Contractor как один из примеров. Настоящий BP не отменяет это молча. На этапе нормативной синхронизации требуется уточнить границу: Supplier остаётся удобной контекстной ролью Subject, но не должен становиться универсальной категорией для любого Contractor, Lessor, Lessee, Bank, Payer или Recipient только потому, что Subject взаимодействует с Community.
+- не каждое Contractual Relationship делает Subject поставщиком;
+- Supplier не является типом Subject;
+- Supplier не является универсальной внешней стороной;
+- один Subject может одновременно участвовать в другом Contractual Relationship в иной роли.
+
+Действующая TERMINOLOGY использует Supplier широко и приводит Contractor как один из примеров. Настоящий BP не отменяет это молча. Точная граница Supplier/Contractor подлежит нормативному уточнению без переноса ownership Supplier из финансового контекста.
 
 ## 15. Основание отношения
 
@@ -867,7 +870,7 @@ Subjects
 9. Contractual Relationship может существовать без Contract Document.
 10. Новый Document не создаёт новый relationship автоматически.
 11. Новая Revision не создаёт relationship автоматически.
-12. Supplier является Subject в предметной роли, а не Subject type.
+12. Supplier является специализированной семантикой установленного Subject во владении финансового контекста, а не Subject type или отдельной identity.
 13. Contractual role не является Access Role.
 14. Relation kind не является identity.
 15. Subject matter не моделируется universal ContractItem/ContractAsset.
@@ -908,8 +911,8 @@ Subjects
 ### DOMAIN_MODEL
 
 - добавить Contractual Relationship в раздел «Отношения субъекта к сообществу»;
-- уточнить Supplier как контекстную роль Subject;
-- заменить слишком узкую формулировку Supplier Contract общей моделью;
+- уточнить Supplier как специализированную финансовую семантику Subject без отдельной identity/type;
+- заменить слишком узкую формулировку Supplier Contract общей моделью Contractual Relationship, сохранив financial ownership Supplier;
 - зафиксировать границы Contractual Relationship / Document / Obligation / Payment / Expense;
 - добавить ISP infrastructure-use validation scenario при необходимости.
 

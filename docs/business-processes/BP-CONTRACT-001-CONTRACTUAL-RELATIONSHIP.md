@@ -138,7 +138,15 @@ Contractual Relationship вводится только тогда, когда с
 - представительство, оформленное документом, остаётся Representation, а не Contractual Relationship;
 - Membership не превращается в Contractual Relationship из-за наличия заявления, соглашения или документа.
 
-Гражданско-правовой договор с внешним исполнителем, поставка, банковское обслуживание, использование инфраструктуры и другие отношения Community с внешним Subject могут использовать Contractual Relationship, если такое отношение имеет собственную identity, предмет, период или последствия.
+Гражданско-правовой договор (ГПХ) сам по себе не определяет owning relation.
+
+Если ГПХ является юридической/организационной формой уже признанного **Служебного / трудового отношения** конкретного исполнителя с Community и специализированная модель сохраняет необходимую семантику, отдельный Contractual Relationship не создаётся.
+
+Если же ГПХ оформляет самостоятельное внешнее подрядное/исполнительское отношение Community с Subject, которое не является Служебным / трудовым отношением и имеет собственную identity, предмет, период или последствия, Contractual Relationship допустим.
+
+Физическое или юридическое лицо, название документа и сама форма ГПХ не являются универсальным критерием выбора owning relation.
+
+Поставка, банковское обслуживание, использование инфраструктуры и другие отношения Community с внешним Subject могут использовать Contractual Relationship по тому же предметному критерию.
 
 Сохраняется принцип:
 
@@ -152,6 +160,17 @@ presence of contract/agreement
 ## 6. Архитектурное владение
 
 Contractual Relationship относится к существующему контексту **«Отношения субъекта с сообществом»**.
+
+Выбор этого owning context является предметным, а не техническим:
+
+- ядро Contractual Relationship — историческое отношение конкретного Subject с конкретным Community;
+- отношение может существовать без Financial Obligation, Payment или Expense;
+- финансовое направление не является свойством relationship и может быть `Community → Subject`, `Subject → Community`, двусторонним либо отсутствовать в конкретный период;
+- Finance использует Contractual Relationship как возможное основание/контекст своих фактов, но не должен владеть identity отношения только потому, что из него могут возникать денежные последствия.
+
+Следовательно, перенос Contractual Relationship в финансовый контекст смешал бы само отношение с одним из возможных видов его последствий.
+
+При нормативной синхронизации ADR-002 §6.4 должен быть уточнён явно: Contractual Relationship добавляется в ключевые понятия исторических отношений Subject↔Community, а ADR-002 §6.6 сохраняет ownership Supplier, Financial Obligation, Payment, Expense и других финансовых фактов.
 
 Это не создаёт новый bounded context «Contracts».
 
@@ -317,7 +336,16 @@ configured/allowed relation kind
 
 Конфигурация Community может определять допустимые виды отношений и относящиеся к ним политики согласно ADR-003, но она не создаёт конкретное отношение.
 
-Relation kind не является identity и не заменяет предмет отношения. Изменение перечня допустимых видов не переписывает исторически признанные relationships автоматически.
+Relation kind не является identity и не заменяет предмет отношения.
+
+Следует различать:
+
+- **relation kind** — классификацию отношения для применимости configuration/policy;
+- **subject matter** — предметное описание того, что регулирует конкретный relationship.
+
+Они могут иметь внешне похожие названия, например `infrastructure use`, но это не делает их одним значением или одним предметным понятием.
+
+Изменение перечня допустимых видов не переписывает исторически признанные relationships автоматически.
 
 ## 13. Contextual roles
 
@@ -403,6 +431,8 @@ Contractual Relationship
 ```
 
 Если договор говорит «использование 35 опор», это не обязывает Community OS создавать 35 Asset/TMC entities.
+
+То же правило применяется к аренде помещения или другого Object Community: Contractual Relationship может быть договорным основанием, а фактическое Subject↔Object Use/Lease relation, если оно предметно ведётся, принадлежит объектному контексту. Contractual Relationship не заменяет такое отношение.
 
 ## 18. Contract reference number
 
@@ -974,7 +1004,10 @@ Subjects
 40. One-off operation не требует relationship автоматически.
 41. Наличие договора/соглашения не создаёт Contractual Relationship, если предмет полностью принадлежит существующему специализированному отношению.
 42. Трудовой договор не дублирует Служебное / трудовое отношение автоматически.
-43. Technical admin role не создаёт domain authority.
+43. ГПХ не определяет owning relation автоматически: он может быть формой Служебного / трудового отношения либо основанием самостоятельного Contractual Relationship согласно предметному смыслу.
+44. Relation kind и subject matter являются различными понятиями, даже если их текстовые значения совпадают.
+45. Contractual Relationship для аренды Object Community не заменяет Subject↔Object Use/Lease relation, если такое отношение предметно ведётся.
+46. Technical admin role не создаёт domain authority.
 44. Conflict не разрешается last-write-wins.
 45. UI Counterparty не требует domain Counterparty entity.
 46. Contractual Relationship принадлежит одному Community и не становится global cross-community relation.
@@ -1002,6 +1035,7 @@ Subjects
 - Contractual Relationship;
 - contextual contractual role;
 - Supplier;
+- Form of Relationship / ГПХ — уточнить, что юридическая форма сама по себе не определяет owning relation;
 - при необходимости relation kind.
 
 Не вводить:

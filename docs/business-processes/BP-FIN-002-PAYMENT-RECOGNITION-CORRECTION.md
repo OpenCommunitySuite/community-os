@@ -1124,13 +1124,14 @@ Correction не восстанавливает прежнее состояние
 - Funding Source / Financing;
 - provenance/authority/history semantics.
 
-По результатам внутреннего и независимого review требуется точечная синхронизация:
+По результатам внутреннего и независимого review выполнена точечная синхронизация:
 
-- DOMAIN_MODEL — дополнить Payment semantics правилами identity continuity и recognition invalidation;
-- TERMINOLOGY — аналогично уточнить Payment;
-- BP-FIN-001 — зеркально уточнить, что потеря effective effect Allocation исключительно вследствие invalidation исходного Payment относится к BP-FIN-002 и не является Reallocation несуществующих средств.
+- DOMAIN_MODEL 0.11 — Payment semantics дополнены правилами identity continuity и recognition invalidation;
+- TERMINOLOGY 0.9 — уточнены Payment identity и специализированная invalidation recognition;
+- BP-FIN-001 — зеркально зафиксировано, что потеря effective effect Allocation исключительно вследствие invalidation исходного Payment относится к BP-FIN-002 и не является Reallocation несуществующих средств;
+- REFERENCE_CANDIDATE_MATRIX — REF-FIN-004 закрыт решением, следующим процессом определён BP-FIN-003.
 
-ADR-006/ADR-011 содержательно изменять не требуется.
+ADR-006/ADR-011 содержательно изменять не потребовалось.
 
 ## 38. Решения review
 
@@ -1149,7 +1150,6 @@ ADR-006/ADR-011 содержательно изменять не требует�
 
 ## 39. Следующий шаг
 
-1. выполнить точечную нормативную синхронизацию DOMAIN_MODEL / TERMINOLOGY / BP-FIN-001;
-2. обновить REFERENCE_CANDIDATE_MATRIX и закрыть REF-FIN-004;
-3. после финальной проверки принять BP-FIN-002;
-4. перейти к BP-FIN-003 — Refund.
+После финальной проверки настоящего Draft и синхронизированных нормативных документов BP-FIN-002 может быть принят как рабочая предметная основа.
+
+Следующий финансовый процесс — `BP-FIN-003 — Refund`.

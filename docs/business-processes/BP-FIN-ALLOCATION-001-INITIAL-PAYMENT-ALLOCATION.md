@@ -134,9 +134,11 @@ Payment может быть:
 
 Для процесса должна быть определима сумма Payment, ещё доступная для первоначального распределения.
 
-Совокупный объём подтверждённых Allocation одного Payment не может превышать его доступную сумму.
+Доступная сумма является вычисляемой величиной, а не самостоятельной сохраняемой предметной identity или новым финансовым состоянием. Она определяется из суммы Payment и уже существующего текущего effective financial use соответствующих частей Payment. Исторически сохранённые Allocation, финансовый эффект которых позднее был изменён Reallocation, не вычитаются повторно только потому, что продолжают существовать в истории.
 
-Если часть Payment уже получила подтверждённое первоначальное распределение, процесс может распределять только оставшуюся доступную часть без изменения уже подтверждённых Allocation.
+Совокупный текущий effective financial use одного Payment не может превышать сумму Payment.
+
+Если часть Payment уже получила подтверждённое первоначальное распределение и сохраняет действующий финансовый эффект, процесс может распределять только оставшуюся доступную часть без изменения уже подтверждённых Allocation.
 
 Если требуется изменить уже подтверждённую часть, применяется Reallocation.
 
@@ -180,6 +182,8 @@ Allocation Proposal:
 - иное допустимое предметное основание.
 
 Ни один отдельный signal не является универсальным достаточным основанием для любого Allocation.
+
+Порядок перечисления возможных оснований не задаёт их приоритет, силу или обязательную последовательность применения. Их композиция и приоритет определяются применимой предметной семантикой и правилами.
 
 ## 10. Назначение платежа
 
@@ -287,6 +291,21 @@ Automatic Allocation должно позволять установить:
 
 Подтверждение превращает допустимое предложение распределения в исторически значимый Payment Allocation.
 
+Одно подтверждение может относиться:
+
+- к одному независимому Allocation;
+- к согласованному набору взаимозависимых Allocation одного Payment, если они образуют единое предметное решение по общему основанию, правилу, Payment Intent или ручному решению.
+
+Confirmation scope является семантикой процесса и не вводит новую фундаментальную domain entity.
+
+Перед подтверждением весь соответствующий scope должен пройти revalidation.
+
+Если взаимозависимый набор больше не валиден целиком из-за изменения обязательства, правила, Payment Intent либо иного значимого основания, такой набор не подтверждается частично «как есть». Он должен быть пересчитан, сформирован заново либо переведён в Requires Decision.
+
+Предметно независимые Allocation могут подтверждаться отдельно и не обязаны блокировать друг друга только из-за того, что относятся к одному Payment.
+
+Для взаимозависимого confirmation scope применяется предметная атомарность: результат не должен оставлять такой набор частично подтверждённым.
+
 После подтверждения:
 
 - соответствующая сумма Payment считается распределённой;
@@ -342,7 +361,7 @@ Advance
 ≠ Payment Allocation
 ```
 
-Payment Allocation может связать доступную часть Payment с допустимым финансовым назначением «аванс» и тем самым участвовать в признании соответствующего финансового смысла, но не превращается в сам Advance как отдельное состояние/назначение средств.
+Payment Allocation может связать доступную часть Payment с допустимым финансовым назначением «аванс» в смысле ADR-006 §11 («иные допустимые финансовые назначения») и тем самым участвовать в признании соответствующего финансового смысла, но не превращается в сам Advance как отдельное состояние/назначение средств.
 
 Advance может относиться к:
 
@@ -356,7 +375,16 @@ Advance может относиться к:
 
 ## 20. Переплата
 
-Превышение суммы Payment над текущими обязательствами само по себе не создаёт Overpayment.
+```text
+Overpayment
+≠ Payment Allocation
+```
+
+Overpayment не является целевым назначением Initial Allocation как таковым.
+
+Согласно ADR-006 и нормативной предметной модели Overpayment — признанное финансовое состояние, при котором ранее применённая к исполнению сумма в текущем effective state финансовых отношений оказывается избыточной.
+
+Поэтому простое превышение суммы Payment над текущими обязательствами само по себе не создаёт Overpayment.
 
 Например:
 
@@ -366,13 +394,27 @@ Current obligations = 1700
 Arithmetic remainder = 300
 ```
 
-Из этого автоматически не следует:
+Первичное распределение может дать:
 
 ```text
-Overpayment = 300
+1700 → Payment Allocation
+300  → Unallocated Remainder
 ```
 
-Возможный результат зависит от применимой финансовой семантики: Unallocated Remainder, Advance, Overpayment либо иной допустимый результат.
+либо, при достаточном отдельном основании:
+
+```text
+1700 → Payment Allocation
+300  → Advance
+```
+
+Но из первоначального арифметического остатка автоматически не следует:
+
+```text
+300 → Overpayment
+```
+
+Overpayment может возникнуть позднее как следствие изменения effective financial state, например если ранее исполненное обязательство после правомерного перерасчёта уменьшилось. Такое состояние не создаётся настоящим BP как специальный target первоначального Allocation.
 
 ## 21. Плательщик и обязанная сторона
 
@@ -425,6 +467,8 @@ Allocation Proposal может быть сформировано на основ
 перед подтверждением должна выполняться revalidation.
 
 Community OS не должна подтверждать устаревшее Proposal как будто исходные основания не изменились.
+
+Revalidation применяется к соответствующему confirmation scope. Если изменившийся вход затрагивает взаимозависимый набор Allocation, решение должно быть повторно определено для всего набора, а не только для одного элемента, если предметная семантика общего основания требует целостности.
 
 Настоящий BP не предписывает конкретный механизм optimistic locking или технической конкуренции.
 
@@ -487,8 +531,10 @@ Refund не является Allocation.
 - распределённая сумма;
 - целевое Financial Obligation или иное финансовое назначение;
 - Personal Account/context;
+- все использованные источники Allocation Proposal и их значимая комбинация, где применимо;
 - использованный Payment Intent;
 - существенное назначение Payment;
+- основание cross-subject и/или cross-account Allocation, где применимо;
 - применённое правило и версия;
 - значимые входы;
 - manual actor/authority;
@@ -605,9 +651,94 @@ Payment сохраняется полностью, его сумма образ�
 
 ### 31.13. Исходящий Payment по обязательству Community
 
-Community перечисляет 55 000 грн поставщику электроэнергии. Payment признан как исходящий, существует применимое Financial Obligation Community перед Supplier.
+Community перечисляет 55 000 грн поставщику электроэнергии. Payment признан как исходящий, существует применимое Financial Obligation Community перед Supplier на 70 000 грн.
 
-Первичное Allocation может связать всю сумму либо её часть с этим Obligation. Сам факт исходящего Payment не создаёт Expense или Obligation и не меняет правила их owning processes.
+Допустимо:
+
+```text
+Outgoing Payment = 55 000
+Allocation to Supplier Obligation = 55 000
+Remaining Obligation = 15 000
+```
+
+Сам факт исходящего Payment не создаёт Expense или Obligation и не меняет правила их owning processes.
+
+### 31.14. Confirmation scope и частичный провал revalidation
+
+Payment = 1500. Одно применимое правило сформировало взаимозависимый Proposal:
+
+```text
+Electricity → 900
+Water       → 400
+Membership  → 200
+```
+
+До подтверждения обязательство по воде изменилось так, что Proposal больше не валиден как единый результат правила.
+
+Система не подтверждает автоматически только 900 и 200, сохраняя старое решение для оставшихся элементов. Весь взаимозависимый confirmation scope пересчитывается либо переходит в Requires Decision.
+
+Если же два Allocation были сформированы как предметно независимые решения с отдельными основаниями, они могут иметь отдельные confirmation scopes.
+
+### 31.15. Конкурентное подтверждение
+
+Payment = 1000, вся сумма ещё доступна.
+
+Два параллельных процесса подготовили:
+
+```text
+Proposal A → 700
+Proposal B → 600
+```
+
+После подтверждения одного результата второй должен пройти revalidation. Совокупный effective financial use не может стать 1300.
+
+Настоящий BP не определяет технический locking-механизм.
+
+### 31.16. Cross-account Allocation одного Subject
+
+Один собственник имеет два Personal Accounts, например для двух участков.
+
+Payment признан от этого Subject, но распределение части суммы на обязательство другого его Personal Account допускается только при достаточном предметном основании. Сам факт совпадения Subject не делает cross-account Allocation автоматическим.
+
+### 31.17. Полный Advance flow
+
+Payment = 1000. Плательщик явно и допустимо указал назначение на будущую электроэнергию, а applicable policy позволяет признать Advance.
+
+```text
+Payment
+→ Proposal: 1000 to допустимое финансовое назначение Advance
+→ confirmation
+→ Payment Allocation
+→ recognized Advance state/purpose according to owning financial semantics
+```
+
+Payment Allocation участвует в установлении финансового смысла, но `Advance ≠ Payment Allocation`.
+
+### 31.18. Overpayment не является target Initial Allocation
+
+Payment = 2000, текущие обязательства = 1700.
+
+```text
+1700 → Payment Allocation
+300  → Unallocated Remainder
+```
+
+Позднее уже исполненное обязательство на 1700 после правомерного перерасчёта уменьшается до 1500. Возникший избыток 200 может получить состояние Overpayment согласно применимой семантике.
+
+Это последующее состояние, а не первоначальный target Initial Allocation.
+
+### 31.19. Automatic rule без права auto-confirmation
+
+Применимое правило однозначно вычисляет:
+
+```text
+Electricity → 600
+Water       → 400
+```
+
+Но действующая authority/policy разрешает только automatic proposal, а подтверждение требует уполномоченного участника.
+
+Результат остаётся Proposal/Requires Decision; автоматический расчёт сам по себе не создаёт Payment Allocation.
 
 ## 32. Инварианты процесса
 
@@ -645,8 +776,15 @@ Community перечисляет 55 000 грн поставщику электр
 32. Allocation does not depend on payment channel.
 33. Initial Allocation applies to both incoming and outgoing Payment where the financial semantics supports it.
 34. Advance ≠ Payment Allocation.
-35. Manual financial decisions require attributable authority.
-36. Provenance must explain confirmed Allocation without universal Audit entity.
+35. Overpayment ≠ Payment Allocation and is not a target of Initial Allocation.
+36. Available amount is a derived process value, not a new financial identity or state.
+37. Enumeration order of allocation evidence does not define priority.
+38. A mutually dependent confirmation scope is revalidated and confirmed atomically at the domain level.
+39. Invalidating one required element of a mutually dependent scope prevents partial confirmation of the stale set.
+40. Independent Allocations may have separate confirmation scopes.
+41. Cross-subject/cross-account Allocation must preserve its explicit basis in provenance.
+42. Manual financial decisions require attributable authority.
+43. Provenance must explain confirmed Allocation without universal Audit entity.
 
 ## 33. Связанные документы
 
@@ -696,10 +834,17 @@ ADR-006, DOMAIN_MODEL и TERMINOLOGY уже определяют:
 
 Новый ADR или новая фундаментальная сущность по результатам review не требуются.
 
+Независимый review Claude дополнительно выявил и после сверки с нормативными документами уточнил:
+
+- confirmation scope и предметную атомарность взаимозависимого набора Allocation;
+- обязательное provenance-основание cross-subject/cross-account Allocation;
+- асимметрию Advance и Overpayment: Initial Allocation может участвовать в признании Advance, но Overpayment не является target первоначального Allocation;
+- необходимость явно оставить available amount производным process value;
+- дополнительные проверочные сценарии concurrency, cross-account, Advance и automatic proposal без auto-confirmation.
+
 ## 36. Следующий шаг
 
-1. внутренний review против ADR-004/005/006/010, DOMAIN_MODEL, TERMINOLOGY и BP-FIN-001;
-2. проверка на сценариях OSBBX и пилотного СТ;
-3. независимый review Claude при необходимости;
-4. точечные исправления;
-5. после принятия — обновление REFERENCE_CANDIDATE_MATRIX без изменения фундаментальной архитектуры.
+1. повторная внутренняя проверка Draft после point fixes;
+2. определить необходимость минимальной нормативной синхронизации;
+3. обновить REFERENCE_CANDIDATE_MATRIX, зафиксировав самостоятельный Initial Allocation BP;
+4. после принятия определить место процесса в последовательности Этапа 5.

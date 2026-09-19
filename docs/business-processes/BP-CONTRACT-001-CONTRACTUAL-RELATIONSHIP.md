@@ -984,6 +984,7 @@ Subjects
 - `docs/DOMAIN_MODEL.md`;
 - `docs/TERMINOLOGY.md`;
 - ADR-002;
+- ADR-003;
 - ADR-004;
 - ADR-005;
 - ADR-006;

@@ -783,6 +783,35 @@ original Reading preserved
 
 No silent update cascade.
 
+## 58.1. Pilot ST — photo timestamp differs from declared reading time
+
+Owner submits a meter photo taken at 18:42 but manually declares measurement time 18:00.
+
+Photo metadata, declared time and received time are different evidence. Community OS must not silently replace one with another. Applicable recognition rules decide which temporal fact is sufficiently supported.
+
+## 58.2. Pilot ST — decimal precision / display semantics
+
+Water or electricity meter may expose decimals or scaled digits.
+
+~~~text
+displayed digits
+≠ universally assumed engineering unit/precision
+~~~
+
+Recognition preserves applicable unit/scale semantics; truncation or rounding belongs to explicit resource/rule semantics, not implicit UI formatting.
+
+## 58.3. Pilot ST — estimated value supplied instead of physical observation
+
+Supplier/operator provides an estimated or substitute value for a period without a physical meter observation.
+
+Such value does not become Reading merely because it resembles a reading. It may remain substitute/calculated input for Consumption or settlement under the owning process.
+
+## 58.4. Pilot ST — value during an unmetered gap
+
+Accounting Point has no active Meter Installation between replacement intervals. A meter-based value reported for that gap cannot be mapped to a fictitious Meter Installation.
+
+If another legitimate measurement basis exists, it may be recognized under its own semantics; otherwise input stays rejected/unresolved.
+
 ## 59. Outcomes
 
 ### 59.1. Recognized
@@ -884,29 +913,35 @@ For recognized Reading, where materially relevant, should be determinable:
 48. Recognition rules/versions remain explainable where materially significant.
 49. Reading need not universally require Meter identity if applicable measurement semantics is not meter-based.
 50. Raw and converted representation do not automatically create two Reading identities.
+51. Photo/document metadata ≠ measurement time automatically.
+52. Display precision/format ≠ resource precision automatically.
+53. Estimated/substitute value ≠ Reading automatically.
+54. Meter-based value during a gap must not create fictitious Meter Installation.
 
-## 62. Вопросы internal review
+## 62. Решения internal review
 
-1. Нужна ли Reading собственная identity или достаточно tuple AP/time/channel/value?
-2. Нужна ли universal Reading Candidate / Submission entity?
-3. Обязательна ли Meter Installation для любого Reading?
-4. Допустим ли Reading только на Accounting Point без конкретного Meter?
-5. Нужно ли универсально ограничить одно Reading на AP/day?
-6. Должно ли lower-than-previous value всегда блокировать recognition?
-7. Как отделить duplicate от повторного физического observation?
-8. Может ли owner-reported value сразу признаваться автоматически?
-9. Должно ли control Reading автоматически иметь больший приоритет?
-10. Может ли telemetry Reading признаваться без Subject?
-11. Должно ли Reading иметь universal quality/confidence score?
-12. Что делать с unresolved/conflicting value?
-13. Нужна ли отдельная Correction entity?
-14. Может ли correction Reading менять Consumption автоматически?
-15. Может ли correction Consumption менять Accrual автоматически?
-16. Должны ли raw value и converted value быть двумя Readings?
-17. Нужна ли Meter Register entity для day/night?
-18. Как хранить Reading при неизвестном точном времени?
-19. Нужна ли reporter identity, если value получено из document/telemetry?
-20. Какие pilot-ST cases ещё выявляют пробелы?
+1. **Reading имеет собственную предметную identity.** Tuple Accounting Point/time/channel/value недостаточен как универсальная identity: совпадение tuple не доказывает один и тот же measurement fact, а correction/history должны оставаться различимыми.
+2. **Universal Reading Candidate / Submission entity не нужна.** Received/observed values принадлежат intake/integration semantics соответствующего канала до domain recognition.
+3. **Meter Installation не обязательна для любого возможного Reading фундаментально.** Она обязательна для обычного meter-based Reading, но модель допускает иной sufficiently defined measurement basis относительно Accounting Point без фиктивного Meter.
+4. **Reading только на Accounting Point без Meter допустим лишь при explicit applicable non-meter measurement semantics.** Для пилотных счётчиков Meter Installation должна быть определима.
+5. **Universal one Reading per Accounting Point per day constraint не вводится.** Возможны разные times/channels/observations.
+6. **Lower-than-previous value не блокирует recognition автоматически.** Replacement, rollover, reset, channel semantics и correction требуют контекста.
+7. **Duplicate отделяется от повторного observation через provenance/semantic identity.** Numeric equality/date equality недостаточны.
+8. **Owner-reported value может признаваться автоматически**, если applicable authority/access/rule и validation это позволяют. Сам факт ownership/reporting такого права не создаёт.
+9. **Control Reading не получает universal higher priority.** Приоритет/коррекция определяются control process/rule и evidence.
+10. **Telemetry Reading может признаваться без Subject**, если automatic recognition разрешено rule/semantic contract. Automated system остаётся не-Subject; provenance source сохраняется отдельно.
+11. **Universal quality/confidence score не вводится.** Конкретный process может хранить quality flags/limitations, если они имеют предметный смысл.
+12. **Unresolved/conflicting values остаются вне Reading до resolution**, если нельзя признать самостоятельные measurement facts. Universal conflict state machine не вводится.
+13. **Отдельная Correction entity не нужна.** Reading correction исторически связывает original и corrected/effective recognition на sufficient basis.
+14. **Reading correction не меняет Consumption автоматически.** Resource recalculation — отдельное owning action/result.
+15. **Consumption correction не меняет Accrual автоматически.** Financial recalculation/correction принадлежит financial context.
+16. **Raw и converted representations не образуют два Reading автоматически.** Если это две формы одного measurement fact, identity одна; если они выражают materially different measurement semantics, решение принимает конкретный process.
+17. **Universal Meter Register entity для day/night сейчас не нужна.** Достаточна explicit channel/measurement semantics в Reading/process context.
+18. **Неизвестное точное время хранится с реально доступной temporal precision.** Нельзя придумывать HH:MM.
+19. **Reporter identity не обязательна для Reading универсально.** Для manual report она может быть существенно важна; для telemetry/document/provider source provenance может быть достаточным без создания fake Subject.
+20. **Pilot-ST scenarios достаточны для стабилизации базовой recognition model.** Дополнительно проверены photo/time conflict, display precision, substitute estimate и meter-gap value.
+
+Блокирующих предметных вопросов по базовому Reading recognition после internal review не осталось.
 
 ## 63. Предварительные нормативные последствия
 
@@ -923,10 +958,11 @@ Fundamental model уже существует в ADR-007 / DOMAIN_MODEL / TERMIN
 
 ## 64. Следующий шаг
 
-1. internal review against ADR-004/005/007/010/011;
-2. resolve §62;
-3. pilot-ST scenario check;
-4. stabilize BP;
-5. synchronize normative docs;
-6. proceed to automatic Reading import/recognition process;
-7. затем control reading/reconciliation/imbalance/loss.
+1. выполнить финальную consistency check против ADR-004/005/007/010/011 и current DOMAIN_MODEL/TERMINOLOGY;
+2. синхронизировать ADR-007 / DOMAIN_MODEL / TERMINOLOGY с Reading identity/recognition/correction boundaries;
+3. обновить Stage 7 в REFERENCE_CANDIDATE_MATRIX как начатый и зафиксировать BP-READING-001 как foundation;
+4. открыть Draft PR для BP-READING-001;
+5. после его принятия перейти к REF-METER-002 — automatic Reading import/recognition;
+6. затем control reading → Control Reconciliation → Calculated Imbalance → Operational Loss recognition.
+
+Дополнительный внешний review сейчас не инициируется: новых фундаментальных сущностей или спорного архитектурного разворота BP не создаёт.

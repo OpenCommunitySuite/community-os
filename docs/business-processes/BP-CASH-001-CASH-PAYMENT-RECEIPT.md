@@ -220,30 +220,40 @@ Recognition и Allocation могут координироваться одним
 
 ## 13. Cash Acceptance ↔ Payment cardinality
 
-Один Cash Payment может исполнять несколько obligations. Разбиение одного признанного движения по назначениям не создаёт несколько Payments автоматически.
+Разбиение одного recognized Payment по obligations не определяет количество Payments автоматически. Аналогично и Cash Acceptance source cardinality не определяет Payment cardinality.
 
-Один Cash Acceptance может привести к:
+Допустимы:
 
-- 0 recognized Payments;
-- 1 recognized Payment;
-- N recognized Payments, если достаточные evidence/domain semantics подтверждают несколько самостоятельных money movements.
+- one Cash Acceptance → zero recognized Payments;
+- one Cash Acceptance → one Payment;
+- one Cash Acceptance → multiple Payments, если evidence подтверждает несколько самостоятельных financial movements;
+- multiple Cash Acceptances → one Payment, если owning-domain evidence подтверждает continuity одного предметного Payment.
 
-Например, один представитель может одновременно передать документированно отдельные суммы нескольких плательщиков.
+Например, один представитель может одним Cash Acceptance передать документированно отдельные суммы нескольких плательщиков — это может дать несколько Payments.
 
-При этом один **Cash Payment** относится к одному признанному cash money movement и имеет один Cash Acceptance как cash-channel source referent. Несколько уже завершённых самостоятельных Cash Acceptances не объединяются молча в один Payment.
-
-Если payer в одном непрерывном cashier interaction до завершения Cash Acceptance сначала передал 800, а затем сразу добавил 200, это может оставаться одним coherent Cash Acceptance 1000. Если первый Cash Acceptance уже завершён, последующая отдельная передача является новым Cash Acceptance и при financial recognition — отдельным Payment.
+Обратный случай также не запрещён универсально: несколько завершённых Cash Acceptances могут поддерживать один Payment, но только если существует отдельное достаточное предметное основание считать их частями одного Payment.
 
 ```text
 Cash Acceptance cardinality
 ≠ Payment cardinality
 
-one Cash Payment
-→ one Cash Acceptance source
-
 one Cash Acceptance
 → 0..N Cash Payments
+
+one Cash Payment
+→ 1..N Cash Acceptance sources where justified
 ```
+
+Отдельные Cash Acceptances **не объединяются автоматически** в один Payment из-за совпадения payer, date, amount, purpose, Personal Account или obligation.
+
+Если несколько Cash Acceptances поддерживают один Payment:
+
+- merge/continuity basis должен быть explainable;
+- attributable amount каждого source fact в Payment должен быть explainable;
+- сумма attributed contributions одного Cash Acceptance во все Payments не превышает Cash Acceptance amount;
+- для Payment, полностью состоящего из cash-source facts, сумма attributed source contributions объясняет Payment amount.
+
+В пределах одного незавершённого coherent acceptance interaction дополнительные суммы могут оставаться одним Cash Acceptance. После completion следующая физическая передача является новым Cash Acceptance source fact, но это само по себе ещё не предрешает Payment cardinality.
 
 Cash Payment может быть полностью или частично нераспределён.
 
@@ -499,7 +509,7 @@ Cash Payment может быть принят до возникновения к
 Для recognized Cash Payment дополнительно должны быть explainable:
 
 - Payment identity/referent;
-- link to exactly one Cash Acceptance source;
+- links to one or more Cash Acceptance source referents, with attributable source amount where cardinality requires it;
 - direction;
 - recognized amount/currency;
 - payer and recipient;
@@ -509,7 +519,7 @@ Cash Payment может быть принят до возникновения к
 - subsequent Initial Allocation;
 - correction/replacement links.
 
-Один Cash Acceptance может быть linked to 0..N Payments. Payment provenance не поглощает Cash Acceptance provenance.
+Cash Acceptance ↔ Payment linkage не имеет universal `1:1`. Если один Payment опирается на несколько Cash Acceptances, provenance сохраняет merge/continuity basis и attributable amount каждого source fact. Payment provenance не поглощает Cash Acceptance provenance.
 
 Provenance не требует universal CashOperation/Audit entity.
 
@@ -634,7 +644,7 @@ Later sufficient evidence identifies Payer A.
 
 Recognition links Payment to the existing Cash Acceptance, preserves actual acceptance time and later recognition/recording time, and does not invent a second movement.
 
-### 40.25. Several independent Cash Acceptances must not merge into one Payment
+### 40.25. Separate Cash Acceptances do not merge automatically
 
 Payer A gives 500 and cashier finalizes Cash Acceptance CA1.
 
@@ -642,11 +652,11 @@ Later Payer A separately gives another 500 and cashier finalizes CA2.
 
 ```text
 CA1 ≠ CA2
-→ two physical money movements
-→ not one Cash Payment 1000
 ```
 
-If recognized, each acceptance produces its own Payment identity.
+Это два самостоятельных source facts. Совпадение payer/date/purpose/obligation само по себе не позволяет превратить их в один Payment 1000.
+
+Если applicable owning-domain evidence отдельно подтверждает, что CA1 и CA2 являются частями одного предметного Payment, один Payment 1000 допустим при explainable continuity basis и attributable contributions 500 + 500. В отсутствие такого основания они признаются как отдельные Payments либо остаются unresolved согласно применимой семантике.
 
 ### 40.26. Additional cash before one acceptance is finalized
 
@@ -769,11 +779,12 @@ It remains visible for decision/reconciliation and is not auto-converted into in
 50. Custody-only Cash Acceptance ≠ Payment automatically.
 51. If materially meaningful Payment parties are not sufficiently determinable, Payment recognition is not confirmed.
 52. Late Payment recognition from existing Cash Acceptance ≠ a second physical movement.
-53. One Cash Payment refers to one Cash Acceptance source; separate finalized Cash Acceptances are not silently merged into one Payment.
+53. One Cash Payment may be supported by 1..N Cash Acceptance sources on sufficient owning-domain basis; source cardinality does not define Payment identity.
 54. One Cash Acceptance may support 0..N Payments.
-55. Cash Acceptance may exist without Payment recognition.
-56. Lack of authority does not erase physical Cash Acceptance but blocks automatic Payment recognition.
-57. Long-lived unresolved Cash Acceptance remains visible and is not auto-reclassified by timeout.
+55. Separate Cash Acceptances never merge into one Payment automatically; many-source linkage requires explainable continuity basis and attributable source amounts.
+56. Cash Acceptance may exist without Payment recognition.
+57. Lack of authority does not erase physical Cash Acceptance but blocks automatic Payment recognition.
+58. Long-lived unresolved Cash Acceptance remains visible and is not auto-reclassified by timeout.
 
 ## 42. Что намеренно не решается
 
@@ -840,7 +851,7 @@ Universal Cashbox/CashOperation/CashBalance и universal Cash Acceptance status 
 1. BP-CASH-001 остаётся channel-specific Payment Recognition process; universal Payment Recognition BP не вводится.
 2. Cash Acceptance вводится как identity-bearing channel-side source/process referent (вариант B review), не как Payment или фундаментальная FinancialOperation.
 3. Universal Cash Acceptance lifecycle/status machine не вводится; authority, recognition, custody interpretation и disposition остаются traceable process semantics.
-4. One Cash Acceptance may support 0..N Payments; one Cash Payment refers to one Cash Acceptance source; separate finalized Cash Acceptances не объединяются молча в один Payment.
+4. Cash Acceptance ↔ Payment does not have universal 1:1 cardinality: one Acceptance may support 0..N Payments, and one Payment may use 1..N Acceptances on sufficient owning-domain basis; separate source facts never merge automatically.
 5. Accepted/unresolved Cash Acceptance может существовать до Payment recognition; такая сумма не является Unallocated Remainder.
 6. Payer / physical tenderer / cashier / obligated Subject различаются.
 7. Unknown payer blocks Payment recognition until materially meaningful party information is sufficient; fake Subject не создаётся.

@@ -19,7 +19,7 @@ cash physically prepared / handed out
 → cash document as evidence/formalization where applicable
 ```
 
-`Cash Disbursement` в настоящем Draft — кандидат на identity-bearing cash-channel source/process referent physical release наличных из Community custody/control **во внешнюю сторону потенциального financial outflow**. Независимый review должен проверить его необходимость и границы по аналогии, но не механическому копированию, с `Cash Acceptance`.
+`Cash Disbursement` — identity-bearing outgoing cash-channel source/process referent physical release наличных из Community custody/control во внешнюю сторону. Его предметная необходимость подтверждена independent review не через симметрию с Cash Acceptance, а через необходимость сохранять source fact до/без Payment recognition и отделять channel event от Payment/Expense.
 
 Внутреннее перемещение между Community-side custodians не является Cash Disbursement настоящего BP и остаётся в границе REF-FIN-016.
 
@@ -86,7 +86,7 @@ Cash method не создаёт отдельную модель Financial Obliga
 
 ## 5. Cash Disbursement как channel-side referent
 
-Для Draft вводится рабочее понятие:
+Принятое понятие:
 
 **Cash Disbursement (выдача наличных)** — historically significant cash-channel source/process fact/referent, фиксирующий physical release определённой суммы наличных в определённой currency из Community custody/control к external-side physical receiver в рамках одного coherent disbursement scope, когда Community custody/control над этой суммой предметно прекращено независимо от того, удалось ли уже признать outgoing Payment.
 
@@ -829,7 +829,7 @@ Cash Disbursement identity is determined by the external physical payout, not by
 
 ## 42. Инварианты
 
-1. Cash Disbursement is a candidate identity-bearing cash-channel source/process referent for external-side physical cash release.
+1. Cash Disbursement is an identity-bearing cash-channel source/process referent for external-side physical cash release.
 2. Cash Disbursement ≠ outgoing Cash Payment.
 3. Cash Disbursement ≠ Expense.
 4. Cash Disbursement ≠ cash document.
@@ -918,47 +918,48 @@ Cash Disbursement identity is determined by the external physical payout, not by
 - REFERENCE_CANDIDATE_MATRIX;
 - OSBBX_REFERENCE_ANALYSIS.
 
-## 45. Предварительные нормативные последствия
+## 45. Нормативные последствия
 
-Перед принятием Draft проверить:
+Independent review подтвердил вариант **B**: Cash Disbursement нужен как identity-bearing outgoing cash-channel source/process referent, но не как fundamental financial entity.
 
-- нужен ли `Cash Disbursement` как самостоятельный identity-bearing channel-side referent по аналогии с Cash Acceptance;
-- нужна ли синхронизация ADR-006 / DOMAIN_MODEL / TERMINOLOGY;
-- нужна ли mirror-note в BP-FIN-ALLOCATION-001;
-- нужна ли mirror-note в BP-FIN-BANK-001 по cash withdrawal;
-- достаточно ли REF-FIN-016 для custody/accountable boundaries;
-- можно ли после BP-CASH-002 полностью закрыть REF-FIN-009.
+Нормативная синхронизация выполнена:
 
-Новый ADR и универсальная Cashbox/CashOperation entity предварительно не требуются.
+- ADR-006 — добавлен Cash Disbursement, completion, authority/cardinality и custody/bank-withdrawal boundaries;
+- DOMAIN_MODEL 0.16 — добавлены identity/history Cash Disbursement, `0..N` Payment linkage, completion и unresolved external-release semantics;
+- TERMINOLOGY 0.14 — введён термин `Cash Disbursement (выдача наличных)` и направление cash-channel source referents;
+- BP-FIN-ALLOCATION-001 — Initial Allocation работает только с recognized Payment, никогда напрямую с Cash Disbursement amount;
+- BP-FIN-BANK-001 — own-bank cash withdrawal отделён от Cash Disbursement/outgoing Payment; later external payout является отдельным Cash Disbursement;
+- REFERENCE_CANDIDATE_MATRIX — REF-FIN-009 закрыт решением; REF-FIN-016 уточнён как custody/internal movement/unresolved handoff; REF-FIN-017 создан для подотчётных средств без предрешённой финансовой модели.
 
-## 46. Открытые вопросы для review
+Новый standalone ADR не требуется: ADR-006 остаётся owning architectural document financial/channel model.
 
-1. нужен ли Cash Disbursement referent как зеркальный, но самостоятельный counterpart Cash Acceptance;
-2. достаточно ли определения physical release from Community-side control;
-3. корректна ли cardinality one Cash Disbursement → 0..N Payments, one Payment → one Disbursement;
-4. как определить boundary between coherent one disbursement and several disbursements;
-5. может ли Cash Disbursement существовать без outgoing Payment;
-6. достаточно ли unknown-recipient semantics;
-7. как authority failure влияет на Payment recognition;
-8. нужно ли различать physical receiver / financial recipient / entitled party / representative;
-9. корректна ли immediate-return boundary;
-10. достаточно ли separation Payment ≠ Expense;
-11. корректно ли supplier prepayment before Expense/Obligation;
-12. корректен ли Refund cash flow through BP-FIN-003 + BP-CASH-002;
-13. как трактовать accountable cash / подотчёт без premature Expense/Payment semantics;
-14. нужен ли отдельный Accountable Advance candidate/BP;
-15. достаточно ли REF-FIN-016 for custody/internal movement;
-16. cash withdrawal from Community bank: достаточно ли Bank Transaction + custody boundary;
-17. нужна ли cash→bank/withdrawal reconciliation symmetry;
-18. какие normative mirror notes нужны соседним BP;
-19. можно ли после этого полностью закрыть REF-FIN-009.
+Universal Cashbox/CashBalance/CashOperation и universal Cash Disbursement lifecycle/status machine не вводятся.
+
+## 46. Решения independent review
+
+1. Cash Disbursement признан самостоятельным identity-bearing channel-side referent не из-за зеркальности с Cash Acceptance, а потому что physical external release может существовать до/без Payment recognition.
+2. Cash Disbursement completion является domain boundary coherent physical release, а не lifecycle/status machine.
+3. До completion дополнительные суммы/immediate return могут относиться к тому же Disbursement; после completion отдельный release получает новую identity.
+4. One Cash Disbursement may support `0..N` outgoing Payments; one outgoing Cash Payment refers to one Cash Disbursement source.
+5. Separate completed Cash Disbursements не объединяются молча в один Payment.
+6. External-side release established + unresolved financial recipient/purpose → Cash Disbursement exists, Payment may remain unresolved.
+7. If custody-vs-external release itself is unresolved → Cash Disbursement is NOT created by default; source handoff remains explicitly unresolved under REF-FIN-016.
+8. Internal transfer between Community-side custodians and own-bank cash withdrawal are not Cash Disbursement of this BP.
+9. Later custody→external reclassification preserves original physical handoff time and separate classification/recording time.
+10. Lack of authority does not erase Cash Disbursement; later valid authority confirmation/ratification may enable primary Payment recognition from original Disbursement.
+11. Actual disbursement time, authority-resolution time and Payment-recognition time are distinct where materially significant.
+12. Physical receiver, financial recipient, entitled party and acting disburser remain separate roles/relations.
+13. Cash document ≠ Cash Disbursement ≠ Payment ≠ Expense; legal/formalization policy may impose additional prerequisites.
+14. Outgoing Cash Payment ≠ Expense and ≠ Financial Obligation; prepayment/Refund/employee remuneration keep their own semantics.
+15. Cash Refund uses BP-FIN-003 obligation-to-return + BP-CASH-002 channel recognition + Initial Allocation.
+16. Accountable cash/подотчёт is not merged with generic custody: REF-FIN-017 tracks it separately and does not predefine it as Advance/Obligation/Expense.
+17. `Requires Decision` remains accepted process-outcome wording and does not introduce a universal status entity.
+18. REF-FIN-009 is fully closed by BP-CASH-001 + BP-CASH-002.
 
 ## 47. Следующий шаг
 
-1. internal review against ADR-006 and neighboring financial BP;
-2. pilot-ST scenario check;
-3. independent Claude review;
-4. point fixes;
-5. normative synchronization;
-6. close/refine REF-FIN-009;
-7. continue to BP-EXPENSE-001.
+После финальной сверки BP-CASH-002 может быть принят как рабочая предметная основа outgoing cash-channel recognition.
+
+Следующий процесс Stage 5 — `BP-EXPENSE-001 — регистрация расхода и его связь со сметой, обязательствами, платежами и источниками финансирования`.
+
+REF-FIN-016 (custody/internal cash movement/reconciliation) и REF-FIN-017 (подотчётные средства/accountable funds) остаются Backlog и не блокируют BP-EXPENSE-001.

@@ -691,23 +691,31 @@ This is not a universal DB schema.
 
 Блокирующих предметных вопросов после internal review не осталось.
 
-## 61. Предварительные нормативные последствия
+## 61. Нормативная синхронизация
 
-ADR-011 already contains the fundamental integration semantics.
+Новый ADR и новые fundamental entities не требуются.
 
-New ADR and new fundamental entities are not required.
+В текущей Draft-ветке выполнена точечная синхронизация:
 
-Expected point synchronization:
+- ADR-011 — explicit automatic Reading import boundary, historical device/channel/unit mapping, partial success, redelivery/duplicate, correction/re-import/re-recognition и outage/backlog semantics;
+- DOMAIN_MODEL → 0.21 — automatic intake закреплён как integration semantics поверх BP-READING-001 без отдельного вида Reading;
+- TERMINOLOGY остаётся 0.18: новых фундаментальных терминов не требуется;
+- REFERENCE_CANDIDATE_MATRIX — REF-METER-002 закрывается решением; следующим процессом Stage 7 становится контрольное снятие.
 
-- ADR-011 — explicit Reading-import mirror note for historical mapping, partial success and correction/re-recognition;
-- DOMAIN_MODEL — short integration boundary note;
-- TERMINOLOGY — no new fundamental term required, optional clarification in Reading;
-- REFERENCE_CANDIDATE_MATRIX — close REF-METER-002 and make control-reading/reconciliation next.
+ADR-007 не требует дополнительного изменения: Reading identity/recognition/correction boundaries уже были нормативно закреплены BP-READING-001.
 
-## 62. Следующий шаг
+## 62. Текущее состояние и следующий шаг
 
-1. perform final consistency check against ADR-007/011 and BP-READING-001;
-2. synchronize normative docs;
-3. close REF-METER-002;
-4. open Draft PR;
-5. next: control reading / control observation process, then Control Reconciliation.
+BP прошёл internal consistency review against ADR-007/011 and BP-READING-001.
+
+Проверены batch/API/synchronization/streaming, historical mapping, device replacement, out-of-order/backlog, source outage, unknown device, channel/unit mapping, duplicate/redelivery, external correction, mapping correction, re-import/re-recognition, partial success и multi-tenant boundary.
+
+Блокирующих предметных вопросов после internal review не осталось.
+
+Следующий процесс Stage 7 после принятия/merge BP-READING-002:
+
+**контрольное снятие показаний** как отдельный resource operational process, использующий тот же BP-READING-001 для recognition, но добавляющий семантику контрольного обхода/наблюдения, expected scope, completeness и evidence.
+
+После него — Control Reconciliation → Calculated Imbalance → Operational Loss recognition.
+
+Дополнительный внешний review BP-READING-002 сейчас не инициируется: документ не создаёт новой Reading model и не меняет accepted integration architecture.

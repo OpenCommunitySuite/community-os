@@ -213,6 +213,8 @@ Manufacturer/model/serial number/номер пломбы могут быть в�
 
 Повторная регистрация сведений о том же физическом приборе не должна создавать второй Meter автоматически.
 
+Серийный номер не является универсальным глобальным identity key сам по себе: его интерпретация может зависеть от производителя, типа прибора, источника и качества данных. External device ID также не определяет Meter identity согласно ADR-011.
+
 Если Meter уже известен системе, новая Meter Installation использует существующую identity этого Meter.
 
 ## 11. Совместимость нового Meter с точкой учёта
@@ -257,6 +259,8 @@ installation start time
 
 Начало установки не выводится автоматически из факта предварительной регистрации Meter в системе.
 
+Физический монтаж и effective start могут не совпадать: Meter может быть смонтирован, но ещё не введён в измерительное использование. В таком случае Meter Installation start относится к предметно действующему measurement relation, а не автоматически к моменту механического монтажа.
+
 ## 14. Непрерывная замена и временной разрыв
 
 Типовой вариант:
@@ -282,6 +286,8 @@ Accounting Point при этом сохраняется.
 Период без Meter не заполняется фиктивной установкой.
 
 Если Consumption за этот интервал требуется определить, используется отдельная applicable resource rule / substitute-data semantics; настоящий BP не придумывает Consumption.
+
+Даже если supply был физически отключён на весь gap, BP-METER-001 не выводит автоматически нулевой Consumption только из отсутствия Meter; факт отсутствия подачи/потребления должен иметь собственное достаточное основание.
 
 ## 15. Overlap и параллельное измерение
 
@@ -511,6 +517,8 @@ Replacement Document
 
 Один документ может подтверждать несколько предметных фактов.
 
+Номер пломбы, факт опломбирования или замена пломбы сами по себе не определяют Meter identity, Accounting Point identity или Meter Installation identity.
+
 ## 29. Ownership / custody Meter
 
 Meter может принадлежать или находиться под ответственностью:
@@ -579,7 +587,21 @@ Installation #2 of Meter M
 
 Если прерывание не меняло предметного отношения установки и не существенно для учёта, искусственно дробить installation history не следует.
 
-## 34. Late / offline recording
+## 34. Planned replacement ≠ actual replacement
+
+План, заявка, согласование или назначенная дата будущей замены не создают Meter Installation changes автоматически.
+
+```text
+planned replacement
+≠ old Installation ended
+≠ new Installation started
+```
+
+Actual replacement facts признаются по фактическому installation/use basis.
+
+Если план отменён или изменён, это не требует фиктивного resource correction, потому что предметные Meter Installation facts ещё не возникли.
+
+## 35. Late / offline recording
 
 Физическая замена может быть зарегистрирована позже.
 
@@ -592,7 +614,7 @@ actual replacement time
 
 Все downstream calculations должны использовать предметно применимые времена, а не только technical created-at.
 
-## 35. Duplicate / retry
+## 36. Duplicate / retry
 
 Повторная техническая обработка одного и того же подтверждённого replacement fact не создаёт:
 
@@ -607,7 +629,7 @@ actual replacement time
 
 Универсальный idempotency key в настоящем BP не проектируется.
 
-## 36. Ошибочно зарегистрированная замена
+## 37. Ошибочно зарегистрированная замена
 
 Если позднее установлено, что физической замены не было либо она была отражена неверно, история не удаляется молча.
 
@@ -621,7 +643,7 @@ actual replacement time
 
 Универсальная Correction entity не вводится.
 
-## 37. Wrong Meter identity
+## 38. Wrong Meter identity
 
 Если при реальной замене выбран не тот Meter record, необходимо исправить связь installation с фактически использованным физическим Meter без переписывания истории молча.
 
@@ -634,7 +656,7 @@ real replacement
 ≠ fictitious replacement
 ```
 
-## 38. Wrong effective time
+## 39. Wrong effective time
 
 Если ошибочно указаны start/end times Meter Installation:
 
@@ -645,7 +667,7 @@ real replacement
 
 Technical record timestamp остаётся отличим от corrected effective time.
 
-## 39. Wrong boundary Reading
+## 40. Wrong boundary Reading
 
 Исправление final/initial Reading не является исправлением Meter Installation автоматически.
 
@@ -656,7 +678,7 @@ Reading correction
 
 Если corrected Reading влияет на Consumption, соответствующий resource recalculation выполняется отдельно.
 
-## 40. Derived Consumption after correction
+## 41. Derived Consumption after correction
 
 Изменение:
 
@@ -677,7 +699,7 @@ source correction
 
 Owning Consumption process должен выполнить отдельный traceable recalculation where required.
 
-## 41. Financial consequences after resource correction
+## 42. Financial consequences after resource correction
 
 Даже если corrected Consumption должен изменить начисление собственнику:
 
@@ -689,7 +711,7 @@ Meter/Reading correction
 
 Resource context не переписывает Accrual/Financial Obligation напрямую.
 
-## 42. Новый Meter позднее признан непригодным
+## 43. Новый Meter позднее признан непригодным
 
 Если новый Meter был реально установлен и использовался, а позже признан неисправным/непригодным:
 
@@ -700,7 +722,7 @@ Resource context не переписывает Accrual/Financial Obligation на
 
 Не следует удалять неудачную установку, будто её никогда не было.
 
-## 43. Provenance замены
+## 44. Provenance замены
 
 Для исторической объяснимости replacement должны быть определимы в необходимом объёме:
 
@@ -985,6 +1007,24 @@ Do not infer replacement or negative Consumption from lower numeric reading with
 ### 53.23. New Meter later found defective
 Installation remains historical; subsequent replacement/correction handled separately.
 
+### 53.24. Meter mounted today, effective tomorrow
+Meter physically mounted on 10 Sep, but according to applicable basis begins measurement use on 11 Sep. New Meter Installation starts on the effective use boundary, not automatically at physical mounting time.
+
+### 53.25. Planned replacement cancelled
+Replacement was scheduled and documented as a plan, but no physical/effective installation change occurred. No old/new Meter Installation facts are created.
+
+### 53.26. Serial number collision or ambiguous serial
+Two source records contain the same serial-like value but identity is not sufficiently established. Do not merge Meter identities solely by serial equality.
+
+### 53.27. External device ID changed
+Telemetry/provider device ID changes after replacement or remapping. External device ID change does not create or replace Meter identity automatically; mapping follows ADR-011.
+
+### 53.28. Seal replaced without Meter replacement
+Seal number changes while the same Meter Installation remains effective. Do not create fictitious replacement solely because seal metadata changed.
+
+### 53.29. De-energized gap
+Old Meter removed, supply independently confirmed disconnected, new Meter installed later. Gap is still represented as no Meter Installation; zero/substitute Consumption is decided by owning resource process from the de-energization evidence, not inferred only from missing Meter.
+
 ## 54. Инварианты
 
 1. Accounting Point ≠ Meter.
@@ -1035,6 +1075,12 @@ Installation remains historical; subsequent replacement/correction handled separ
 46. Physical boundary change may require Accounting Point/topology decision instead of simple replacement.
 47. Resource-specific differences do not create separate fundamental replacement models for electricity and water.
 48. Supplier-side settlement coefficients do not redefine Community OS installation coefficients automatically.
+49. Planned replacement ≠ actual Meter replacement.
+50. Physical mounting time ≠ Meter Installation effective start automatically.
+51. Serial number ≠ universal global Meter identity key.
+52. External device ID ≠ Meter identity.
+53. Seal identity/change ≠ Meter identity or replacement automatically.
+54. Missing Meter during a gap does not prove zero Consumption automatically.
 
 ## 55. Проверка против OSBBX reference
 
@@ -1074,36 +1120,36 @@ Community OS использует этот сценарий как провер�
 
 Новые fundamental entities `Meter Replacement`, `Meter Register`, `Measurement Event`, `Resource Correction` сейчас не требуются.
 
-## 57. Вопросы internal review
+## 57. Решения internal review
 
-1. Нужна ли самостоятельная identity replacement process result либо достаточно traceable relation между ended/started Meter Installations?
-2. Должны ли final/initial boundary values быть обязательными для completed replacement?
-3. Допустим ли completed replacement при реальном gap между installations?
-4. Нужно ли универсально запрещать overlap installations одной Accounting Point?
-5. Как отделить replacement от изменения Accounting Point boundary/topology?
-6. Нужна ли отдельная сущность register/channel для двухзонных Meter?
-7. Как трактовать reinstallation того же Meter?
-8. Требует ли изменение installation coefficient новой Meter Installation для того же Meter?
-9. Должна ли замена автоматически инициировать Consumption recalculation?
-10. Должен ли resource correction автоматически инициировать Accrual recalculation?
-11. Нужно ли считать ownership/custody Meter частью replacement identity?
-12. Нужна ли отдельная Correction entity для ошибочно зарегистрированной замены?
-13. Может ли replacement существовать без old final Reading?
-14. Может ли new Installation существовать без initial Reading?
-15. Должен ли акт замены иметь собственную предметную identity?
-16. Как вести replacement, если exact time неизвестно и доступна только дата?
-17. Должен ли Meter serial number быть universal identity key?
-18. Может ли один Meter последовательно использоваться в разных Accounting Points?
-19. Нужно ли различать planned replacement и actual replacement?
-20. Какие pilot-ST сценарии ещё выявляют пробелы модели?
+1. **Отдельная identity Meter Replacement не требуется.** Достаточно traceable relation/provenance между ended old Meter Installation и started new Meter Installation на сохраняющейся Accounting Point.
+2. **Final/initial boundary Reading не обязательны для существования реальной замены.** Они обязательны только там, где конкретный downstream process требует их как достаточный input; fictitious Reading не создаётся.
+3. **Completed replacement допускает реальный gap между installations.** Accounting Point сохраняется; gap остаётся без Meter Installation.
+4. **Universal ban на overlap не вводится.** Реальный overlap допустим для parallel/control/compound semantics, но должен быть явно объясним.
+5. **Replacement отделяется от Accounting Point/topology change по сохранению предметной измерительной границы.** Материальное изменение scope/boundary требует отдельного topology/accounting-point решения.
+6. **Универсальная Meter Register entity сейчас не нужна.** Multi-register/channel values обрабатываются в достаточном resource-specific context.
+7. **Reinstallation того же Meter не является Meter replacement.** При реальном существенном interruption могут существовать несколько Meter Installation intervals одного Meter.
+8. **Изменение installation-specific coefficient может потребовать новый Meter Installation interval даже для того же Meter**, если изменилось исторически значимое отношение/интерпретация установки. Это не Meter replacement автоматически.
+9. **Replacement не запускает Consumption recalculation автоматически как скрытый cascade.** Downstream Consumption process revalidates/recalculates результаты, если replacement/correction materially affects them.
+10. **Resource correction не запускает финансовую correction автоматически.** Financial recalculation/correction выполняется отдельным owning financial process.
+11. **Ownership/custody Meter не входит в replacement identity.** Это отдельный context/basis where relevant.
+12. **Отдельная Correction entity не требуется.** Ошибочная installation/replacement history исправляется traceably по ADR-004/007.
+13. **Replacement может существовать без old final Reading.** Missing value остаётся явным.
+14. **New Meter Installation может существовать без initial Reading.** Missing value остаётся явным.
+15. **Акт замены не является replacement identity.** Если документ предметно значим, он имеет обычную Document identity по документному контексту и служит evidence/basis.
+16. **При неизвестном exact time сохраняется фактически доступная temporal precision.** Не создаётся ложное HH:MM.
+17. **Meter serial number не является universal identity key.** Это идентификационный атрибут/evidence; external identifiers подчиняются ADR-011.
+18. **Один Meter может последовательно использоваться в разных Accounting Points.** Его identity сохраняется, а Meter Installations различаются.
+19. **Planned replacement и actual replacement различаются.** План/заявка/назначенная дата не создают installation facts.
+20. **Pilot-ST scenario set достаточен для стабилизации базовой модели:** individual/group electricity, two-zone meter, water meter, coefficient change, gap, relocation, changed boundary, missing readings, same-Meter reinstallation, overlap, supplier-owned Meter, defective new Meter, external device ID, seal-only change и ambiguous serial.
+
+Новых фундаментальных сущностей или блокирующих предметных вопросов по итогам internal review не выявлено.
 
 ## 58. Следующий шаг
 
-1. internal review against ADR-004/005/007/010/011 and current DOMAIN_MODEL/TERMINOLOGY;
-2. resolve §57 questions;
-3. pilot-ST scenario check;
-4. stabilize Draft;
-5. only then decide whether independent review is materially useful;
-6. perform normative synchronization;
-7. close/refine REF-METER-001;
-8. proceed to Stage 7 resource operational processes.
+1. выполнить финальную consistency check против current ADR-004/005/007/010/011, DOMAIN_MODEL и TERMINOLOGY;
+2. точечно синхронизировать ADR-007 / DOMAIN_MODEL / TERMINOLOGY;
+3. закрыть/refine REF-METER-001 в REFERENCE_CANDIDATE_MATRIX;
+4. зафиксировать Stage 6 как завершённый при отсутствии новых противоречий;
+5. после принятия перейти к Stage 7: recognition Reading, automatic import, control reading, Control Reconciliation, Calculated Imbalance и Operational Loss;
+6. дополнительный review запускать только если нормативная синхронизация выявит новое спорное архитектурное решение.

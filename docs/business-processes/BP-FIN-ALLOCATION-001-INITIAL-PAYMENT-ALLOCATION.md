@@ -149,6 +149,8 @@ Payment может быть:
 
 Если часть Payment уже получила подтверждённое первоначальное распределение и сохраняет действующий финансовый эффект, процесс может распределять только оставшуюся доступную часть без изменения уже подтверждённых Allocation.
 
+Если после `BP-FIN-005` часть ранее confirmed Allocation стала `excess applied amount` из-за уменьшения/отмены obligation, она не становится доступной для нового Initial Allocation автоматически. Пока отдельный disposition/Reallocation не изменил её financial meaning, соответствующая сумма продолжает учитываться в current effective financial use.
+
 Если требуется изменить уже подтверждённую часть, применяется Reallocation.
 
 ## 8. Allocation Proposal
@@ -423,7 +425,7 @@ Arithmetic remainder = 300
 300 → Overpayment
 ```
 
-Overpayment может возникнуть позднее как следствие изменения effective financial state, например если ранее исполненное обязательство после правомерного перерасчёта уменьшилось. Такое состояние не создаётся настоящим BP как специальный target первоначального Allocation.
+Overpayment может возникнуть позднее как следствие изменения effective financial state, например если ранее исполненное обязательство после правомерного перерасчёта уменьшилось. При этом уменьшение obligation сначала может породить process-derived `excess applied amount`; такой excess не является Overpayment автоматически, пока applicable semantics не признаёт соответствующий financial state. Такое состояние не создаётся настоящим BP как специальный target первоначального Allocation.
 
 ## 21. Плательщик и обязанная сторона
 
@@ -795,6 +797,8 @@ Water       → 400
 42. Cross-subject/cross-account Allocation must preserve its explicit basis in provenance.
 43. Manual financial decisions require attributable authority.
 44. Provenance must explain confirmed Allocation without universal Audit entity.
+45. Excess applied amount from BP-FIN-005 is not available for new Initial Allocation while current effective financial use still accounts for it.
+46. Excess applied amount ≠ automatic Overpayment.
 
 ## 33. Связанные документы
 

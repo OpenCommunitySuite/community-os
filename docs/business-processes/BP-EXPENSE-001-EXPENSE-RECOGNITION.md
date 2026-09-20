@@ -60,13 +60,17 @@ Budget представляет утверждённый план на пери�
 
 не создаёт Expense автоматически.
 
-Expense может быть признан до Payment/Obligation только когда существует достаточно конкретный expense case: определимы purpose/activity, amount/currency и sufficient basis.
+Expense может быть признан до Payment/Obligation только когда существует достаточно конкретный expense case: определимы purpose/activity, amount/currency, scope и sufficient basis, а применимая предметная семантика уже признаёт это конкретное использование либо конкретное intended use средств Community.
 
-Generic плановая потребность без конкретного expense case остаётся Budget/Management Decision semantics.
+Generic плановая потребность, предварительное обсуждение, estimate или Budget/Management Decision без признанного concrete intended-use case Expense не создают автоматически.
 
 ## 4. Expense identity
 
 Expense имеет самостоятельную domain identity.
+
+Граница one Expense vs several Expenses определяется continuity одного coherent financial-management use case: предметной целью/деятельностью, basis, materially significant scope и исторической объяснимостью результата.
+
+Ни один отдельный критерий — supplier, document, Payment, Obligation либо Budget Item — не является универсальным identity key.
 
 Identity Expense не определяется автоматически:
 
@@ -192,7 +196,9 @@ Expense может существовать до фактической опла
 
 ## 12. Prospective concrete Expense
 
-Expense может быть признан до фактического использования/Payment, если sufficient basis устанавливает конкретное предполагаемое использование средств и amount/currency.
+Expense может быть признан до фактического использования/Payment, если sufficient basis и applicable authority/policy уже устанавливают конкретное предметно признанное intended use средств с определимыми purpose/activity, scope и amount/currency.
+
+Proposal, estimate, Budget reservation либо намерение, ещё не получившее такого предметного признания, Expense не являются.
 
 Пример:
 
@@ -259,16 +265,18 @@ pump/common Community part = 3 000
 
 Нельзя автоматически создать Expense 10 000 только потому, что Community должно Supplier 10 000 либо оплатило 10 000.
 
-Если sufficient basis подтверждает Community-use portion 3 000:
+Если sufficient basis подтверждает Community-use portion 3 000, эта часть имеет самостоятельное Expense meaning:
 
 ```text
-Expense = 3 000
+at least one recognized Community Expense = pump/common use 3 000
 related Obligation scope = 3 000 of 10 000
 Budget Item = pump/common needs where applicable
 Funding Source = membership contributions where applicable
 ```
 
-Owner accruals/individual consumption, Supplier Obligation, Payment and Community Expense остаются разными facts.
+Индивидуально возмещаемая часть 7 000 **не становится Expense автоматически только из-за Supplier Obligation/Payment**, но настоящий BP также не устанавливает универсальное правило, что такая часть никогда не может иметь Expense meaning. Это зависит от принятой финансово-управленческой семантики конкретного Community и должно быть решено отдельно, если пилотному СТ требуется показывать recoverable supplier cost как Expense.
+
+Owner accruals/individual consumption, Supplier Obligation, Payment и Community Expense остаются разными facts.
 
 ## 17. One source document → several Expenses
 
@@ -287,6 +295,8 @@ Document count/cardinality не определяет Expense cardinality.
 ## 18. One Expense → several Budget Items
 
 Если один coherent Expense по предметному смыслу относится к нескольким Budget Items, он не обязан искусственно split только ради сметной классификации.
+
+Но Budget Distribution не может использоваться для искусственного объединения нескольких independent expense cases в одну Expense identity. Сначала определяется Expense identity по реальному use case, затем выполняется budget classification.
 
 Допускается Expense Budget Distribution:
 
@@ -535,18 +545,30 @@ Document
 ≠ Expense
 ```
 
-## 39. Expense recognition authority
+## 39. Expense recognition authority and substantive admissibility
+
+Следует различать:
+
+- authority признать/зафиксировать Expense в Community OS;
+- authority/competence принять решение о соответствующем использовании средств;
+- факт того, что использование средств реально произошло;
+- оценку допустимости/нарушения Budget, policy, contract or governance constraints.
 
 Manual Expense recognition требует attributable domain authority.
 
 Authority на:
 
 - признание Expense;
+- underlying spending/use decision;
 - Budget Distribution;
 - Expense Financing;
 - correction/reclassification
 
 может различаться according to policy.
+
+**Off-budget ≠ unauthorized.** Реальный допустимый Expense может оказаться вне/сверх Budget и должен быть представим с nonconformance/variance.
+
+Но unauthorized, disputed, missing or misappropriated money movement **не превращается в Expense автоматически только ради reconciliation**. Его financial meaning остаётся unresolved либо определяется специализированным process.
 
 Technical access role не создаёт financial authority.
 
@@ -580,6 +602,8 @@ Expense identity/cardinality определяется concrete expense case and 
 Expense recognition, Expense Budget Distribution и Expense Financing могут быть coordinated в одном user interaction, но создают разные domain results/relations.
 
 Universal atomic requirement across all three не вводится.
+
+Failure/unresolved classification of Budget Item or Funding Source не должен автоматически блокировать recognition уже sufficiently established Expense, если applicable policy явно не делает такую classification обязательным предметным prerequisite.
 
 Если конкретный policy делает Budget Distribution или Financing обязательным prerequisite Expense recognition, dependency должна быть explicit and revalidated before confirmation.
 
@@ -636,19 +660,19 @@ No Expense 7 000 is created merely because Community temporarily settles Supplie
 
 ## 47. Pilot ST — one Expense across several Budget Items
 
-Concrete repair project Expense = 30 000.
+Concrete integrated pump-station repair Expense = 30 000 under one project/basis.
 
-Budget classification:
+Budget classification may identify components:
 
 ```text
-20 000 → electrical network repair
-7 000  → water network repair
-3 000  → common maintenance
+20 000 → electrical works
+7 000  → water/plumbing works
+3 000  → common installation/maintenance works
 ```
 
-One Expense identity may remain if this is one coherent management expense case; Budget Distribution carries split amounts.
+One Expense identity may remain only if these components form one coherent management use case under the owning semantics; Budget Distribution carries the budget split.
 
-If the three purposes are truly independent expense cases, three Expenses may instead be recognized. Source document/payment cardinality does not decide this.
+If they are truly independent purposes/activities with separate expense meaning, separate Expenses are recognized. Budget structure, source document and Payment cardinality do not decide this.
 
 ## 48. Pilot ST — mixed funding
 
@@ -708,7 +732,7 @@ Expense 30 000; recognized Financing 18 000; remaining 12 000 not assigned yet; 
 Budget expected membership; actual authorized financing uses target funds; mismatch remains visible, not silently rewritten.
 
 ### 49.15. Pump electricity
-Only Community-use portion recognized Expense; owner-related consumption portion remains separate financial/resource semantics.
+Pump/common-use portion 3 000 has explicit Community Expense meaning. Owner-related recoverable portion 7 000 does not become Expense automatically from Supplier Obligation/Payment alone; whether it has a separate recoverable-cost Expense meaning remains an explicit local financial-policy question.
 
 ### 49.16. Bank fee
 Bank movement may support Expense recognition; Bank Transaction itself is not Expense.
@@ -735,7 +759,16 @@ Historical Expense/Distribution not silently moved to new current item.
 Duplicate document delivery does not create duplicate Expense automatically.
 
 ### 49.24. Expense purpose spans two truly independent activities
-Owning semantics may require two Expenses rather than one distributed Expense; Requires Decision based on business case, not document convenience.
+Owning semantics requires separate Expenses when independent activities have independent expense meaning; Budget Distribution cannot merge them merely for document/Payment convenience.
+
+### 49.25. Off-budget but authorized Expense
+Competent basis establishes emergency repair 15 000 not present in current Budget. Expense is recognized 15 000 with off-budget/nonconformance visibility; Budget is not silently changed.
+
+### 49.26. Unauthorized cash outflow
+Cash Disbursement/Payment 5 000 occurred without valid spending basis and is under dispute. Do not create Expense 5 000 merely to reconcile the outflow; financial meaning remains unresolved/specialized until sufficient basis exists.
+
+### 49.27. Concrete intended use vs generic plan
+Budget contains 300 000 annual repair plan: no Expense yet. Later competent decision/contract fixes a specific pump-station repair use 30 000 on sufficient basis: prospective Expense may now be recognized before Payment where applicable semantics permits.
 
 ## 50. Инварианты
 
@@ -786,7 +819,11 @@ Owning semantics may require two Expenses rather than one distributed Expense; R
 45. Same supplier/amount/date ≠ duplicate proof.
 46. Authority ≠ technical access.
 47. Expense recognition / Budget Distribution / Financing are separate domain results even when coordinated in one interaction.
-48. Actual off-budget/nonconforming Expense remains representable for audit; system does not hide it by rejecting the fact.
+48. Actual off-budget/nonconforming Expense remains representable for audit; system does not hide it merely because Budget classification/limit is violated.
+49. Off-budget Expense ≠ unauthorized outflow.
+50. Unauthorized/disputed money movement does not create Expense automatically.
+51. Budget Distribution cannot merge independent expense cases into one Expense identity.
+52. Prospective Expense requires a concrete recognized intended-use case; generic Budget/proposal/estimate ≠ Expense.
 
 ## 51. Что намеренно не решается
 

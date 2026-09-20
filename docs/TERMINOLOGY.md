@@ -1,7 +1,7 @@
 # Community OS — Терминология проекта
 
 **Статус:** Draft  
-**Версия:** 0.14  
+**Версия:** 0.15  
 **Язык документа:** русский
 
 ---
@@ -474,7 +474,11 @@ Cash Acceptance имеет собственную identity независимо 
 
 Cash Acceptance не является Payment, Payment Allocation, Financial Obligation, Expense, кассовым документом, Cashbox, CashBalance или универсальной CashOperation.
 
-Один Cash Acceptance может поддерживать `0..N` Cash Payments. Один Cash Payment cash-channel относится к одному Cash Acceptance source; несколько завершённых самостоятельных Cash Acceptances не объединяются молча в один Payment.
+Cash Acceptance ↔ Cash Payment не имеет universal `1:1` ни в одном направлении.
+
+Один Cash Acceptance может поддерживать `0..N` Cash Payments. Один Cash Payment может опираться на `1..N` Cash Acceptances, если owning-domain evidence подтверждает continuity одного предметного Payment.
+
+Отдельные Cash Acceptances не объединяются автоматически в один Payment; при many-source linkage должны быть объяснимы основание объединения и attributable amount каждого source fact.
 
 Принятая сумма, для которой Payment recognition ещё не выполнено, не является Unallocated Remainder. Unallocated Remainder существует только внутри уже признанного Payment.
 
@@ -494,7 +498,11 @@ Cash Disbursement не является Payment, Payment Allocation, Financial O
 
 **Cash Disbursement completion** — предметная граница завершения coherent physical release. До completion дополнительные суммы и immediate refusal/return могут оставаться частью того же source fact; после completion отдельная physical release получает новую Cash Disbursement identity. Completion не является Payment/Expense recognition и не требует universal lifecycle/status machine.
 
-Один Cash Disbursement может поддерживать `0..N` outgoing Cash Payments. Один outgoing Cash Payment относится к одному Cash Disbursement source; несколько завершённых самостоятельных Cash Disbursements не объединяются молча в один Payment.
+Cash Disbursement ↔ outgoing Cash Payment не имеет universal `1:1` ни в одном направлении.
+
+Один Cash Disbursement может поддерживать `0..N` outgoing Cash Payments. Один outgoing Cash Payment может опираться на `1..N` Cash Disbursements, если owning-domain evidence подтверждает continuity одного предметного Payment.
+
+Отдельные Cash Disbursements не объединяются автоматически в один Payment; при many-source linkage должны быть объяснимы основание объединения и attributable amount каждого source fact.
 
 Internal custody handoff при сохранении Community custody/control и withdrawal с собственного банковского счёта Community не являются Cash Disbursement настоящего смысла. Если external-vs-custody classification пока неразрешима, source handoff остаётся unresolved и не становится Disbursement/Payment по умолчанию.
 
@@ -513,7 +521,9 @@ Physical receiver не становится автоматически financial
 - incoming Cash Payment относится к Cash Acceptance;
 - outgoing Cash Payment относится к Cash Disbursement.
 
-Channel-side referent не является Payment и не определяет его identity/cardinality автоматически. Один Cash Acceptance или Cash Disbursement может поддерживать несколько Payments только если evidence/domain semantics подтверждают несколько самостоятельных money movements; один Cash Payment не объединяет несколько завершённых самостоятельных source events.
+Channel-side referent не является Payment и не определяет его identity/cardinality автоматически.
+
+Cash-channel допускает `source → 0..N Payments` и `Payment → 1..N source referents`, если owning-domain evidence подтверждает соответствующую предметную cardinality. Несколько source events не объединяются в один Payment автоматически; many-source Payment требует объяснимого основания и attributable source amounts.
 
 Физический tenderer/receiver, acting acceptor/disburser, payer, recipient, obligated и entitled parties различаются и не отождествляются автоматически.
 

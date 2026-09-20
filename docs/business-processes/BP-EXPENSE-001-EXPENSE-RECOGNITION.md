@@ -306,32 +306,100 @@ recognized Community financial burden for that loss
 
 Распределение resource loss между собственниками, начисление компенсации и Expense сообщества являются разными процессами и не выводятся друг из друга автоматически.
 
-## 16. Pilot ST — pump electricity
+### 15.2. Supplier-calculated transformation-loss component
 
-В пилотном СТ электроэнергия насосной оплачивается из членских средств и является Community use.
+В расчётах с поставщиком может использоваться расчётная добавка к измеренному объёму ресурса, например количество кВт·ч, которое поставщик определяет как потери при трансформации высокого напряжения в низкое по применимому коэффициенту/формуле.
 
-Проверочный сценарий:
-
-```text
-Supplier Obligation total = 10 000
-individual-consumption-related part = 7 000
-pump/common Community part = 3 000
-```
-
-Нельзя автоматически создать Expense 10 000 только потому, что Community должно Supplier 10 000 либо оплатило 10 000.
-
-Если sufficient basis подтверждает Community-use portion 3 000, эта часть имеет самостоятельное Expense meaning:
+Такой компонент следует отличать от собственных ресурсных фактов Community OS:
 
 ```text
-at least one recognized Community Expense = pump/common use 3 000
-related Obligation scope = 3 000 of 10 000
-Budget Item = pump/common needs where applicable
-Funding Source = membership contributions where applicable
+supplier-calculated transformation-loss quantity
+≠ Meter Reading
+≠ measured Consumption automatically
+≠ Calculated Imbalance
+≠ Operational Loss automatically
 ```
 
-Индивидуально возмещаемая часть 7 000 **не становится Expense автоматически только из-за Supplier Obligation/Payment**, но настоящий BP также не устанавливает универсальное правило, что такая часть никогда не может иметь Expense meaning. Это зависит от принятой финансово-управленческой семантики конкретного Community и должно быть решено отдельно, если пилотному СТ требуется показывать recoverable supplier cost как Expense.
+Он является supplier-side settlement input/basis, если именно так используется в договорных/расчётных отношениях с поставщиком. Если этот компонент влияет на Supplier Obligation, должны быть исторически объяснимы, насколько доступны из источника:
 
-Owner accruals/individual consumption, Supplier Obligation, Payment и Community Expense остаются разными facts.
+- исходный измеренный объём;
+- применённый поставщиком коэффициент/формула либо иной basis;
+- расчётная добавка в единицах ресурса;
+- период;
+- денежная оценка/тарифные условия;
+- source/provenance расчёта.
+
+Community OS не обязана признавать supplier-calculated quantity фактической Operational Loss только потому, что поставщик включил её в расчёт.
+
+При этом денежная стоимость такого компонента может иметь самостоятельный Expense meaning, если Community фактически несёт её как стоимость эксплуатации/потерь общей инфраструктуры. Последующее распределение или компенсация этой стоимости собственниками через Accrual/Financial Obligation не отменяет Expense автоматически.
+
+## 16. Pilot ST — electricity expense policy
+
+Для пилотного СТ принимается локальная financial-management policy:
+
+1. индивидуальное измеренное потребление участков, которое Community оплачивает поставщику и затем возмещает через расчёты с собственниками, **не признаётся Community Expense только по факту Supplier Obligation/Payment**;
+2. электроэнергия насосной и другие собственные/common uses Community имеют Expense meaning;
+3. добавленный поставщиком расчётный компонент трансформационных потерь имеет самостоятельный Expense meaning как стоимость эксплуатации общей электросетевой инфраструктуры, **если соответствующая денежная сумма фактически включена в Supplier Obligation Community**;
+4. возможное последующее начисление собственникам компенсации такого расхода является отдельным Accrual/Financial Obligation process и не отменяет исходный Expense.
+
+Расчёт поставщика при этом не становится ресурсной истиной Community OS.
+
+Упрощённая схема:
+
+```text
+measured supplier-settlement quantity
++ supplier-calculated transformation-loss quantity
+→ Supplier settlement quantity
+→ Supplier Obligation
+
+Supplier Obligation scopes:
+  individual measured consumption
+  pump/common Community consumption
+  supplier-calculated transformation-loss component
+```
+
+Для Expense:
+
+```text
+individual measured consumption scope
+→ no Community Expense automatically
+
+pump/common-use monetary scope
+→ Community Expense
+
+supplier-calculated transformation-loss monetary scope
+→ Community Expense of common electrical infrastructure
+```
+
+Это означает, что сумма Supplier Obligation и сумма Community Expenses за тот же период могут различаться.
+
+Пример без фиксации конкретных тарифов:
+
+```text
+Supplier Obligation:
+  7 000 → individually recoverable electricity
+  3 000 → pump/common use
+  X     → supplier-calculated transformation-loss component
+
+Community Expense:
+  3 000 → pump/common use
+  X     → transformation-loss settlement cost
+
+No Community Expense:
+  7 000 → individual measured consumption merely because Community settles Supplier
+```
+
+Если Community затем начисляет собственникам компенсацию `X` или его части:
+
+```text
+Community Expense X
+≠ owner Accrual X
+≠ owner Financial Obligation X
+```
+
+Эти факты могут быть экономически связаны, но не поглощают друг друга.
+
+Owner accruals/individual consumption, supplier-calculated settlement quantity, Operational Loss, Calculated Imbalance, Supplier Obligation, Payment и Community Expense остаются различными facts.
 
 ## 17. One source document → several Expenses
 
@@ -706,26 +774,37 @@ Failure/unresolved classification of Budget Item or Funding Source не долж
 
 ## 46. Pilot ST — mixed supplier obligation
 
-Supplier invoice/obligation 10 000:
+Для пилотного СТ Supplier Obligation может включать как измеренные объёмы, так и добавленный поставщиком расчётный объём трансформационных потерь.
+
+Например:
 
 ```text
-7 000 → individually recoverable electricity
-3 000 → pump/common use
+Supplier Obligation:
+  7 000 → individually recoverable electricity
+  3 000 → pump/common use
+  X     → supplier-calculated transformation-loss component
 ```
 
-Community pays Supplier 10 000.
-
-Valid result may be:
+Valid Expense result under pilot policy:
 
 ```text
-Financial Obligation = 10 000
-Payment = 10 000
-Community Expense = 3 000
-Expense Budget Distribution: pump/common Budget Item = 3 000
-Expense Financing: membership Funding Source = 3 000
+Community Expense:
+  3 000 → pump/common use
+  X     → transformation-loss settlement cost
+
+Expense Budget Distribution:
+  3 000 → pump/common Budget Item where applicable
+  X     → electrical infrastructure / transformation-loss Budget Item where applicable
+
+Expense Financing:
+  determined independently according to applicable Funding Source policy
 ```
 
-No Expense 7 000 is created merely because Community temporarily settles Supplier for individually recoverable consumption.
+The 7 000 individual-consumption scope does not become Community Expense merely because Community has Supplier Obligation or Payment for it.
+
+The `X` component is Expense because the pilot treats the supplier-imposed transformation-loss settlement cost as a cost of common electrical infrastructure borne by Community. This does **not** mean that supplier-calculated kWh are automatically recognized as actual Operational Loss in the resource context.
+
+If all or part of `X` is later recovered from owners, corresponding owner Accruals/Financial Obligations remain separate from Expense.
 
 ## 47. Pilot ST — one Expense across several Budget Items
 
@@ -800,8 +879,18 @@ Expense 30 000; recognized Financing 18 000; remaining 12 000 not assigned yet; 
 ### 49.14. Planned Funding Source differs from actual
 Budget expected membership; actual authorized financing uses target funds; mismatch remains visible, not silently rewritten.
 
-### 49.15. Pump electricity
-Pump/common-use portion 3 000 has explicit Community Expense meaning. Owner-related recoverable portion 7 000 does not become Expense automatically from Supplier Obligation/Payment alone; whether it has a separate recoverable-cost Expense meaning remains an explicit local financial-policy question.
+### 49.15. Pilot electricity: individual consumption, pump and supplier-calculated transformation loss
+Supplier settlement includes:
+
+```text
+7 000 → individually recoverable measured consumption
+3 000 → pump/common Community use
+X     → supplier-calculated transformation-loss component
+```
+
+Pilot policy recognizes Expense for `3 000 + X`, while `7 000` does not become Community Expense merely from Supplier Obligation/Payment.
+
+The `X` quantity is not accepted automatically as actual Operational Loss; it remains a supplier settlement component on its own provenance/basis.
 
 ### 49.16. Bank fee
 Bank movement may support Expense recognition; Bank Transaction itself is not Expense.
@@ -853,6 +942,26 @@ Community OS may recognize a 40 000 financial-management Expense if applicable s
 Resource context recognizes an operational electricity loss valued at 2 000.
 
 Loss fact alone creates no Expense. If applicable financial policy establishes that Community bears this 2 000 cost, a separate Expense may be recognized; if the amount is charged onward to owners, the resulting accruals/obligations remain separate facts.
+
+### 49.31. Supplier-calculated transformation loss without resource recognition
+Supplier uses common-meter readings plus its own coefficient/formula and adds `L` kWh to settlement as transformation loss.
+
+Community OS has not independently recognized `L` as Operational Loss.
+
+Valid result:
+
+```text
+supplier-calculated L kWh
+→ supplier settlement basis
+→ monetary scope of Supplier Obligation
+→ Community Expense under pilot policy when borne by Community
+
+supplier-calculated L kWh
+≠ Operational Loss automatically
+≠ Calculated Imbalance
+```
+
+If Community later distributes/reimburses this cost through owner Accruals, those Accruals do not erase the Expense.
 
 ## 50. Инварианты
 
@@ -917,6 +1026,9 @@ Loss fact alone creates no Expense. If applicable financial policy establishes t
 59. Calculated Imbalance / Operational Loss ≠ Expense automatically.
 60. Loan principal repayment ≠ Expense automatically.
 61. External accounting treatment as inventory/fixed asset/depreciation does not define Community OS Expense automatically.
+62. Supplier-calculated transformation-loss quantity ≠ Meter Reading / Calculated Imbalance / Operational Loss automatically.
+63. Supplier-calculated transformation-loss monetary scope may be Community Expense without converting the supplier quantity into a resource-domain loss fact.
+64. Recovery of an Expense from owners through Accrual/Financial Obligation does not cancel or merge the Expense automatically.
 
 ## 51. Что намеренно не решается
 
@@ -996,20 +1108,28 @@ Loss fact alone creates no Expense. If applicable financial policy establishes t
 18. **Supplier / Contractual Relationship — optional context/basis Expense, не обязательная identity relation.** Expense может существовать без Supplier.
 19. **REF-FIN-010 предметно покрывается этим BP.** Закрывать его следует после принятия BP и нормативной синхронизации.
 
-### 54.1. Открытый локальный вопрос пилотного СТ
+### 54.1. Принятая локальная policy пилотного СТ
 
-Остаётся один вопрос, который нельзя универсально решить из действующей нормативной модели:
+Для первого внедрения принимается вариант **A**:
 
-> Должна ли индивидуально возмещаемая часть supplier cost (например, электроэнергия участков, которую Community оплачивает поставщику, а затем начисляет собственникам) иметь самостоятельный `Expense` meaning Community, либо для пилотного СТ Expense отражает только собственное/common use Community?
+- индивидуально возмещаемая часть измеренного потребления участков не получает Community Expense meaning только потому, что Community является стороной Supplier Obligation и выполняет Payment поставщику;
+- собственное/common consumption Community, включая насосную, получает Expense meaning на достаточном основании;
+- supplier-calculated transformation-loss component, добавляемый поставщиком к показаниям общих счётчиков по его коэффициенту/формуле, получает Expense meaning как стоимость общей электросетевой инфраструктуры, если его денежная стоимость включена в Supplier Obligation Community;
+- этот supplier-calculated component не признаётся автоматически фактической Operational Loss или Calculated Imbalance Community OS;
+- если Community затем компенсирует этот Expense через начисления собственникам, Accrual/Financial Obligation существуют отдельно и не отменяют Expense.
 
-Действующая модель однозначно требует только следующего:
+Таким образом, пилот различает:
 
-- Supplier Obligation/Payment не создаёт Expense автоматически;
-- individual consumption / owner accrual / supplier obligation / payment / Community Expense — разные facts;
-- pump/common-use portion может быть Expense Community;
-- recoverable portion не должна автоматически становиться Expense только потому, что Community рассчиталось с Supplier.
+```text
+individual measured resource cost
+≠ common-use Expense
+≠ supplier-calculated transformation-loss settlement component
+≠ resource-domain Operational Loss
+≠ Calculated Imbalance
+≠ owner loss-compensation Accrual
+```
 
-Окончательная локальная policy по recoverable supplier cost не блокирует принятие универсального BP-EXPENSE-001, если BP сохраняет обе семантически допустимые модели без автоматической классификации.
+Универсальный BP не запрещает другим Community использовать иную policy для recoverable supplier cost, но автоматическое равенство `Supplier Obligation = Expense` не допускается.
 
 ## 55. Следующий шаг
 

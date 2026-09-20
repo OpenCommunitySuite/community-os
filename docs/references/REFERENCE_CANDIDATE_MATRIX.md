@@ -2,7 +2,7 @@
 
 **Статус:** Working / рабочий документ анализа  
 **Область:** OSBBX, «Мій Дім Online» (МДО), DAH Online  
-**Актуально относительно:** нормативной модели после post-merge cash-channel cardinality review; DOMAIN_MODEL 0.17, TERMINOLOGY 0.15  
+**Актуально относительно:** нормативной модели после BP-EXPENSE-001; DOMAIN_MODEL 0.18, TERMINOLOGY 0.16  
 **Назначение:** единая точка учёта кандидатов, выявленных во внешних референсах, их текущего состояния в Community OS и последовательности дальнейшей проработки.
 
 > Этот документ не является источником продуктовых требований и не заменяет DOMAIN_MODEL, TERMINOLOGY или ADR. Наличие функции у референса не означает, что она должна быть реализована в Community OS.
@@ -60,7 +60,7 @@
 | REF-FIN-007 | Универсальная финансовая Correction / сторно | OSBBX | Универсальная `Correction` сознательно не вводится; используются специализированные действия | **Не вводить отдельно** | Конкретные ошибки моделировать соответствующими бизнес-процессами |
 | REF-FIN-008 | «Поступление сообщества» как отдельная фундаментальная сущность | OSBBX | Отдельная универсальная `Community Receipt` не требуется; движение денег и его предметный смысл разделены | **Не вводить отдельно** | Возвращаться только при появлении сценария, который не покрывается Payment и существующими финансовыми отношениями |
 | REF-FIN-009 | Наличные приходные/расходные операции | OSBBX | Зафиксированы `BP-CASH-001` и `BP-CASH-002`: Cash Acceptance/Cash Disbursement отделены от Payment, Allocation, cash document, custody, bank deposit/withdrawal и Expense; определены amount/completion, parties/authority, offline/idempotency и non-1:1 cash source↔Payment cardinality (`source → 0..N Payments`, `Payment → 1..N sources` only on sufficient owning-domain basis) без universal Cashbox/CashBalance/CashOperation; automatic source merge запрещён, attributable source amounts/provenance обязательны | **Закрыт решением** | Не возвращаться к фундаментальной модели cash-channel без нового сценария; custody/internal movement вести через REF-FIN-016, подотчётные средства — REF-FIN-017 |
-| REF-FIN-010 | Распределение расхода между статьями сметы | OSBBX | Expense, Budget, Financing Source, Use Direction и Expense Financing разделены; локальная семантика распределения расходов не завершена | **Следующий** | Описать BP регистрации/классификации расхода и его связи со сметой |
+| REF-FIN-010 | Распределение расхода между статьями сметы | OSBBX, пилотный СТ | Зафиксирован `BP-EXPENSE-001`: Expense имеет собственную identity/amount scope; Expense↔Obligation/Payment отделены от Payment Allocation; введена специализированная Expense Budget Distribution без новой fundamental entity; Expense Financing отделено от Budget/Payment/reservation; off-budget/recoverability/resource-supplier boundaries и пилотная electricity policy описаны | **Закрыт решением** | Не возвращаться к фундаментальной модели Expense/Budget Distribution без нового сценария; конкретные Budget/Funding policies задавать локально |
 | REF-FIN-011 | Источник финансирования, направление использования и фактическое покрытие расхода | OSBBX, МДО | Понятия разделены и синхронизированы в DOMAIN_MODEL/TERMINOLOGY/ADR-006 | **Закрыт решением** | Конкретные правила — только в соответствующих BP |
 | REF-FIN-012 | Рекомендованный платёж ≠ начисление | МДО | Payment Intent и добровольное авансирование существуют, но отдельная семантика «рекомендованного платежа» не принята | **Backlog** | Проверить реальные сценарии пилотного СТ; не вводить понятие только из-за наличия в МДО |
 | REF-FIN-013 | Возвратный резервный/обеспечительный взнос | МДО | Может пересекаться с авансом, обязательством и источником финансирования, но юридическая/предметная природа не определена | **Отложен** | Вернуться только с конкретным бизнес-сценарием и правовым анализом |
@@ -241,7 +241,9 @@ Subject
 5. **BP-FIN-005 — отмена/перерасчёт начисления и последствия для уже выполненных платежей** — завершён; correction/recalculation/cancellation отделены от Storno, Payment correction, Reallocation и Refund; covered already-paid consequences and obligation continuity/replacement;
 6. **BP-CASH-001 — приём наличного платежа без смешения Cash Acceptance, Payment, кассового документа и bank deposit** — завершён; channel-side Cash Acceptance получил собственный referent/identity, incoming Cash Payment recognition и cash→bank boundary определены без universal Cashbox/CashBalance;
 7. **BP-CASH-002 — выдача наличных / исходящий наличный платёж без автоматического создания расхода сообщества** — завершён; Cash Disbursement отделён от outgoing Payment, Expense, cash document, own-bank withdrawal и internal custody, определены completion/cardinality/authority/offline boundaries;
-8. **BP-EXPENSE-001 — регистрация расхода и его связь со сметой, обязательствами, платежами и источниками финансирования** — следующий процесс.
+8. **BP-EXPENSE-001 — регистрация расхода и его связь со сметой, обязательствами, платежами и источниками финансирования** — завершён; Expense получил самостоятельную identity/amount semantics, Expense Budget Distribution отделён от Payment Allocation, Expense Financing — от Funding Source/Payment/reservation, а supplier/resource/recoverability boundaries проверены на пилотном СТ.
+
+**Состояние Этапа 5:** завершён. Следующий предметный этап — Этап 6, `BP-METER-001`.
 
 Каждый процесс должен сохранять различия Payment, Allocation, Obligation, Accrual, Refund, Expense и Bank Transaction и не вводить универсальную Correction или бухгалтерскую проводку как предметную основу.
 

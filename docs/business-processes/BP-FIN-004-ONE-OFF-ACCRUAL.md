@@ -1414,7 +1414,7 @@ The mismatch requires specialized resolution/Requires Decision and, if an existi
 
 ## 49. Нормативные последствия
 
-Предварительно новый ADR и новая фундаментальная сущность не требуются.
+Новый ADR и новая фундаментальная сущность не требуются.
 
 Настоящий BP использует существующие:
 
@@ -1429,41 +1429,43 @@ The mismatch requires specialized resolution/Requires Decision and, if an existi
 - Subject/Object historical relations;
 - authority/provenance semantics.
 
-После independent review следует проверить необходимость точечной синхронизации:
+По итогам внутреннего и независимого review выполнена точечная нормативная синхронизация:
 
-- DOMAIN_MODEL/TERMINOLOGY — one-off/out-of-cycle как process semantics, а не отдельный Accrual type;
-- Accrual provenance для group target selection/resolved target set;
-- late initial recognition vs recalculation;
-- возможно, REFERENCE_CANDIDATE_MATRIX разделить `REF-FIN-006` на initial one-off и subsequent change semantics либо закрывать кандидат только после BP-FIN-005.
+- DOMAIN_MODEL 0.13 — зафиксированы one-off/out-of-cycle как process/timing semantics ordinary Accrual, temporal distinction obligation inception vs Accrual recording, требования к group target provenance и stable referability target-specific results без universal Batch/Snapshot/Accrual Result entity;
+- TERMINOLOGY 0.11 — определены разовое и внецикловое начисления без введения отдельного Accrual type;
+- REFERENCE_CANDIDATE_MATRIX — one-off/out-of-cycle часть `REF-FIN-006` закрыта через BP-FIN-004, кандидат оставлен **частично закрытым** до BP-FIN-005, который владеет post-confirmation cancellation/correction/recalculation.
 
-ADR-006 уже содержит достаточную архитектурную основу и предварительно не требует изменения.
+Полный copied snapshot исторических Subject/Object/Ownership/Membership данных не является обязательным: если owning contexts гарантируют достаточную историческую воспроизводимость, используются их facts/relations; иначе Accrual provenance сохраняет resolved membership/used values в необходимом объёме.
 
-## 50. Открытые вопросы для review
+ADR-006 содержательно изменять не потребовалось.
 
-Перед принятием Draft независимо проверить:
+## 50. Решения review
 
-1. корректно ли ограничить BP-FIN-004 первичными incoming-to-Community accrual scenarios, не меняя general Accrual entity;
-2. достаточно ли distinction one-off/out-of-cycle как process semantics without new type;
-3. корректна ли модель dynamic group selection → resolved target set without Accrual Batch entity;
-4. требуется ли per-target Accrual identity или достаточно process provenance + Financial Obligations;
-5. корректна ли liability resolution через historical subject/object/member relations without binding debtor to Personal Account;
-6. допустим ли explicit fixed amount without Tariff;
-7. достаточно ли boundaries zero/negative result;
-8. корректна ли late initial recognition when no historical Accrual exists;
-9. достаточно ли distinction late initial vs recalculation;
-10. нужно ли mirror note в regular accrual process, которого пока нет;
-11. не должен ли creation of new obligation automatically apply compatible Advance/Overpayment under any existing invariant;
-12. достаточна ли group confirmation-scope model for partial failures;
-13. нужна ли отдельная нормативная фиксация idempotency/duplicate semantics Accrual;
-14. не смешивается ли Accrual Article с Budget/Funding context;
-15. достаточно ли BP-FIN-005 оставить все post-confirmation changes;
-16. следует ли закрывать REF-FIN-006 сейчас частично или только после BP-FIN-005.
+Внутренний и независимый review зафиксировали:
+
+1. BP-FIN-004 специализирует primary Accrual scenarios в пользу Community, не меняя general Accrual entity и не создавая outgoing-only/incoming-only subtype.
+2. One-off/out-of-cycle являются process/timing semantics ordinary Accrual, а не отдельным фундаментальным типом.
+3. Dynamic group selection использует selection criteria + resolved target cases; universal Accrual Batch/Snapshot entity не требуется.
+4. Каждый historically significant target-specific result должен быть стабильно referable для последующего BP-FIN-005/audit, но universal `1 target = 1 Accrual identity` не вводится.
+5. Historical target provenance может опираться на owning-context history только когда она достаточна; иначе resolved membership/used values сохраняются в Accrual provenance.
+6. Financial liability определяется historical business basis/rule; Personal Account/Object/Ownership/Membership/Use/technical Access не подменяют друг друга.
+7. Explicit fixed amount допустим без искусственного Tariff, когда sufficient basis непосредственно задаёт сумму.
+8. Zero result не требует fake zero obligation; negative Accrual не является universal correction/storno shortcut.
+9. Obligation inception, obligation recognition/recording и Accrual confirmation различаются, когда это materially significant; уже recognized obligation не создаётся повторно.
+10. Late initial recognition допустимо только когда historical Accrual ранее не существовал; recalculation existing Accrual принадлежит BP-FIN-005; bulk legacy migration относится к REF-IMP-002.
+11. Applicable policy — context-owned configuration/rule/process semantics ADR-003/005, а не universal Policy entity.
+12. Governance competence/decision принадлежат ADR-008; domain authority acting Subject — ADR-010.
+13. Duplicate/idempotency требуют stable distinguishing provenance; universal tuple `decision + target` или `date + amount + article + PA` не вводится.
+14. Group confirmation scope различает interdependent и independent target cases; silent skipping invalid target запрещён, если scope должен быть полным.
+15. Creation/recognition new obligation не является automatic application existing Advance/Payment/Overpayment; coordinated immediate application допускается отдельным domain action/result согласно applicable policy/rule.
+16. Material precision/rounding/calculation order должны оставаться explainable; universal rounding rule не вводится.
+17. Document/protocol является evidence/formalization и не создаёт valid decision/Accrual автоматически.
+18. REF-FIN-006 закрывается только частично: BP-FIN-004 покрывает initial one-off/out-of-cycle; BP-FIN-005 должен закрыть cancellation/correction/recalculation и downstream effects.
 
 ## 51. Следующий шаг
 
-1. internal review against ADR-004/005/006/010/011, DOMAIN_MODEL, TERMINOLOGY and neighboring finance BP;
-2. pilot-ST scenario check and OSBBX reference check;
-3. independent Claude review;
-4. point fixes;
-5. normative synchronization;
-6. BP-FIN-005 — cancellation/recalculation of Accrual and effects on already paid amounts.
+После финальной сверки настоящего Draft и синхронизированных нормативных документов BP-FIN-004 может быть принят как рабочая предметная основа.
+
+Следующий финансовый процесс — `BP-FIN-005 — отмена/исправление/перерасчёт начисления и последствия для уже исполненных/оплаченных финансовых результатов`.
+
+Будущий regular accrual process должен зеркально учитывать explicit suppression/replacement semantics out-of-cycle Accrual, но настоящий BP не проектирует regular scheduler/workflow.

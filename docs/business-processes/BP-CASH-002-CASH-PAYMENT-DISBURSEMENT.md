@@ -191,6 +191,9 @@ Technical access role не создаёт финансовое полномоч�
 - physical Cash Disbursement не стирается из истории;
 - outgoing Payment не признаётся автоматически;
 - authority/admissibility требует resolution;
+- later valid confirmation/ratification authority может дать недостающее основание для первичного Payment recognition со ссылкой на исходный Cash Disbursement;
+- actual Cash Disbursement time при этом не изменяется и не переписывается;
+- authority-resolution time и Payment recognition time имеют самостоятельный смысл и могут совпасть, но не обязаны;
 - если Payment уже ошибочно признан и later authority failure делает recognition неверным, применяется BP-FIN-002.
 
 ## 9. Prepared amount ≠ Cash Disbursement amount ≠ Payment amount
@@ -203,7 +206,7 @@ Technical access role не создаёт финансовое полномоч�
 - immediate amount returned/refused before disbursement completion;
 - Cash Disbursement amount;
 - recognized outgoing Payment amount(s);
-- unresolved outgoing-financial amount, если physical release уже квалифицирован как Cash Disbursement, но Payment recognition ещё не завершено.
+- unresolved portion of Cash Disbursement, для которой outgoing Payment recognition ещё не завершено.
 
 Для одного currency-specific Cash Disbursement:
 
@@ -311,9 +314,9 @@ Cash Disbursement amount без Payment recognition не является Paymen
 
 Это один Payment с несколькими Allocations, а не два Payments только из-за двух obligations.
 
-## 15. Recipient ≠ entitled party
+## 15. Physical receiver ≠ entitled party
 
-Физический recipient Payment может отличаться от entitled party obligation только при достаточном основании.
+Physical receiver может отличаться от entitled party obligation и от financial recipient Payment; такое различие допустимо только на достаточном основании.
 
 Примеры:
 
@@ -356,6 +359,8 @@ cash payout document
 ```
 
 Document identity не определяет Cash Disbursement или Payment identity автоматически.
+
+Если applicable legal/policy semantics не делает документ обязательным предусловием Cash Disbursement либо Payment recognition, отсутствие или задержка оформления документа не стирает уже состоявшийся Cash Disbursement и не отменяет уже правомерно признанный Payment. Если документ является обязательным предусловием согласно применимой policy/law, recognition допускается только после выполнения этого условия.
 
 ## 18. Prepared document without payout
 
@@ -589,7 +594,9 @@ Cash Disbursement может состояться, но Payment recognition ос
 
 Такой Cash Disbursement должен оставаться visible/reconcilable и не превращается автоматически в Expense, Payment or loss.
 
-Если unresolved-вопрос состоит в том, вышли ли деньги вообще из Community custody/control либо receiver остаётся Community-side custodian/agent, classification как Cash Disbursement ещё не подтверждена; source event остаётся в REF-FIN-016 custody/internal-movement boundary до resolution.
+Long-lived unresolved Cash Disbursement требует последующего специализированного resolution по authority/party/purpose/correction semantics. Настоящий BP не вводит universal write-off/dispute process, но запрещает автоматическое превращение unresolved amount в Expense, loss или иной финансовый результат только по timeout.
+
+Если unresolved-вопрос состоит в том, вышли ли деньги вообще из Community custody/control либо receiver остаётся Community-side custodian/agent, classification как Cash Disbursement ещё не подтверждена; source handoff остаётся явно unresolved в REF-FIN-016 custody/internal-movement boundary до resolution. Поздняя reclassification сохраняет original physical handoff time и separate classification/recording time.
 
 ## 37. Provenance
 
@@ -636,6 +643,8 @@ Payment provenance не поглощает Cash Disbursement provenance.
 - authorization/request time;
 - cash preparation time;
 - Cash Disbursement completion time;
+- authority/admissibility resolution or ratification time, if materially distinct;
+- custody-vs-external classification time, if resolved later;
 - Payment recognition/recording time;
 - cash document issuance/signature time;
 - Allocation time;

@@ -2,7 +2,7 @@
 
 **Статус:** Working / рабочий документ анализа  
 **Область:** OSBBX, «Мій Дім Online» (МДО), DAH Online  
-**Актуально относительно:** нормативной модели после BP-EXPENSE-001; DOMAIN_MODEL 0.18, TERMINOLOGY 0.16  
+**Актуально относительно:** нормативной модели после BP-METER-001; DOMAIN_MODEL 0.19, TERMINOLOGY 0.17  
 **Назначение:** единая точка учёта кандидатов, выявленных во внешних референсах, их текущего состояния в Community OS и последовательности дальнейшей проработки.
 
 > Этот документ не является источником продуктовых требований и не заменяет DOMAIN_MODEL, TERMINOLOGY или ADR. Наличие функции у референса не означает, что она должна быть реализована в Community OS.
@@ -71,7 +71,7 @@
 | REF-AUD-002 | Прослеживаемость финансовых исправлений и корректирующих действий | OSBBX | ADR-004/006 требуют provenance и запрета silent rewrite; BP-FIN-001 уже применяет это правило | **Закрыт решением** | Не вводить универсальный Audit/Correction Context; проверять достаточную прослеживаемость в каждом финансовом BP |
 | REF-SUBJ-001 | Универсальная внешняя сторона: субъект → роль → договор → операция/обязательство | OSBBX, МДО | Зафиксирован `BP-CONTRACT-001`: внешняя сторона остаётся Subject; Contractual Relationship имеет собственную identity в контексте Subject↔Community; Counterparty/PartyRole не вводятся; Supplier остаётся финансовой семантикой Subject; Document/Obligation/Payment/Expense/Use отделены | **Закрыт решением** | Не возвращаться к универсальному Counterparty без нового сценария; multi-party agreements и специализированные договорные случаи исследовать только при реальной потребности |
 | REF-BANK-001 | Импорт/признание/классификация банковских сведений | OSBBX, МДО | Зафиксирован `BP-FIN-BANK-001`: external representation → validation/mapping → Bank Transaction recognition → classification/matching → специализированные финансовые результаты; vendor-specific API semantics не входят в доменную модель | **Закрыт решением** | Конкретные API/XLSX/webhook contracts проектировать отдельно; Payment correction/Refund/Expense остаются специализированными BP |
-| REF-METER-001 | Замена прибора учёта | OSBBX | ADR-007 разделяет Meter, Accounting Point и Meter Installation; история не должна разрываться при замене | **Следующий** | `BP-METER-001`: снятие, конечное показание, новая установка, начальное показание, непрерывность точки учёта |
+| REF-METER-001 | Замена прибора учёта | OSBBX, пилотный СТ | Зафиксирован `BP-METER-001`: replacement сохраняет Accounting Point при неизменной измерительной границе; old/new Meter Installations разделены по effective intervals; boundary Reading optional; gap/overlap, коэффициенты, late recording, duplicate/correction, relocation и topology boundary описаны без `Meter Replacement` entity | **Закрыт решением** | Не возвращаться к фундаментальной модели replacement без нового сценария; общий Reading recognition и эксплуатационные ресурсные процессы вести в Stage 7 |
 | REF-METER-002 | Автоматическое получение/импорт показаний | МДО, OSBBX | ADR-007/011: внешнее значение ≠ Reading; validation/mapping/recognition обязательны | **Следующий** | После базового BP показаний описать автоматический источник как интеграционный процесс |
 | REF-METER-003 | Контрольное снятие и сверка связанных точек учёта | OSBBX, МДО | Control Reconciliation, Calculated Imbalance и Operational Loss уже определены | **Следующий** | Описать практический BP контрольной сверки пилотного СТ |
 | REF-OPS-001 | Обращение → операционная заявка / Work Order | DAH, частично МДО | ADR-009 определяет Appeal и прямо не делает его универсальным workflow; самостоятельная семантика операционной работы не определена | **Следующий** | `BP-OPS-001`: отделить обращение от работы, результата, исполнителя, инфраструктурного объекта и затрат |
@@ -249,25 +249,33 @@ Subject
 
 ### Этап 6. BP-METER-001 — замена прибора и непрерывность точки учёта
 
-**Источники:** OSBBX, подтверждается общей моделью МДО.
+**Состояние:** завершён; результат зафиксирован в `BP-METER-001-METER-REPLACEMENT.md`, ADR-007, DOMAIN_MODEL и TERMINOLOGY.
 
-Нужно определить:
+**Источники:** OSBBX, подтверждается общей моделью МДО и практическими сценариями пилотного СТ.
 
-- основание замены;
-- снятие старого прибора;
-- конечное показание;
-- момент прекращения установки;
-- установку нового прибора;
-- начальное показание;
-- проверку единиц/коэффициентов;
-- сохранение идентичности Accounting Point;
-- расчётный период, пересекающий замену;
-- ошибочно введённую замену;
-- отсутствие конечного/начального показания.
+Зафиксировано:
 
-**Результат:** BP, использующий Meter Installation, без слияния Meter и Accounting Point.
+- `Accounting Point ≠ Meter ≠ Meter Installation ≠ Reading ≠ Consumption`;
+- replacement сохраняет Accounting Point только при сохранении предметной измерительной границы;
+- old Meter Installation заканчивается, new Meter Installation начинается по фактическим effective times;
+- gap без Meter допустим и не заполняется fictitious installation;
+- overlap не запрещён универсально, но требует реального parallel/control/compound meaning;
+- final/initial boundary Reading не обязательны для existence replacement;
+- новый Meter не наследует identity/history/register value старого;
+- new initial Reading не обязан быть нулевым;
+- units/coefficients интерпретируются по исторически применимой installation/rule semantics;
+- same-Meter reinstallation ≠ Meter replacement, но может создавать новый installation interval;
+- serial number / external device ID / seal ≠ universal Meter identity;
+- late recording, duplicate/retry и corrections отделены от actual replacement time;
+- installation correction → resource recalculation only through separate owning process;
+- resource correction не переписывает финансовые последствия напрямую;
+- новый `Meter Replacement`, `Meter Register` или universal Correction не введены.
+
+**Результат:** `REF-METER-001` закрыт решением. Следующий этап — Stage 7 resource operational processes.
 
 ### Этап 7. Ресурсные эксплуатационные процессы
+
+**Состояние:** следующий предметный этап.
 
 После замены прибора:
 

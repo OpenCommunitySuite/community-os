@@ -1,7 +1,7 @@
 # Community OS — Domain Model
 
 **Статус:** Draft  
-**Версия:** 0.15  
+**Версия:** 0.16  
 **Язык документа:** русский
 
 > Документ описывает концептуальную предметную модель. Он не определяет структуру хранения, программные классы, API, интерфейсы, механизм исполнения правил или технический аудит.
@@ -233,6 +233,26 @@ Cash Acceptance не является Payment, Payment Allocation, Financial Obl
 Сумма Cash Acceptance, для которой Payment recognition ещё не выполнено, не является Unallocated Remainder. Unallocated Remainder существует только внутри уже признанного Payment.
 
 Cash Acceptance может быть поздно зафиксирован по достаточному offline/manual evidence; late recording не создаёт нового физического движения. Duplicate/retry не создают новый Cash Acceptance автоматически. Universal lifecycle/status machine Cash Acceptance не вводится.
+
+**Cash Disbursement (выдача наличных)** — исторически значимый outgoing cash-channel source/process fact, фиксирующий physical release определённой суммы наличных в определённой currency из Community custody/control к external-side physical receiver в рамках одного coherent disbursement scope, когда Community custody/control над этой суммой предметно прекращено.
+
+Cash Disbursement имеет собственную identity независимо от Payment, Expense и кассового документа. Он может существовать до Payment recognition либо без него.
+
+Cash Disbursement не является Payment, Payment Allocation, Financial Obligation, Expense, кассовым документом, Cashbox, CashBalance или универсальной CashOperation. Physical receiver не становится автоматически financial recipient или entitled party.
+
+Cash Disbursement существует только при установленном external-side release. Internal handoff между Community-side custodians при сохранении Community custody/control относится к custody/internal cash movement semantics и не является Cash Disbursement. Если эта граница пока неразрешима, source handoff остаётся явно unresolved и не превращается в Cash Disbursement/Payment по умолчанию.
+
+**Cash Disbursement completion** — предметная граница завершения конкретного coherent physical release. До completion дополнительные суммы и immediate refusal/return могут оставаться частью того же source fact; после completion отдельная physical release получает собственную Cash Disbursement identity. Completion не является Payment/Expense recognition и не создаёт универсальный lifecycle/status machine.
+
+Один Cash Disbursement может поддерживать `0..N` outgoing Cash Payments. Один outgoing Cash Payment cash-channel относится к одному Cash Disbursement source; несколько завершённых самостоятельных Cash Disbursements не объединяются молча в один Payment.
+
+Сумма recognized outgoing Payments по одному Cash Disbursement не может превышать Cash Disbursement amount. Если вся сумма полностью разрешена как outgoing Payments, их сумма объясняет Cash Disbursement amount. Неразрешённая часть не становится автоматически Expense, Payment Allocation, loss или write-off.
+
+Cash Disbursement может быть поздно зафиксирован по достаточному offline/manual evidence; late recording не создаёт нового physical release. Later authority confirmation/ratification может дать основание для Payment recognition из исходного Disbursement без переписывания original event time.
+
+Cash withdrawal from Community own bank account, пока средства остаются под Community custody/control, не является Cash Disbursement, outgoing Payment или Expense.
+
+Universal lifecycle/status machine Cash Disbursement не вводится.
 
 **Платёж** — признанный финансовым контекстом факт движения денежных средств между сторонами финансового отношения. Входящий и исходящий платежи определяют направление относительно сообщества; банковский, наличный и иные способы платежа характеризуют форму движения и не меняют модель обязательства. Платёж не тождествен обязательству, начислению, распределению, банковской транзакции, кассовому документу или назначению платежа. Стороны платежа не обязаны совпадать со сторонами обязательства. Лицо, физически принимающее или фиксирующее наличные, не становится автоматически получателем платежа; полномочия такого лица относятся к этапу B.
 

@@ -495,7 +495,12 @@ cash handed to employee/chairman
 
 Если отдельная финансовая семантика устанавливает самостоятельный advance/claim между Community и этим Subject, последующая физическая выдача может быть Cash Disbursement и outgoing Payment, но такая accountable-advance semantics должна быть определена отдельно и не выводится из факта выдачи.
 
-Полная accountable/custody semantics относится к REF-FIN-016 либо отдельному будущему процессу.
+Полная semantics разделяется:
+
+- custody/internal movement, unresolved handoff и физическая ответственность за Community cash → REF-FIN-016;
+- подотчётные средства / accountable funds как возможное самостоятельное финансовое отношение → REF-FIN-017.
+
+BP-CASH-002 не предрешает REF-FIN-017 как Advance, Financial Obligation, Debt или Expense.
 
 ## 26. Internal custody transfer
 
@@ -806,8 +811,8 @@ No BP-FIN-002 correction is needed merely because recognition was intentionally 
 ### 41.28. Internal custodian handoff then supplier payout
 Cashier gives 5000 to chairman solely as Community custodian: REF-FIN-016 internal movement, no Cash Disbursement/Payment to chairman. Chairman later hands 3000 to Supplier: Cash Disbursement 3000 → outgoing Payment 3000. Remaining 2000 remain Community cash.
 
-### 41.29. Accountable financial advance explicitly recognized
-Applicable future accountable process establishes a genuine financial advance relation Community → Employee for 2000. Physical payout may then be Cash Disbursement 2000 and outgoing Payment 2000 under that relation. Expense is still not created automatically.
+### 41.29. Future-state accountable financial relation
+Future REF-FIN-017 semantics may, after separate domain analysis, establish a genuine financial relation Community → Employee for 2000. If that future process determines that the handoff is a real outgoing financial movement, physical payout may then be Cash Disbursement 2000 and outgoing Payment 2000 under that relation. BP-CASH-002 does not predefine that relation as Advance, Obligation, Debt or Expense.
 
 ### 41.30. Prepared payout exceeds actual physical release
 Authorized payout 3000; cashier physically releases only 2500 and retains 500 before completion. Cash Disbursement = 2500; recognized Payments cannot exceed 2500.
@@ -841,7 +846,7 @@ A future specialized accountable-funds process establishes a genuine financial r
 
 Employee later neither reports use nor returns the funds by the applicable deadline.
 
-BP-CASH-002 does not convert this automatically into Expense, Debt, salary or write-off. The resulting financial claim/settlement belongs to the future accountable-funds semantics.
+BP-CASH-002 does not convert this automatically into Expense, Debt, salary or write-off. The resulting financial claim/settlement belongs to REF-FIN-017 future accountable-funds semantics.
 
 ### 41.34. One payout funded by several prior bank withdrawals
 Community previously withdrew 2000 and later 3000 from its own bank account; both remain Community funds under custody semantics.

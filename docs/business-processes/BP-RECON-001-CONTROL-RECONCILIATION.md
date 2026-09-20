@@ -709,21 +709,53 @@ Where materially relevant, should be determinable:
 
 Блокирующих предметных вопросов после internal review не осталось.
 
-## 65. Предварительные нормативные последствия
+## 65. Нормативная синхронизация
 
-ADR-007 already contains Control Reconciliation and Calculated Imbalance concepts.
+Новый ADR и новые fundamental entities не требуются.
 
-Expected point synchronization:
+В текущей Draft-ветке выполнена точечная синхронизация:
 
-- ADR-007 — clarify reconciliation identity/outcomes, incomplete result without imbalance, nested scopes, correction semantics;
-- DOMAIN_MODEL — Control Reconciliation result + Calculated Imbalance relation;
-- TERMINOLOGY — refine existing Control Reconciliation / Calculated Imbalance definitions;
-- REFERENCE_CANDIDATE_MATRIX — close REF-METER-003 and make Operational Loss recognition next after imbalance semantics.
+- ADR-007 — Control Reconciliation identity/result, incomplete reconciliation without imbalance, nested scopes, alignment and correction semantics;
+- DOMAIN_MODEL → 0.23 — Control Reconciliation закреплён как historical process/result, Calculated Imbalance — как отдельный quantitative result where applicable;
+- TERMINOLOGY → 0.20 — уточнены Control Reconciliation и Calculated Imbalance;
+- REFERENCE_CANDIDATE_MATRIX — REF-METER-003 закрывается решением; следующим процессом Stage 7 становится Operational Loss recognition.
 
-## 66. Следующий шаг
+Новые Reconciliation Entry, Balance Line, universal formula, universal percentage base или universal cause taxonomy не введены.
 
-1. final consistency check;
-2. normative synchronization;
-3. close REF-METER-003;
-4. open Draft PR;
-5. next: explicit Operational Loss recognition process.
+## 66. Текущее состояние и следующий шаг
+
+BP прошёл internal consistency review against ADR-007, BP-READING-001/002/003 и current resource model.
+
+Проверены:
+
+- street/group reconciliation;
+- several independent branches;
+- transformer/intermediate/nested scopes;
+- pump/common-use consumption;
+- missing plot input;
+- substitute data;
+- two-hour observation window;
+- meter replacement inside period;
+- supplier transformation-loss addition;
+- negative residual;
+- topology change mid-window;
+- correction/recalculation.
+
+Блокирующих предметных вопросов после internal review не осталось.
+
+Следующий process Stage 7 после принятия/merge BP-RECON-001:
+
+**Operational Loss recognition**.
+
+Его задача — определить, когда Calculated Imbalance или иные evidence достаточны для отдельного признания Operational Loss, сохраняя границу:
+
+```text
+Calculated Imbalance
+≠ Operational Loss automatically
+≠ theft
+≠ owner debt
+```
+
+После этого отдельно потребуется решить loss allocation / owner financial consequences, если они нужны пилотному СТ.
+
+Дополнительный внешний review BP-RECON-001 сейчас не инициируется.

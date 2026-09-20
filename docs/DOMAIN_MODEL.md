@@ -1,7 +1,7 @@
 # Community OS — Domain Model
 
 **Статус:** Draft  
-**Версия:** 0.16  
+**Версия:** 0.17  
 **Язык документа:** русский
 
 > Документ описывает концептуальную предметную модель. Он не определяет структуру хранения, программные классы, API, интерфейсы, механизм исполнения правил или технический аудит.
@@ -228,7 +228,11 @@ Cash Acceptance не является Payment, Payment Allocation, Financial Obl
 
 Для Cash Acceptance исторически объяснимы, где применимо, сумма и денежная единица, tendered amount, immediate returned change, время завершения физического приёма, acting acceptor, physical tenderer/origin evidence, authority и financial/custody interpretation.
 
-Связь Cash Acceptance с Cash Payments не имеет universal `1:1`: один Cash Acceptance может поддерживать `0..N` Payments, если evidence подтверждает соответствующее количество самостоятельных money movements. Один Cash Payment cash-channel относится к одному Cash Acceptance source; несколько завершённых самостоятельных Cash Acceptances не объединяются молча в один Payment.
+Связь Cash Acceptance с Cash Payments не имеет universal `1:1` ни в одном направлении.
+
+Один Cash Acceptance может поддерживать `0..N` Payments. Один Cash Payment может опираться на `1..N` Cash Acceptances, если owning-domain evidence подтверждает continuity одного предметного Payment.
+
+Завершённые самостоятельные Cash Acceptances не объединяются в один Payment автоматически из-за совпадения payer, даты, суммы, purpose, Personal Account или obligation. При связи нескольких source facts с одним Payment должны быть объяснимы основание объединения и attributable amount каждого Cash Acceptance; сумма attributed contributions одного Cash Acceptance во все Payments не превышает его amount.
 
 Сумма Cash Acceptance, для которой Payment recognition ещё не выполнено, не является Unallocated Remainder. Unallocated Remainder существует только внутри уже признанного Payment.
 
@@ -244,7 +248,11 @@ Cash Disbursement существует только при установлен�
 
 **Cash Disbursement completion** — предметная граница завершения конкретного coherent physical release. До completion дополнительные суммы и immediate refusal/return могут оставаться частью того же source fact; после completion отдельная physical release получает собственную Cash Disbursement identity. Completion не является Payment/Expense recognition и не создаёт универсальный lifecycle/status machine.
 
-Один Cash Disbursement может поддерживать `0..N` outgoing Cash Payments. Один outgoing Cash Payment cash-channel относится к одному Cash Disbursement source; несколько завершённых самостоятельных Cash Disbursements не объединяются молча в один Payment.
+Связь Cash Disbursement с outgoing Cash Payments не имеет universal `1:1` ни в одном направлении.
+
+Один Cash Disbursement может поддерживать `0..N` outgoing Cash Payments. Один outgoing Cash Payment может опираться на `1..N` Cash Disbursements, если owning-domain evidence подтверждает continuity одного предметного Payment.
+
+Завершённые самостоятельные Cash Disbursements не объединяются в один Payment автоматически из-за совпадения recipient, даты, суммы, purpose или obligation. При связи нескольких source facts с одним Payment должны быть объяснимы основание объединения и attributable amount каждого Cash Disbursement; сумма attributed contributions одного Cash Disbursement во все Payments не превышает его amount.
 
 Сумма recognized outgoing Payments по одному Cash Disbursement не может превышать Cash Disbursement amount. Если вся сумма полностью разрешена как outgoing Payments, их сумма объясняет Cash Disbursement amount. Неразрешённая часть не становится автоматически Expense, Payment Allocation, loss или write-off.
 
@@ -258,7 +266,7 @@ Universal lifecycle/status machine Cash Disbursement не вводится.
 
 Банковская транзакция может быть основанием или подтверждением признания платежа, но наличие банковской транзакции само по себе не создаёт платёж и не определяет его предметные стороны или назначение.
 
-Идентичность платежа принадлежит финансовому контексту и не определяется идентичностью или кардинальностью банковских транзакций, строк выписки, кассовых документов либо иных source representations. Если исторически прослеживаемое исправление подтверждает continuity того же предметного Payment, его identity может сохраняться при исправлении существенных характеристик. Если установлено, что признанного Payment предметно не было, его recognition может быть специализированно invalidated: исходное признание и provenance сохраняются, но Payment более не имеет effective financial effect. Такая invalidation не является Refund, source/external Cancellation либо универсальным Payment Status.
+Идентичность платежа принадлежит финансовому контексту и не определяется идентичностью или кардинальностью Bank Transactions, Cash Acceptances, Cash Disbursements, строк выписки, кассовых документов либо иных source representations/source facts. Если исторически прослеживаемое исправление подтверждает continuity того же предметного Payment, его identity может сохраняться при исправлении существенных характеристик. Если установлено, что признанного Payment предметно не было, его recognition может быть специализированно invalidated: исходное признание и provenance сохраняются, но Payment более не имеет effective financial effect. Такая invalidation не является Refund, source/external Cancellation либо универсальным Payment Status.
 
 Если исправление показывает, что одна Payment identity ошибочно объединяла несколько самостоятельных Payments или несколько recognitions ошибочно представляли иной набор Payments, ошибочные recognitions сохраняются исторически и replacement Payments признаются применимыми owning processes с самостоятельными identities. Старые распределения не перепривязываются к replacement Payments молча.
 

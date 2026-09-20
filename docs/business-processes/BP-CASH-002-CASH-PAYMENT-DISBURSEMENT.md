@@ -759,8 +759,20 @@ Cashier completes CD1 = 500 to Recipient A. Later another separate CD2 = 500 occ
 ### 41.26. Additional cash before one Disbursement completes
 Cashier hands 800 and, before the same coherent disbursement is completed, adds 200. This may remain one Cash Disbursement 1000 and one Payment 1000 where recipient semantics are unambiguous.
 
-### 41.27. Partial resolution of one Disbursement
-CD = 2000. Evidence supports Payment 1200 to Recipient A; remaining 800 recipient/purpose unresolved. 800 remains unresolved at outgoing Payment recognition level and is not Expense or Allocation automatically.
+### 41.27. Authority unresolved → later ratified
+Cash Disbursement CD1 = 3000 to Contractor physically occurred, but acting disburser authority was not sufficiently established at that time.
+
+Later a competent authorized decision validly confirms/ratifies the payout basis.
+
+Payment may then be recognized from CD1 if all Payment requirements are satisfied.
+
+```text
+physical Disbursement time = original event time
+authority-resolution time = later
+Payment recognition time = same as or later than authority resolution
+```
+
+No BP-FIN-002 correction is needed merely because recognition was intentionally deferred.
 
 ### 41.28. Internal custodian handoff then supplier payout
 Cashier gives 5000 to chairman solely as Community custodian: REF-FIN-016 internal movement, no Cash Disbursement/Payment to chairman. Chairman later hands 3000 to Supplier: Cash Disbursement 3000 → outgoing Payment 3000. Remaining 2000 remain Community cash.
@@ -770,6 +782,50 @@ Applicable future accountable process establishes a genuine financial advance re
 
 ### 41.30. Prepared payout exceeds actual physical release
 Authorized payout 3000; cashier physically releases only 2500 and retains 500 before completion. Cash Disbursement = 2500; recognized Payments cannot exceed 2500.
+
+### 41.31. Interruption before Disbursement completion
+Cashier physically hands 800, interaction is interrupted before completion, then resumes and another 200 is handed under the same still-open physical release scope.
+
+If continuity of the same coherent scope is explainable:
+
+```text
+one Cash Disbursement = 1000
+```
+
+A network/UI interruption alone does not split the physical event. If the first scope was already completed, the later 200 is a new Cash Disbursement.
+
+### 41.32. Custody handoff later reclassified as external release
+A 1000 handoff was initially kept as unresolved REF-FIN-016 source event because it was unclear whether the receiver remained a Community-side custodian.
+
+Later evidence establishes that Community custody/control actually ended at the original handoff and the receiver was external-side.
+
+Cash Disbursement is then recognized/recorded with:
+
+- original physical handoff time;
+- later classification/recording time;
+- preserved earlier unresolved interpretation/provenance.
+
+No silent rewrite of history.
+
+### 41.33. Accountable funds not reported or returned
+A future specialized accountable-funds process establishes a genuine financial relation and 2000 is paid to Employee through Cash Disbursement/Payment.
+
+Employee later neither reports use nor returns the funds by the applicable deadline.
+
+BP-CASH-002 does not convert this automatically into Expense, Debt, salary or write-off. The resulting financial claim/settlement belongs to the future accountable-funds semantics.
+
+### 41.34. One payout funded by several prior bank withdrawals
+Community previously withdrew 2000 and later 3000 from its own bank account; both remain Community funds under custody semantics.
+
+Later Supplier receives one coherent external cash payout of 4000.
+
+```text
+two prior Bank Transactions / custody inflows
+→ one Cash Disbursement 4000
+→ one outgoing Cash Payment 4000 where semantics supports it
+```
+
+Cash Disbursement identity is determined by the external physical payout, not by how many prior bank withdrawals funded the cash.
 
 ## 42. Инварианты
 
@@ -818,6 +874,11 @@ Authorized payout 3000; cashier physically releases only 2500 and retains 500 be
 43. Long-lived unresolved Cash Disbursement remains visible; no automatic write-off/Expense.
 44. Cash reconciliation ≠ Payment recognition.
 45. Universal Cashbox/CashBalance/CashOperation is not introduced by this BP.
+46. Cash Disbursement completion is a domain boundary, not a universal lifecycle/status machine.
+47. Additional cash before completion may remain one Disbursement; separate release after completion is a new Disbursement.
+48. Later authority confirmation may enable primary Payment recognition from original Cash Disbursement without rewriting actual event time.
+49. If custody-vs-external classification itself is unresolved, no Cash Disbursement is created by default; the source handoff remains explicitly unresolved under REF-FIN-016.
+50. Unresolved custody/handoff source facts and unresolved Cash Disbursements must remain visible/reconcilable and are not auto-reclassified by timeout.
 
 ## 43. Что намеренно не решается
 

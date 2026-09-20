@@ -1109,7 +1109,7 @@ Advance may be applied by separate applicable allocation/advance process; Accrua
 
 ### 57.20. Overpayment followed by later increase
 
-First Recalculation 1000 → 800 after full payment creates recognized Overpayment 200.
+First Recalculation 1000 → 800 after full payment creates excess applied amount 200, and applicable semantics recognizes it as Overpayment 200.
 
 Later valid Recalculation 800 → 900.
 
@@ -1438,47 +1438,47 @@ The later claim is evaluated as new/replacement Accrual according to BP-FIN-004/
 
 ## 61. Нормативные последствия
 
-Предварительно новый ADR и новая fundamental entity не требуются.
+Новый ADR и новая fundamental entity не требуются.
 
-После review следует проверить необходимость точечной синхронизации DOMAIN_MODEL/TERMINOLOGY по:
+По итогам internal review и независимого review выполнена точечная нормативная синхронизация:
 
-- Recalculation как новое применение rule с сохранением original Accrual;
-- Cancellation Accrual effect without deletion;
-- obligation continuity/replacement;
-- excess applied amount as process-derived value;
-- consequences for already paid obligations;
-- group/interdependent Recalculation scope.
+- DOMAIN_MODEL 0.14 — закреплены ordered provenance chain последовательных changes Accrual, obligation continuity/replacement без universal identity key, `excess applied amount` как derived condition/value, его отличие от automatic Overpayment/Unallocated Remainder и защита от double use Payment;
+- TERMINOLOGY 0.12 — определены Accrual Recalculation/Cancellation и excess applied amount; Overpayment сохранена как **recognized**, а не purely arithmetic derived state;
+- BP-FIN-001 — excess applied amount после BP-FIN-005 явно указан как допустимый basis/trigger для Reallocation соответствующей части confirmed Allocation;
+- BP-FIN-ALLOCATION-001 — excess applied amount не считается доступной суммой Initial Allocation, пока current effective financial use не изменён отдельным disposition/Reallocation;
+- REFERENCE_CANDIDATE_MATRIX — `REF-FIN-006` закрыт решением; Stage 5 переходит к `BP-CASH-001`.
 
-Если действующие ADR-006/DOMAIN_MODEL already sufficient, нормативную модель не следует дублировать только ради BP.
+ADR-006 содержательно изменять не потребовалось: его определения Overpayment, Recalculation, Cancellation, Refund и запрет silent rewrite уже задают достаточную архитектурную основу.
 
-После принятия BP-FIN-005 можно окончательно закрыть `REF-FIN-006`.
+Penalty-specific recalculation остаётся отдельной специализированной process/policy semantics и не блокирует завершение BP-FIN-005.
 
-## 62. Открытые вопросы для review
+## 62. Решения review
 
-Перед принятием Draft независимо проверить:
+Internal review и независимый review Claude зафиксировали:
 
-1. достаточно ли distinction Correction / Recalculation / Cancellation / Review;
-2. корректна ли same-domain-obligation continuity model;
-3. нужны ли более строгие criteria для replacement obligation;
-4. корректно ли replacement Accrual возвращать в BP-FIN-004;
-5. достаточно ли model excess applied amount without new entity;
-6. должен ли Overpayment возникать автоматически whenever applied amount > effective obligation;
-7. корректно ли не менять confirmed Payment Allocation при obligation decrease;
-8. достаточно ли BP-FIN-001 для subsequent movement of excess to another obligation;
-9. как связать recognized Advance/Overpayment with later opposite Recalculation without universal cascade;
-10. достаточна ли Refund obligation revalidation boundary;
-11. нужен ли отдельный BP для penalty Recalculation;
-12. достаточно ли group correction scope model;
-13. как трактовать Article/Period corrections относительно identity;
-14. нужна ли нормативная фиксация Obligation continuity/replacement в DOMAIN_MODEL;
-15. нужен ли mirror note в BP-FIN-001/ALLOCATION-001;
-16. какие части REF-FIN-006 можно считать полностью закрытыми после BP-FIN-005.
+1. Correction, Recalculation, Cancellation и Review являются разными process semantics; universal lifecycle/status или Storno не требуется.
+2. Same-domain Financial Obligation может сохранять identity при supported continuity реального monetary claim; universal identity key не вводится.
+3. Если continuity claim отсутствует, old result сохраняется исторически, а replacement obligation/Accrual получает самостоятельную identity.
+4. Replacement historical claim, ранее не имевший correct Accrual, может быть late initial Accrual через BP-FIN-004.
+5. `excess applied amount` является derived process condition/value, а не entity/state.
+6. Overpayment не возникает автоматически из excess: она остаётся recognized financial state согласно applicable semantics.
+7. Confirmed Payment Allocation сохраняется исторически и удерживает соответствующую сумму в current effective financial use до отдельного disposition/Reallocation; excess не становится automatic Unallocated Remainder.
+8. BP-FIN-001 является owning process для переноса соответствующей части confirmed Allocation на другое obligation/purpose.
+9. Advance, recognized Overpayment, Refund и Reallocation не образуют universal disposition order.
+10. Executed Refund Payment остаётся historical fact при последующем opposite Recalculation; pending refund obligation проходит traceable revalidation.
+11. Penalty не пересчитывается silently; detailed penalty recalculation/correction требует specialized process/policy semantics.
+12. Interdependent group Recalculation revalidates downstream effects отдельно для каждого затронутого target.
+13. Period участвует в claim identity только если owning financial process/rule определяет period как отдельный monetary claim.
+14. Sequential changes образуют ordered provenance chain: каждый step связан с original Accrual и immediately preceding effective result/change.
+15. Erroneous Cancellation может быть исправлена последующим correction без принудительной новой Accrual identity; новый claim после valid Cancellation не является silent un-cancel.
+16. Currency correction не допускает implicit conversion/relink confirmed Allocation.
+17. Новый ADR, Accrual Revision, Correction Chain, Adjustment, Storno или universal Overpayment workflow не вводятся.
+18. `REF-FIN-006` после BP-FIN-004 + BP-FIN-005 закрыт решением.
 
 ## 63. Следующий шаг
 
-1. internal review против ADR-003/004/005/006/008/010/011 и соседних financial BP;
-2. pilot-ST scenario review;
-3. independent Claude review;
-4. point fixes;
-5. normative synchronization and close REF-FIN-006;
-6. перейти к BP-CASH-001.
+После финальной сверки настоящего BP и синхронизированных нормативных документов BP-FIN-005 может быть принят как рабочая предметная основа post-confirmation Accrual changes.
+
+Следующий процесс Stage 5 — `BP-CASH-001 — приём наличного платежа без смешения Payment, кассового действия и кассового документа`.
+
+Penalty-specific recalculation и regular accrual workflow остаются отдельными будущими задачами и не расширяют scope настоящего BP.

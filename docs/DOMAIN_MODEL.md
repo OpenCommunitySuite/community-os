@@ -1,7 +1,7 @@
 # Community OS — Domain Model
 
 **Статус:** Draft  
-**Версия:** 0.21  
+**Версия:** 0.22  
 **Язык документа:** русский
 
 > Документ описывает концептуальную предметную модель. Он не определяет структуру хранения, программные классы, API, интерфейсы, механизм исполнения правил или технический аудит.
@@ -343,6 +343,12 @@ Estimated/substitute value и supplier-side settlement quantity не являю�
 External device ID, channel code, source unit и current mapping не являются domain identity. Историческое mapping должно быть применимо к measurement time; late/out-of-order data не присваиваются current Meter Installation автоматически. Redelivery/re-import, external correction, mapping correction и re-recognition различаются и не переписывают Reading history молча.
 
 Unknown/ambiguous external device не создаёт Meter, Accounting Point или Reading автоматически. Missing source data не создаёт zero Reading/Consumption. Batch import может иметь partial success согласно concrete integration semantic contract.
+
+**Контрольное снятие** (Control Observation) — исторически значимый процесс организованного получения/фиксации данных по определённой области инженерной системы и временному окну с объяснимым expected set Accounting Points и полнотой наблюдения. Participating values после recognition остаются обычными Reading; отдельная fundamental entity Control Reading не вводится.
+
+Для Control Observation различаются expected, observed/recognized, unresolved/rejected, missing и explicitly excluded points where applicable. Missing point не исчезает из scope и не заменяется zero/fictitious Reading. Каждый participating Reading сохраняет own measurement time/precision; observation process сохраняет window, topology context, evidence и quality limitations.
+
+Control Observation не тождествен Control Reconciliation или Calculated Imbalance. Оно подготавливает inputs/completeness для последующей сверки и может использовать mixed manual/telemetry sources согласно applicable policy.
 
 **Контрольная сверка** (Control Reconciliation) — исторически значимый процесс сопоставления связанных данных учёта в определённой области инженерной системы за временной срез или окно. Она сохраняет существенные входы, полноту и отсутствующие данные, применённые правила и преобразования, релевантную топологию, результат и ограничения качества. **Расчётный небаланс** (Calculated Imbalance) — самостоятельный количественный результат такого сопоставления. **Эксплуатационная потеря** (Operational Loss) — отдельно признанное явление утраты ресурса на допустимом для процесса основании. Небаланс не доказывает потерю, хищение, неисправность, долг или неучтённое потребление.
 

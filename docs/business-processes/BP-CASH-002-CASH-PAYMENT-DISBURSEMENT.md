@@ -986,8 +986,8 @@ Independent review подтвердил вариант **B**: Cash Disbursement 
 Нормативная синхронизация выполнена:
 
 - ADR-006 — добавлен Cash Disbursement, completion, authority/cardinality и custody/bank-withdrawal boundaries;
-- DOMAIN_MODEL 0.16 — добавлены identity/history Cash Disbursement, `0..N` Payment linkage, completion и unresolved external-release semantics;
-- TERMINOLOGY 0.14 — введён термин `Cash Disbursement (выдача наличных)` и направление cash-channel source referents;
+- DOMAIN_MODEL 0.17 — Cash Disbursement сохраняет identity/history, completion/unresolved external-release semantics и non-1:1 source↔Payment cardinality;
+- TERMINOLOGY 0.15 — `Cash Disbursement (выдача наличных)` и cash-channel Payment синхронизированы с non-1:1 source↔Payment cardinality;
 - BP-FIN-ALLOCATION-001 — Initial Allocation работает только с recognized Payment, никогда напрямую с Cash Disbursement amount;
 - BP-FIN-BANK-001 — own-bank cash withdrawal отделён от Cash Disbursement/outgoing Payment; later external payout является отдельным Cash Disbursement;
 - REFERENCE_CANDIDATE_MATRIX — REF-FIN-009 закрыт решением; REF-FIN-016 уточнён как custody/internal movement/unresolved handoff; REF-FIN-017 создан для подотчётных средств без предрешённой финансовой модели.
@@ -995,6 +995,8 @@ Independent review подтвердил вариант **B**: Cash Disbursement 
 Новый standalone ADR не требуется: ADR-006 остаётся owning architectural document financial/channel model.
 
 Universal Cashbox/CashBalance/CashOperation и universal Cash Disbursement lifecycle/status machine не вводятся.
+
+Post-merge independent review DeepSeek выявил, что прежнее правило `one Payment → exactly one Cash Disbursement` было жёстче уже принятой банковской модели и принципа ADR-011. Модель уточнена: один outgoing Payment может опираться на `1..N` Cash Disbursements при sufficient owning-domain basis; automatic merge запрещён, source contributions и continuity basis должны быть explainable.
 
 ## 46. Решения independent review
 

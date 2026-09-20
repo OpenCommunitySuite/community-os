@@ -12,19 +12,23 @@
 
 ```text
 external party tenders cash
-+ authorized Community-side acceptance
-+ determinable amount/currency/parties/time
-→ recognized Cash Payment
+→ physical receipt into Community-side control
+→ Cash Acceptance
+→ authority / party / financial-meaning validation
+→ 0..N recognized Cash Payments
 → Initial Payment Allocation where applicable
 → receipt/cash document as evidence/formalization where applicable
 ```
+
+**Cash Acceptance** в настоящем BP — identity-bearing channel-side referent исторически значимого физического приёма наличных. Он не является Payment и сам по себе не утверждает, что Community уже стало финансовой стороной соответствующего движения.
 
 Процесс не вводит универсальную бухгалтерскую модель кассы, склад денежных средств, регламентированный кассовый учёт или бухгалтерскую проводку.
 
 ## 2. Основная граница
 
 ```text
-Cash Payment
+Cash Acceptance
+≠ Cash Payment
 ≠ cash receipt document
 ≠ cashier action
 ≠ cash storage location
@@ -66,19 +70,31 @@ Cash Payment is a Payment
 
 Способ `cash` не меняет identity Financial Obligation и не создаёт специальный тип долга.
 
-## 5. Физическая передача и признание Payment
+## 5. Cash Acceptance как channel-side referent
 
-Физическая передача наличных является существенным evidence/fact, но признанный Payment возникает только когда финансовый контекст имеет достаточное основание признать реальное движение денег между сторонами.
+**Cash Acceptance** — исторически значимый channel-side факт/referent того, что определённая сумма наличных в определённой валюте была физически принята в Community-side control конкретным действующим лицом в рамках одного coherent acceptance scope.
+
+Cash Acceptance:
+
+- имеет собственную identity независимо от Payment и cash document;
+- сохраняет accepted amount/currency, предметное время, acting acceptor и необходимый provenance;
+- может существовать до recognition Payment;
+- может завершиться без признанного Payment, если финансовая интерпретация не подтверждена;
+- может быть основанием/evidence для recognition одного или нескольких Cash Payments;
+- не определяет Payment identity/cardinality автоматически;
+- не означает автоматически переход права на деньги, существование obligation, Allocation, income или Expense.
 
 ```text
 cash physically presented
-≠ cash actually accepted as Community funds
-≠ recognized Payment automatically
+≠ Cash Acceptance
+≠ Cash Payment
 ```
 
-Для Cash Payment наличные должны быть приняты от внешней стороны **в финансовом смысле как средства Community**, а не только физически оказаться у уполномоченного лица.
+Cash Acceptance возникает после того, как наличные фактически удержаны в Community-side control в рамках завершённого physical acceptance scope; деньги, предъявленные и полностью возвращённые до этого момента, Cash Acceptance не создают.
 
-Деньги могут быть предъявлены, пересчитаны и возвращены до завершения acceptance. Они также могут быть переданы Community только во временную custody/хранение либо быть уже принадлежащими Community; такие случаи не становятся Payment только из-за физической передачи.
+Если наличные приняты только во временную custody/хранение, Cash Acceptance как source fact может существовать, но его предметная интерпретация не создаёт Payment автоматически.
+
+Настоящий BP не вводит универсальный lifecycle/status machine Cash Acceptance. Recognition outcome, authority resolution, custody interpretation и связи с Payments являются отдельной process semantics/history.
 
 ## 6. Стороны Payment
 
@@ -111,44 +127,58 @@ Community остаётся получателем входящего Payment.
 
 ## 8. Authority
 
-Приём наличных является финансово значимым действием. Должно быть определимо полномочие, где применимо, на физический приём наличных, подтверждение recognition Cash Payment, идентификацию payer и оформление требуемого документа.
+Физический приём наличных и последующее признание Payment являются предметно значимыми действиями, но их authority semantics различаются.
+
+Для Cash Acceptance должны сохраняться acting person и достаточные сведения о его полномочии/основании действовать от имени Community либо о том, что authority ещё не разрешена.
+
+Если наличные фактически приняты лицом без подтверждённого надлежащего полномочия:
+
+- сам physical Cash Acceptance не исчезает из истории;
+- Payment от имени Community не признаётся автоматически;
+- authority/admissibility требует отдельного resolution;
+- последующее правомерное подтверждение/ratification может стать основанием Payment recognition;
+- если Payment уже был ошибочно признан и позднее отсутствие authority делает recognition неверным, применяется BP-FIN-002.
 
 Technical access role не создаёт финансовое полномочие.
 
-## 9. Tendered amount ≠ accepted amount
+## 9. Tendered amount ≠ Cash Acceptance amount ≠ Payment amount
 
 Следует различать:
 
 - сумму, предъявленную для расчёта/пересчёта;
 - сумму немедленно возвращённой сдачи;
-- сумму физически принятую Community как Community funds;
+- сумму Cash Acceptance — фактически удержанную в Community-side control после immediate change;
 - сумму/суммы recognized Payment;
-- accepted cash, для которого Payment recognition ещё unresolved.
+- часть Cash Acceptance, для которой Payment recognition ещё unresolved либо не допускается.
 
-Для конкретного physical acceptance scope:
+Для одного currency-specific Cash Acceptance:
 
 ```text
-accepted cash amount
+Cash Acceptance amount
 = tendered amount - immediate returned change
 ```
 
-Но universal `1 acceptance = 1 Payment` не вводится.
+если всё, что не возвращено немедленно, действительно вошло в этот coherent acceptance scope.
+
+Universal `1 Cash Acceptance = 1 Payment` не вводится.
 
 Поэтому:
 
 ```text
-sum(recognized Payments linked to acceptance)
-≤ accepted cash amount
+sum(recognized Payments linked to Cash Acceptance)
+≤ Cash Acceptance amount
 ```
 
-а при полностью разрешённом recognition:
+а когда финансовая интерпретация всей суммы Cash Acceptance полностью разрешена именно как входящие Payments:
 
 ```text
 sum(recognized Payments)
-= accepted cash amount
+= Cash Acceptance amount
 ```
 
-Accepted cash, для которого Payment ещё не recognized из-за недостаточных сведений о сторонах/identity, не является Unallocated Remainder: нераспределённый остаток существует только внутри уже признанного Payment.
+Если часть суммы получила другой правомерный смысл, например custody-only, равенство с Payments не требуется; эта часть должна быть отдельно объяснима в process disposition/provenance.
+
+Cash Acceptance amount, для которого Payment ещё не recognized, не является Unallocated Remainder: нераспределённый остаток существует только внутри уже признанного Payment.
 
 ## 10. Сдача
 
@@ -186,19 +216,31 @@ Cash Payment recognition
 
 Recognition и Allocation могут координироваться одним пользовательским interaction, но остаются разными domain actions/results.
 
-## 13. Payment cardinality
+## 13. Cash Acceptance ↔ Payment cardinality
 
-Один Cash Payment может исполнять несколько obligations. Разбиение одной принятой суммы по назначениям не создаёт несколько Payments автоматически.
+Один Cash Payment может исполнять несколько obligations. Разбиение одного признанного движения по назначениям не создаёт несколько Payments автоматически.
 
-Но и один physical cash handover/acceptance не задаёт universal identity/cardinality Payment.
+Один Cash Acceptance может привести к:
 
-Например, один представитель может одновременно передать документированно отдельные суммы нескольких плательщиков. Если evidence подтверждает несколько самостоятельных financial movements, один physical acceptance scope может привести к recognition нескольких Cash Payments.
+- 0 recognized Payments;
+- 1 recognized Payment;
+- N recognized Payments, если достаточные evidence/domain semantics подтверждают несколько самостоятельных money movements.
 
-И наоборот, один payer может передать одну сумму и распределить её между несколькими obligations — это может оставаться одним Payment.
+Например, один представитель может одновременно передать документированно отдельные суммы нескольких плательщиков.
+
+При этом один **Cash Payment** относится к одному признанному cash money movement и имеет один Cash Acceptance как cash-channel source referent. Несколько уже завершённых самостоятельных Cash Acceptances не объединяются молча в один Payment.
+
+Если payer в одном непрерывном cashier interaction до завершения Cash Acceptance сначала передал 800, а затем сразу добавил 200, это может оставаться одним coherent Cash Acceptance 1000. Если первый Cash Acceptance уже завершён, последующая отдельная передача является новым Cash Acceptance и при financial recognition — отдельным Payment.
 
 ```text
-physical acceptance cardinality
+Cash Acceptance cardinality
 ≠ Payment cardinality
+
+one Cash Payment
+→ one Cash Acceptance source
+
+one Cash Acceptance
+→ 0..N Cash Payments
 ```
 
 Cash Payment может быть полностью или частично нераспределён.
@@ -209,19 +251,21 @@ Cash Payment может быть принят от Subject A для obligation S
 
 Cash acceptance само по себе не даёт права погасить obligation другого Subject.
 
-## 15. Unknown payer
+## 15. Unknown payer / unresolved Payment recognition
 
-Если деньги физически приняты как средства Community, но предметно значимые сведения о payer/сторонах пока недостаточно определены:
+Если Cash Acceptance существует, но предметно значимые сведения о payer/сторонах пока недостаточно определены:
 
+- Cash Acceptance сохраняет собственную identity/history;
 - fake Subject не создаётся;
 - current User/кассир не подставляется как payer;
-- уже состоявшееся физическое acceptance и его evidence сохраняются;
 - **Payment recognition не подтверждается**, пока требования ADR-006 к определимости materially meaningful parties не выполнены;
-- case остаётся unresolved/Requires Decision либо разрешается позднее на достаточном основании.
+- соответствующая сумма остаётся unresolved на уровне Payment recognition;
+- она не является Unallocated Remainder, потому что Payment ещё не существует;
+- case разрешается позднее на sufficient basis либо получает иной правомерный disposition.
 
-Позднее recognition такого real cash movement не является новым физическим движением денег; actual acceptance time и recognition/recording time различаются.
+Позднее recognition такого real cash movement ссылается на исходный Cash Acceptance, сохраняет actual acceptance time и отдельно recording/recognition time; второго физического движения денег не создаётся.
 
-Universal anonymous-cash policy не вводится.
+Долгоживущее unresolved состояние должно оставаться видимым для reconciliation/decision и не исчезает только по timeout. Universal anonymous-cash policy и universal automatic write-off не вводятся.
 
 ## 16. Personal Account и Payment Intent
 
@@ -237,25 +281,27 @@ Payment Intent ≠ Cash Payment ≠ actual Allocation
 
 ## 17. Cash receipt document
 
-Квитанция, приходный кассовый ордер или иной cash receipt document может подтверждать и оформлять Payment, содержать сумму, стороны и назначение, а также быть обязательным согласно local policy/law.
+Квитанция, приходный кассовый ордер или иной cash receipt document может подтверждать/оформлять Cash Acceptance, Payment либо оба факта, содержать сумму, стороны и назначение, а также быть обязательным согласно local policy/law.
 
 Но:
 
 ```text
-cash document ≠ Payment
+cash document
+≠ Cash Acceptance
+≠ Payment
 ```
 
-Document identity не определяет Payment identity автоматически.
+Document identity не определяет Cash Acceptance или Payment identity автоматически.
 
-Universal `1 cash document = 1 Payment` cardinality также не вводится на уровне доменной модели. Конкретная legal/operational policy может требовать отдельный документ на каждого payer/Payment, но это ограничение документации, а не способ определить Payment identity.
+Universal `1 cash document = 1 Payment` и `1 cash document = 1 Cash Acceptance` cardinality не вводятся на уровне доменной модели. Конкретная legal/operational policy может требовать отдельный документ на каждого payer/Payment, но это ограничение formalization, а не способ определить domain identity.
 
-## 18. Документ и Payment могут иметь разное время
+## 18. Документ, Cash Acceptance и Payment могут иметь разное время
 
-Payment не перестаёт существовать только потому, что принтер/PDF/storage временно недоступен, если sufficient evidence реального movement уже существует.
+Недоступность принтера/PDF/storage сама по себе не отменяет уже состоявшийся Cash Acceptance и не препятствует Payment recognition, если applicable domain/legal policy не требует документ как обязательное условие recognition и sufficient evidence движения уже существует.
 
 Если local legal/policy semantics требует документ до recognition, это дополнительное ограничение конкретной конфигурации, а не universal rule Community OS.
 
-Предварительно созданный документ без фактического acceptance денег не создаёт Payment.
+Предварительно созданный документ без фактического Cash Acceptance не создаёт ни Cash Acceptance, ни Payment.
 
 ## 19. Ошибка документа ≠ ошибка Payment
 
@@ -268,7 +314,8 @@ Payment не перестаёт существовать только потом
 Следует различать, где materially significant:
 
 - tendering time;
-- physical acceptance time;
+- Cash Acceptance completion time;
+- authority/financial-interpretation resolution time, если оно отличается;
 - Payment recognition/recording time;
 - cash document issuance time;
 - Allocation time;
@@ -319,13 +366,20 @@ BP-CASH-001 не вводит фундаментальную сущность `C
 
 Operational need знать место хранения, custodian и передачу денег может позже потребовать отдельной custody/internal cash movement semantics.
 
-## 26. Передача наличных внутри Community и custody
+## 26. Custody / internal movement boundary
 
 Передача уже принадлежащих Community наличных от кассира председателю или между хранителями не является новым Payment между Community и внешней стороной.
 
-Также физическая передача внешних денег только для временного хранения/перевозки/иного custody-сценария не является Payment автоматически, если Community не становится финансовой стороной движения средств в смысле ADR-006.
+Cash Acceptance как physical source fact также не означает автоматически, что вся принятая сумма стала Community funds в финансовом смысле. Если наличные приняты только для временного хранения/перевозки/иной custody-цели:
 
-Такие действия могут потребовать отдельной custody/internal cash movement semantics, но не входят в BP-CASH-001.
+- Cash Acceptance может сохранять факт физического получения;
+- Payment не признаётся без financial-party semantics ADR-006;
+- custody-only interpretation должна быть attributable/traceable;
+- последующий возврат custody-средств без Payment не является Refund.
+
+Если при приёме неясно, является ли сумма Community Payment funds или custody-only, interpretation остаётся unresolved до предметного решения.
+
+Полная custody/internal cash movement semantics относится к отдельному будущему процессу.
 
 ## 27. Внесение наличных на банковский счёт
 
@@ -361,7 +415,7 @@ Universal 1:1 Cash Payment ↔ Bank Transaction не вводится.
 
 ## 31. Cash reconciliation
 
-Reconciliation между Cash Payments, cash documents, custody/internal movements where modeled и bank deposits может быть operationally necessary.
+Reconciliation между Cash Acceptance referents, recognized Cash Payments, cash documents, custody/internal movements where modeled и bank deposits может быть operationally necessary.
 
 Но:
 
@@ -373,11 +427,11 @@ reconciliation ≠ Payment recognition ≠ Allocation ≠ Expense
 
 ## 32. Idempotency / duplicate
 
-Повторная техническая обработка одного confirmed cash acceptance не создаёт второй Payment.
+Повторная техническая обработка одного и того же Cash Acceptance referent не создаёт новый Cash Acceptance или второй Payment автоматически.
 
-Совпадение payer + amount + date не доказывает duplicate автоматически.
+Cash Acceptance identity/provenance является одним из оснований безопасного late/offline retry, но совпадение payer + amount + date само по себе не доказывает duplicate.
 
-Если один real Cash Payment recognized twice, исправление относится к BP-FIN-002.
+Если один real Cash Payment recognized twice from the same or duplicated acceptance evidence, исправление Payment относится к BP-FIN-002; duplicate/correction Cash Acceptance source fact сохраняется и разрешается в cash-channel process history.
 
 ## 33. Draft / preparation
 
@@ -387,23 +441,31 @@ Draft ≠ Payment и может быть изменён/отброшен до ac
 
 Universal `Cash Receipt Draft` entity не вводится.
 
-## 34. Failure after physical acceptance before system recording
+## 34. Failure after Cash Acceptance before Payment recording
 
 Возможен сценарий:
 
-1. cash physically accepted authorized Community actor;
-2. network/system unavailable;
-3. Payment not yet recorded.
+1. Cash Acceptance фактически состоялся;
+2. network/system unavailable before Payment recognition/recording is completed;
+3. Payment ещё не зафиксирован в системе.
 
-После восстановления later recording не является новым movement. Actual payment time и recording time различаются, duplicate должен быть предотвращён, evidence/provenance сохраняется.
+После восстановления:
 
-Это late recording existing Payment, а не новый Payment.
+- восстанавливается/фиксируется identity исходного Cash Acceptance на sufficient evidence;
+- retry не создаёт второй Cash Acceptance;
+- Payment recognition ссылается на этот Cash Acceptance;
+- actual acceptance time и recognition/recording time различаются;
+- второго физического movement не создаётся.
+
+Если до сбоя Payment уже был предметно признан, later persistence/recovery не создаёт новый Payment.
 
 ## 35. Offline/manual receipt
 
-Если Community допускает manual/offline acceptance, бумажный документ может быть evidence, а later system entry фиксирует реальный historical Payment.
+Если Community допускает manual/offline acceptance, бумажный документ или иное достаточное evidence может позволить позднее зафиксировать historical Cash Acceptance и затем recognized Payment(s).
 
-Document number не является universal Payment identity.
+Document number не является universal Cash Acceptance или Payment identity.
+
+Если один offline document покрывает несколько independent money movements, Payment cardinality определяется предметной семантикой, а не номером документа.
 
 ## 36. Payment before Obligation
 
@@ -413,24 +475,39 @@ Cash Payment может быть принят до возникновения к
 
 ## 37. Provenance
 
-Для recognized Cash Payment должны быть explainable, где применимо:
+### 37.1. Cash Acceptance provenance
+
+Для Cash Acceptance должны быть explainable, где применимо:
+
+- Cash Acceptance identity/referent;
+- accepted amount/currency;
+- tendered amount and immediate returned change;
+- Cash Acceptance completion time and later recording time;
+- physical tenderer / declared origin information;
+- acting cashier/acceptor;
+- authority evidence or unresolved authority;
+- financial/custody interpretation and its basis;
+- related cash document(s);
+- offline/manual evidence;
+- retry/duplicate/correction links;
+- later bank-deposit/custody reconciliation links where available.
+
+### 37.2. Cash Payment provenance
+
+Для recognized Cash Payment дополнительно должны быть explainable:
 
 - Payment identity/referent;
+- link to exactly one Cash Acceptance source;
 - direction;
-- accepted amount/currency;
-- actual acceptance/payment time and recording time;
+- recognized amount/currency;
 - payer and recipient;
-- physical tenderer if materially distinct;
-- acting cashier/acceptor;
-- authority;
-- tendered amount and immediate returned change;
+- Payment recognition time/basis;
 - purpose/Payment Intent inputs;
 - PA/Object context;
-- related cash documents;
-- offline/manual evidence;
-- retry/correction links;
 - subsequent Initial Allocation;
-- later bank-deposit reconciliation links where available.
+- correction/replacement links.
+
+Один Cash Acceptance может быть linked to 0..N Payments. Payment provenance не поглощает Cash Acceptance provenance.
 
 Provenance не требует universal CashOperation/Audit entity.
 
@@ -481,8 +558,8 @@ Payment remains real; document may be produced later according to policy.
 ### 40.9. Network fails after physical acceptance
 Later recording preserves actual payment time and avoids duplicate.
 
-### 40.10. Unknown payer
-No fake Subject/cashier payer; Requires Decision according to applicable semantics.
+### 40.10. Unknown payer remains unresolved
+Cash Acceptance exists; no fake Subject/cashier payer is created; Payment recognition remains unresolved and visible for decision/reconciliation. See also §40.24 for later resolution.
 
 ### 40.11. Wrong amount after confirmation
 Actually accepted 900, recorded 1000 → BP-FIN-002.
@@ -539,11 +616,11 @@ Payer A tenders 2000 from own funds.
 
 Where allocation basis is sufficient, this may remain one Cash Payment 2000 with multiple Allocations.
 
-### 40.23. Cash accepted for temporary custody only
+### 40.23. Cash Acceptance for temporary custody only
 
-External party hands 5000 to an authorized Community actor solely for temporary safekeeping/transport, without Community receiving it as a party to a financial Payment.
+External party hands 5000 to a Community-side actor solely for temporary safekeeping/transport, without Community becoming a party to a financial Payment.
 
-Physical custody does not create Cash Payment automatically.
+Cash Acceptance records the physical receipt/source fact; custody-only interpretation is attributable; no Cash Payment is recognized.
 
 ### 40.24. Unknown payer resolved later
 
@@ -553,57 +630,148 @@ Payment recognition remains unresolved.
 
 Later sufficient evidence identifies Payer A.
 
-Recognition records the real historical movement with actual acceptance time and later recognition/recording time; it does not invent a second movement.
+Recognition links Payment to the existing Cash Acceptance, preserves actual acceptance time and later recognition/recording time, and does not invent a second movement.
+
+### 40.25. Several independent Cash Acceptances must not merge into one Payment
+
+Payer A gives 500 and cashier finalizes Cash Acceptance CA1.
+
+Later Payer A separately gives another 500 and cashier finalizes CA2.
+
+```text
+CA1 ≠ CA2
+→ two physical money movements
+→ not one Cash Payment 1000
+```
+
+If recognized, each acceptance produces its own Payment identity.
+
+### 40.26. Additional cash before one acceptance is finalized
+
+Payer tenders 800, cashier counts it, and before final acceptance is completed payer immediately adds 200.
+
+Applicable process treats this as one continuous acceptance interaction:
+
+```text
+Cash Acceptance = 1000
+→ one Payment 1000 where party semantics are unambiguous
+```
+
+No universal clock threshold defines the boundary; the coherent acceptance scope must remain explainable.
+
+### 40.27. Mixed currency with immediate return
+
+Payer tenders 1000 UAH + 20 EUR.
+
+Community accepts UAH but does not accept EUR; 20 EUR is immediately returned before the acceptance scope is completed.
+
+```text
+Cash Acceptance = 1000 UAH
+Payment = 1000 UAH
+20 EUR → no Cash Acceptance / no Payment
+```
+
+No implicit currency conversion occurs.
+
+### 40.28. Unauthorized actor receives cash
+
+A person without established cash-receipt authority physically accepts 1000 from Payer A while purporting to act for Community.
+
+Cash Acceptance/source fact is preserved.
+
+Payment is not automatically recognized until authority/admissibility is resolved.
+
+If Community later validly ratifies the acceptance, Payment may be recognized from the existing Cash Acceptance. If an already recognized Payment is found invalid because of authority failure, BP-FIN-002 applies.
+
+### 40.29. Partial resolution of one Cash Acceptance
+
+One representative tenders 2000 with evidence:
+
+```text
+500 from Payer A
+700 from Payer B
+800 origin unresolved
+```
+
+Cash Acceptance = 2000.
+
+Payments A=500 and B=700 may be recognized.
+
+Remaining 800 stays unresolved at Payment recognition level; it is not Unallocated Remainder of A or B.
+
+### 40.30. Custody cash returned without Payment
+
+Cash Acceptance 5000 is classified as custody-only.
+
+Later the same custody funds are returned to the external owner without ever becoming a Payment involving Community.
+
+The return is not Refund of a Community Payment.
+
+### 40.31. Long-lived unresolved Cash Acceptance
+
+Cash Acceptance 1000 remains without sufficient payer evidence for an extended period.
+
+It remains visible for decision/reconciliation and is not auto-converted into income, Payment, Advance, Unallocated Remainder or write-off solely because time passed.
 
 ## 41. Инварианты
 
-1. Cash Payment is a Payment.
-2. Cash method does not create a separate obligation model.
-3. Cash Payment ≠ cash document.
-4. Cash Payment ≠ cashier action.
-5. Cash Payment ≠ cash storage location/balance.
-6. Cash Payment ≠ bank deposit.
-7. Cash Payment ≠ Payment Allocation.
-8. Cash Payment ≠ Expense.
-9. Cashier/acceptor ≠ Payment recipient.
-10. Physical tenderer ≠ payer automatically.
-11. Personal Account ≠ payer.
-12. Tendered amount ≠ accepted amount.
-13. Immediate returned change is not Refund.
-14. Immediate returned change is not outgoing Payment.
-15. Sum of recognized Payments linked to one physical acceptance cannot exceed accepted cash amount.
-16. When recognition of an acceptance is fully resolved, linked Payment amounts must explain the accepted cash amount according to applicable semantics.
-17. Accepted-but-not-yet-recognized cash ≠ Unallocated Remainder.
-18. Payment may exist without Allocation.
-19. One Cash Payment may allocate to multiple obligations.
-20. Cash method does not impose one Payment per PA.
-21. Cross-subject/cross-account Allocation requires sufficient basis.
-22. Cash document does not define Payment identity automatically.
-23. Prepared receipt without acceptance does not create Payment.
-24. Document correction ≠ Payment correction.
-25. Physical acceptance and recording time may differ.
-26. Late recording real Payment ≠ new Payment.
-27. Technical retry ≠ second Payment.
-28. Same payer/date/amount does not prove duplicate.
-29. Payment correction belongs to BP-FIN-002.
-30. Allocation correction belongs to BP-FIN-001.
-31. Refund requires separate semantics.
-32. Cash deposit to Community bank does not recreate underlying Payments.
-33. Physical bank depositor ≠ payer aggregated cash.
-34. Cash deposit does not create new income automatically.
-35. Internal custody/transfer Community cash ≠ external Payment.
-36. Universal Cashbox/CashBalance/CashOperation entity is not introduced.
-37. Fake Subject is not created for unknown payer.
-38. Fake Obligation is not created to consume cash.
-39. Payment Intent/purpose ≠ actual Allocation.
-40. Authority ≠ technical access.
-41. Cash reconciliation ≠ Payment recognition.
-42. Offline document number ≠ universal Payment identity.
-43. Cash Payment may precede Financial Obligation where applicable semantics permits it.
-44. Physical cash acceptance cardinality does not determine Payment cardinality.
-45. Cash physically held in custody ≠ Payment automatically.
-46. If materially meaningful Payment parties are not sufficiently determinable, Payment recognition is not confirmed.
-47. Late recognition of already accepted cash ≠ a second physical movement.
+1. Cash Acceptance is an identity-bearing cash-channel source/process referent.
+2. Cash Acceptance ≠ Cash Payment.
+3. Cash Acceptance ≠ cash document.
+4. Cash Acceptance ≠ Cashbox/CashBalance/CashOperation.
+5. Cash Payment is a Payment.
+6. Cash method does not create a separate obligation model.
+7. Cash Payment ≠ cash document.
+8. Cash Payment ≠ cashier action.
+9. Cash Payment ≠ cash storage location/balance.
+10. Cash Payment ≠ bank deposit.
+11. Cash Payment ≠ Payment Allocation.
+12. Cash Payment ≠ Expense.
+13. Cashier/acceptor ≠ Payment recipient.
+14. Physical tenderer ≠ payer automatically.
+15. Personal Account ≠ payer.
+16. Tendered amount ≠ accepted amount.
+17. Immediate returned change is not Refund.
+18. Immediate returned change is not outgoing Payment.
+19. Sum of recognized Payments linked to one physical acceptance cannot exceed accepted cash amount.
+20. When recognition of an acceptance is fully resolved, linked Payment amounts must explain the accepted cash amount according to applicable semantics.
+21. Accepted-but-not-yet-recognized cash ≠ Unallocated Remainder.
+22. Payment may exist without Allocation.
+23. One Cash Payment may allocate to multiple obligations.
+24. Cash method does not impose one Payment per PA.
+25. Cross-subject/cross-account Allocation requires sufficient basis.
+26. Cash document does not define Payment identity automatically.
+27. Prepared receipt without acceptance does not create Payment.
+28. Document correction ≠ Payment correction.
+29. Physical acceptance and recording time may differ.
+30. Late recording real Payment ≠ new Payment.
+31. Technical retry ≠ second Payment.
+32. Same payer/date/amount does not prove duplicate.
+33. Payment correction belongs to BP-FIN-002.
+34. Allocation correction belongs to BP-FIN-001.
+35. Refund requires separate semantics.
+36. Cash deposit to Community bank does not recreate underlying Payments.
+37. Physical bank depositor ≠ payer aggregated cash.
+38. Cash deposit does not create new income automatically.
+39. Internal custody/transfer Community cash ≠ external Payment.
+40. Universal Cashbox/CashBalance/CashOperation entity is not introduced.
+41. Fake Subject is not created for unknown payer.
+42. Fake Obligation is not created to consume cash.
+43. Payment Intent/purpose ≠ actual Allocation.
+44. Authority ≠ technical access.
+45. Cash reconciliation ≠ Payment recognition.
+46. Offline document number ≠ universal Payment identity.
+47. Cash Payment may precede Financial Obligation where applicable semantics permits it.
+48. Physical cash acceptance cardinality does not determine Payment cardinality.
+49. Cash physically held in custody ≠ Payment automatically.
+50. If materially meaningful Payment parties are not sufficiently determinable, Payment recognition is not confirmed.
+51. Late recognition of already accepted cash ≠ a second physical movement.
+52. One Cash Payment refers to one Cash Acceptance source; separate finalized Cash Acceptances are not silently merged into one Payment.
+53. One Cash Acceptance may support 0..N Payments.
+54. Cash Acceptance may exist without Payment recognition.
+55. Custody-only Cash Acceptance does not create Payment automatically.
+56. Lack of authority does not erase physical Cash Acceptance but blocks automatic Payment recognition.
+57. Long-lived unresolved Cash Acceptance remains visible and is not auto-reclassified by timeout.
 
 ## 42. Что намеренно не решается
 
@@ -650,38 +818,37 @@ Recognition records the real historical movement with actual acceptance time and
 
 ## 44. Нормативные последствия
 
-Предварительно новый ADR и новая fundamental entity не требуются.
+Independent review подтвердил необходимость identity-bearing `Cash Acceptance` как channel-side source/process referent, но не как фундаментальной финансовой операции либо универсального cash lifecycle.
 
-После review проверить необходимость точечной синхронизации по:
+Требуется точечная синхронизация:
 
-- Cash Payment recognition as channel-specific Payment recognition;
-- accepted amount vs tendered/immediate change;
-- cashier/physical tenderer vs Payment parties;
-- cash document vs Payment;
-- late/offline recording;
-- cash-to-bank deposit boundary;
-- whether any minimal cash custody concept is required now.
+- ADR-006 — Cash Acceptance, его граница с Payment/document/custody и cardinality;
+- DOMAIN_MODEL / TERMINOLOGY — definition, identity and 0..N Payment linkage;
+- BP-FIN-ALLOCATION-001 — Initial Allocation работает только с recognized Payment, не с Cash Acceptance amount напрямую;
+- BP-FIN-BANK-001 — cash-side reconciliation может связывать Bank Transaction с Cash Acceptance и recognized Cash Payments;
+- REFERENCE_CANDIDATE_MATRIX — inbound часть REF-FIN-009 закрывается после принятия BP-CASH-001; custody/internal cash movement фиксируется отдельно в backlog.
 
-Universal Cashbox/CashOperation/CashBalance не следует вводить без независимой real process need.
+Новый standalone ADR предварительно не требуется: аналогичный channel-side referent Bank Transaction уже определяется ADR-006.
 
-## 45. Открытые вопросы для review
+Universal Cashbox/CashOperation/CashBalance и universal Cash Acceptance status machine не вводятся.
 
-Перед принятием Draft независимо проверить:
+## 45. Решения independent review
 
-1. достаточно ли BP-CASH-001 как channel-specific Payment Recognition process без universal Payment Recognition BP;
-2. корректна ли модель tendered / accepted / immediate change;
-3. нужен ли самостоятельный process/domain referent для physical Cash Acceptance, учитывая one-to-many cardinality, unknown-payer late recognition, idempotency и cash-to-bank reconciliation, либо достаточны Payment + process provenance;
-4. достаточно ли различия payer / physical tenderer / cashier / obligated Subject;
-5. можно ли recognize Payment при temporarily unknown payer;
-6. является ли cash receipt document optional domain-wise или в пилотном СТ должен быть mandatory policy;
-7. нужно ли сейчас вводить minimal cash custody/location concept для объяснения cash между acceptance и bank deposit;
-8. достаточно ли bank-deposit boundary из BP-FIN-BANK-001;
-9. нужен ли separate internal cash movement BP before BP-CASH-002;
-10. достаточна ли late/offline recording model;
-11. нужен ли mirror note в BP-FIN-ALLOCATION-001;
-12. нужен ли mirror note в BP-FIN-BANK-001;
-13. достаточно ли scope incoming external cash only;
-14. можно ли после BP-CASH-001 считать inbound half REF-FIN-009 закрытой, оставив outgoing cash до BP-CASH-002.
+1. BP-CASH-001 остаётся channel-specific Payment Recognition process; universal Payment Recognition BP не вводится.
+2. Cash Acceptance вводится как identity-bearing channel-side source/process referent (вариант B review), не как Payment или фундаментальная FinancialOperation.
+3. Universal Cash Acceptance lifecycle/status machine не вводится; authority, recognition, custody interpretation и disposition остаются traceable process semantics.
+4. One Cash Acceptance may support 0..N Payments; one Cash Payment refers to one Cash Acceptance source; separate finalized Cash Acceptances не объединяются молча в один Payment.
+5. Accepted/unresolved Cash Acceptance может существовать до Payment recognition; такая сумма не является Unallocated Remainder.
+6. Payer / physical tenderer / cashier / obligated Subject различаются.
+7. Unknown payer blocks Payment recognition until materially meaningful party information is sufficient; fake Subject не создаётся.
+8. Cash document ≠ Cash Acceptance ≠ Payment; local legal/formalization policy может быть строже.
+9. Unauthorized physical receipt сохраняется как Cash Acceptance source fact, но не создаёт Payment автоматически.
+10. Immediate returned change before Cash Acceptance completion не является Refund/outgoing Payment; later return after Payment recognition uses outgoing/Refund semantics where applicable.
+11. Temporary custody may have Cash Acceptance source fact but no Payment; full custody workflow remains separate.
+12. Cash→bank deposit remains Bank Transaction and does not recreate underlying Payments.
+13. Mirror notes required in BP-FIN-ALLOCATION-001 and BP-FIN-BANK-001.
+14. New standalone ADR is not required; ADR-006 is the owning architectural document for the financial/channel boundary.
+15. Inbound half REF-FIN-009 can close after normative synchronization; outgoing cash remains for BP-CASH-002, custody/internal movement remains a separate backlog problem.
 
 ## 46. Следующий шаг
 

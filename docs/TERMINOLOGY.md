@@ -1,7 +1,7 @@
 # Community OS — Терминология проекта
 
 **Статус:** Draft  
-**Версия:** 0.12  
+**Версия:** 0.13  
 **Язык документа:** русский
 
 ---
@@ -466,11 +466,31 @@ Excess applied amount не становится автоматически пе�
 
 ---
 
+# 27.3. Приём наличных (Cash Acceptance)
+
+**Cash Acceptance (приём наличных)** — исторически значимый cash-channel source/process fact, фиксирующий физический приём определённой суммы наличных в определённой денежной единице в Community-side control конкретным acting person в рамках одного coherent acceptance scope.
+
+Cash Acceptance имеет собственную identity независимо от Payment и cash document. Он может существовать до Payment recognition либо без него.
+
+Cash Acceptance не является Payment, Payment Allocation, Financial Obligation, Expense, кассовым документом, Cashbox, CashBalance или универсальной CashOperation.
+
+Один Cash Acceptance может поддерживать `0..N` Cash Payments. Один Cash Payment cash-channel относится к одному Cash Acceptance source; несколько завершённых самостоятельных Cash Acceptances не объединяются молча в один Payment.
+
+Принятая сумма, для которой Payment recognition ещё не выполнено, не является Unallocated Remainder. Unallocated Remainder существует только внутри уже признанного Payment.
+
+Cash Acceptance может отражать unresolved authority/party interpretation или custody-only physical receipt; такие обстоятельства не создают Payment автоматически.
+
+Late/offline recording Cash Acceptance не создаёт нового физического движения, а duplicate/retry не создают новую identity автоматически. Universal lifecycle/status machine Cash Acceptance не вводится.
+
+---
+
 # 28. Наличный платёж
 
 **Наличный платёж** — платёж, совершённый наличными денежными средствами; он может быть входящим или исходящим.
 
-Наличный платёж имеет тот же предметный смысл движения средств, что и платёж иным способом. Лицо, физически принимающее или фиксирующее наличные, не становится автоматически получателем как стороной финансового отношения; модель полномочий относится к этапу B.
+Наличный платёж имеет тот же предметный смысл движения средств, что и платёж иным способом. Для cash-channel recognized Payment его source referent — Cash Acceptance. Один Cash Acceptance может поддерживать несколько Cash Payments, если он содержит доказуемо разные money movements, но один Cash Payment не объединяет несколько завершённых самостоятельных Cash Acceptances.
+
+Лицо, физически принимающее или фиксирующее наличные, не становится автоматически получателем как стороной финансового отношения; физический tenderer, acting acceptor, payer, obligated Subject и recipient различаются.
 
 ---
 

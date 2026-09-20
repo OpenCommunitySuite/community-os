@@ -153,6 +153,8 @@ Universal `1 Expense = 1 Financial Obligation` не вводится.
 
 Если важна только часть Financial Obligation, связь Expense↔Obligation должна сохранять amount/currency или другой sufficient scope, а не считать весь Obligation расходом автоматически.
 
+Такая связь объясняет, какая часть monetary claim имеет соответствующий expense meaning; она не является Payment Allocation и не создаёт/исполняет Financial Obligation.
+
 ## 9. Expense ↔ Payment
 
 Outgoing Payment не создаёт Expense автоматически.
@@ -163,12 +165,14 @@ Outgoing Payment не создаёт Expense автоматически.
 - Payment before Expense;
 - Expense without Payment yet;
 - Payment without Expense;
-- one Expense paid by multiple Payments;
-- one Payment connected with several Expenses.
+- one Expense associated with several Payments;
+- one Payment associated with several Expenses.
 
-Связь Payment↔Expense не является Payment Allocation и не переписывает Payment.
+Связь Payment↔Expense является contextual/reconciliation relation и **не означает, что Payment исполняет Expense**. Исполнение денежных требований моделируется через Financial Obligation и Payment Allocation where applicable.
 
-Если Payment уже связан с Financial Obligation, Expense может объясняться через obligation-scope; direct Payment↔Expense relation не является universal mandatory.
+Если direct Payment↔Expense relation имеет monetary scope, этот scope должен быть исторически объясним и не может использоваться как второй Payment Allocation.
+
+Если Payment уже связан с Financial Obligation, Expense обычно может объясняться через obligation-scope; direct Payment↔Expense relation не является universal mandatory.
 
 ## 10. Payment without Expense
 
@@ -404,7 +408,7 @@ Internal transfer between own accounts не меняет source origin авто�
 
 ## 26. Expense Financing
 
-Expense Financing — существующая предметная связь конкретного Expense с одним или несколькими Funding Sources, отражающая его фактическое финансово-управленческое покрытие.
+Expense Financing — существующая предметная связь **уже признанного конкретного Expense** с одним или несколькими Funding Sources, отражающая его фактическое финансово-управленческое покрытие.
 
 Допускается:
 
@@ -413,19 +417,27 @@ one Funding Source → many Expenses
 one Expense → many Funding Sources
 ```
 
-Expense Financing ≠ Payment Allocation.
+Expense Financing:
+
+- ≠ Payment Allocation;
+- ≠ исполнение Financial Obligation;
+- ≠ связь с конкретным исходящим Payment автоматически;
+- может быть признано до либо после Payment, если sufficient financing basis уже существует;
+- не существует как actual Expense Financing без Expense, хотя proposal/planned source может существовать в Budget semantics.
 
 ## 27. Expense Financing amount
 
 Если Expense покрывается несколькими Funding Sources, financing relation должен иметь определимый amount/currency.
 
-Для current effective Financing:
+Для current effective additive Financing:
 
 ```text
 sum(Expense Financing amounts) ≤ Expense amount
 ```
 
-Полностью покрытый Expense может иметь equality.
+Одна и та же часть Expense не должна double-count как фактическое покрытие несколькими Funding Sources. Полностью покрытый Expense может иметь equality.
+
+Если будущая аналитическая классификация Funding Sources допускает overlapping labels, она не должна изображаться как несколько additive Expense Financing amounts для одной и той же monetary portion.
 
 Partially financed/unresolved Expense остаётся valid Expense; отсутствие Funding Source не создаёт fake source.
 
@@ -474,13 +486,17 @@ One Funding Source may aggregate origin across many Payments or other available 
 
 Specific payment-to-expense traceability is not required universally by Funding Source model.
 
-## 32. Expense relation to Payment without Obligation
+## 32. Expense relation to Payment without recognized Obligation
 
-В некоторых immediate purchase/settlement сценариях отдельный long-lived Financial Obligation может не иметь самостоятельной ценности в Community OS.
+В некоторых immediate purchase/settlement сценариях Community OS может не иметь отдельно признанного Financial Obligation, даже если реальное взаимодействие сторон включало денежное требование, возникшее и исполненное практически одновременно.
 
-Если outgoing Payment и sufficient evidence прямо подтверждают concrete Expense, Expense may relate to Payment without forcing fake persistent Obligation.
+Если outgoing Payment и sufficient evidence прямо подтверждают concrete Expense, Expense может быть связан с Payment без искусственного создания отдельного persistent Obligation только ради технической трассировки.
 
-Это не означает, что Payment itself is Expense.
+Это:
+
+- не означает, что Payment является Expense;
+- не утверждает отсутствие реального юридического/предметного обязательства;
+- не превращает Expense↔Payment relation в Payment Allocation или fulfillment mechanism.
 
 ## 33. Prepayment
 
@@ -600,6 +616,8 @@ Expense identity/cardinality определяется concrete expense case and 
 ## 42. Confirmation scope
 
 Expense recognition, Expense Budget Distribution и Expense Financing могут быть coordinated в одном user interaction, но создают разные domain results/relations.
+
+Confirmed Expense Budget Distribution и Expense Financing относятся к recognized Expense; предложения по классификации/финансированию до Expense recognition остаются proposal/planning semantics.
 
 Universal atomic requirement across all three не вводится.
 
@@ -788,42 +806,46 @@ Budget contains 300 000 annual repair plan: no Expense yet. Later competent deci
 14. Expense identity is not defined by document/Payment/Obligation cardinality.
 15. One Expense may relate to multiple Obligations/Payments.
 16. One Obligation/Payment may relate to multiple Expenses.
-17. Partial obligation scope may have Expense meaning without entire obligation becoming Expense.
-18. Community Consumption ≠ Expense automatically.
-19. Expense amount/currency must be sufficiently determinable for recognition.
-20. Expense Budget Distribution ≠ Payment Allocation.
-21. Expense Budget Distribution does not change Expense identity.
-22. Distributed amount cannot exceed Expense amount under additive mutually-exclusive Budget Item semantics.
-23. Expense may exist without Budget Item.
-24. Budget overrun does not invalidate real Expense.
-25. Current Budget changes do not rewrite historical Expense classification.
-26. Funding Source ≠ Bank Account.
-27. Funding Source ≠ Payment.
-28. Funding Source ≠ Use Direction.
-29. Expense Financing ≠ Funding Source.
-30. Expense Financing ≠ Payment Allocation.
-31. Expense Financing is not technical reservation.
-32. Total current effective Expense Financing cannot exceed Expense amount.
-33. Expense may be partially/unfinanced.
-34. Planned Funding Source ≠ actual Expense Financing automatically.
-35. Use Direction ≠ Budget Item/Funding Source.
-36. Refund Payment ≠ Expense automatically.
-37. Own-account transfer/cash custody ≠ Expense.
-38. Prepayment ≠ Expense automatically.
-39. Payroll Payment ≠ Expense automatically.
-40. Document correction ≠ Expense correction automatically.
-41. Wrong Budget Distribution does not rewrite Expense.
-42. Wrong Financing relation does not rewrite Expense.
-43. Confirmed Expense changes are traceable; no silent edit/delete.
-44. Technical retry ≠ duplicate Expense.
-45. Same supplier/amount/date ≠ duplicate proof.
-46. Authority ≠ technical access.
-47. Expense recognition / Budget Distribution / Financing are separate domain results even when coordinated in one interaction.
-48. Actual off-budget/nonconforming Expense remains representable for audit; system does not hide it merely because Budget classification/limit is violated.
-49. Off-budget Expense ≠ unauthorized outflow.
-50. Unauthorized/disputed money movement does not create Expense automatically.
-51. Budget Distribution cannot merge independent expense cases into one Expense identity.
-52. Prospective Expense requires a concrete recognized intended-use case; generic Budget/proposal/estimate ≠ Expense.
+17. Expense↔Payment relation is not Payment Allocation and does not make Expense an executable claim.
+18. Partial obligation scope may have Expense meaning without entire obligation becoming Expense.
+19. Community Consumption ≠ Expense automatically.
+20. Expense amount/currency must be sufficiently determinable for recognition.
+21. Expense Budget Distribution ≠ Payment Allocation.
+22. Expense Budget Distribution does not change Expense identity.
+23. Distributed amount cannot exceed Expense amount under additive mutually-exclusive Budget Item semantics.
+24. Expense may exist without Budget Item.
+25. Budget overrun does not invalidate real Expense.
+26. Current Budget changes do not rewrite historical Expense classification.
+27. Funding Source ≠ Bank Account.
+28. Funding Source ≠ Payment.
+29. Funding Source ≠ Use Direction.
+30. Expense Financing ≠ Funding Source.
+31. Expense Financing ≠ Payment Allocation.
+32. Expense Financing is not technical reservation.
+33. Total current effective Expense Financing cannot exceed Expense amount.
+34. Expense may be partially/unfinanced.
+35. Planned Funding Source ≠ actual Expense Financing automatically.
+36. Use Direction ≠ Budget Item/Funding Source.
+37. Refund Payment ≠ Expense automatically.
+38. Own-account transfer/cash custody ≠ Expense.
+39. Prepayment ≠ Expense automatically.
+40. Payroll Payment ≠ Expense automatically.
+41. Document correction ≠ Expense correction automatically.
+42. Wrong Budget Distribution does not rewrite Expense.
+43. Wrong Financing relation does not rewrite Expense.
+44. Confirmed Expense changes are traceable; no silent edit/delete.
+45. Technical retry ≠ duplicate Expense.
+46. Same supplier/amount/date ≠ duplicate proof.
+47. Authority ≠ technical access.
+48. Expense recognition / Budget Distribution / Financing are separate domain results even when coordinated in one interaction.
+49. Actual off-budget/nonconforming Expense remains representable for audit; system does not hide it merely because Budget classification/limit is violated.
+50. Off-budget Expense ≠ unauthorized outflow.
+51. Unauthorized/disputed money movement does not create Expense automatically.
+52. Budget Distribution cannot merge independent expense cases into one Expense identity.
+53. Prospective Expense requires a concrete recognized intended-use case; generic Budget/proposal/estimate ≠ Expense.
+54. Expense Financing requires a recognized Expense; pre-recognition source assignment is proposal/planning semantics.
+55. Expense Financing does not settle an Obligation and does not prove a specific Payment funded the Expense.
+56. Additive Expense Financing must not double-count the same monetary portion of Expense.
 
 ## 51. Что намеренно не решается
 

@@ -191,7 +191,10 @@ Technical access role не создаёт финансовое полномоч�
 - physical Cash Disbursement не стирается из истории;
 - outgoing Payment не признаётся автоматически;
 - authority/admissibility требует resolution;
+- BP-CASH-002 не создаёт и не ратифицирует authority самостоятельно: authority basis приходит из governance/organizational/other owning semantics согласно ADR-010;
+- пока достаточного authority basis нет, case остаётся `Requires Decision` на уровне Payment recognition;
 - later valid confirmation/ratification authority может дать недостающее основание для первичного Payment recognition со ссылкой на исходный Cash Disbursement;
+- ratification/authority-resolution является отдельным historically significant basis/action, а не silent mutation Cash Disbursement;
 - actual Cash Disbursement time при этом не изменяется и не переписывается;
 - authority-resolution time и Payment recognition time имеют самостоятельный смысл и могут совпасть, но не обязаны;
 - если Payment уже ошибочно признан и later authority failure делает recognition неверным, применяется BP-FIN-002.
@@ -207,6 +210,8 @@ Technical access role не создаёт финансовое полномоч�
 - Cash Disbursement amount;
 - recognized outgoing Payment amount(s);
 - unresolved portion of Cash Disbursement, для которой outgoing Payment recognition ещё не завершено.
+
+Каждый Cash Disbursement имеет одну определимую currency. Если одно physical interaction включает несколько currencies и более одной currency действительно выдана, каждая currency-specific physical release получает отдельный Cash Disbursement source fact; implicit FX/conversion не выполняется.
 
 Для одного currency-specific Cash Disbursement:
 
@@ -270,22 +275,36 @@ Outgoing Cash Payment признаётся, когда sufficiently determinable
 
 ## 12. Cash Disbursement ↔ Payment cardinality
 
-Один Cash Disbursement может привести к:
+Cash Disbursement source cardinality не определяет Payment cardinality.
 
-- 0 Payments;
-- 1 Payment;
-- N Payments, если physical receiver действует за несколько independently identifiable financial recipients и evidence подтверждает отдельные money movements.
+Допустимы:
 
-Один outgoing Cash Payment относится к одному Cash Disbursement source.
-
-Несколько завершённых самостоятельных Cash Disbursements не объединяются молча в один Payment.
+- one Cash Disbursement → zero Payments;
+- one Cash Disbursement → one Payment;
+- one Cash Disbursement → multiple Payments, если evidence подтверждает несколько самостоятельных financial movements;
+- multiple Cash Disbursements → one outgoing Payment, если owning-domain evidence подтверждает continuity одного предметного Payment.
 
 ```text
-one Cash Disbursement → 0..N Payments
-one outgoing Cash Payment → one Cash Disbursement source
+Cash Disbursement cardinality
+≠ Payment cardinality
+
+one Cash Disbursement
+→ 0..N outgoing Cash Payments
+
+one outgoing Cash Payment
+→ 1..N Cash Disbursement sources where justified
 ```
 
-Если в одном непрерывном disbursement interaction cashier сначала передал 800, затем до completion добавил 200, это может быть один Cash Disbursement 1000. Если первый disbursement уже завершён, later cash release — новый Cash Disbursement.
+Отдельные завершённые Cash Disbursements **не объединяются автоматически** в один Payment из-за совпадения recipient, date, amount, purpose или obligation.
+
+Если несколько Cash Disbursements поддерживают один Payment:
+
+- continuity/merge basis должен быть explainable;
+- attributable amount каждого source fact в Payment должен быть explainable;
+- сумма attributed contributions одного Cash Disbursement во все Payments не превышает Cash Disbursement amount;
+- для Payment, полностью состоящего из cash-source facts, сумма attributed source contributions объясняет Payment amount.
+
+В рамках одного незавершённого coherent disbursement interaction дополнительные суммы могут оставаться одним Cash Disbursement. После completion следующая physical release является новым Cash Disbursement source fact, но это само по себе не предрешает Payment cardinality.
 
 ## 13. Payment Allocation
 
@@ -532,7 +551,10 @@ Physical person, который снял cash в банке, не станови
 
 - original outgoing Payment не уменьшается silently;
 - return является новым incoming money movement;
-- его meaning определяется applicable incoming Payment/refund/reversal/correction semantics;
+- physical incoming cash recognition относится к BP-CASH-001;
+- если существует refund basis/Financial Obligation to return — финансовая Refund semantics относится к BP-FIN-003;
+- если проблема состоит в ошибочном recognition original Payment — применяется BP-FIN-002, а не фиктивный Refund;
+- иная incoming classification определяется соответствующим owning financial process;
 - Cash Disbursement history сохраняется.
 
 ## 31. Wrong Payment recognition
@@ -613,6 +635,7 @@ Long-lived unresolved Cash Disbursement требует последующего 
 - physical receiver;
 - acting cashier/disburser;
 - authority evidence/unresolved authority;
+- custody-vs-external classification basis and, where applicable, later reclassification evidence/time;
 - declared financial purpose;
 - related cash document(s);
 - offline/manual evidence;
@@ -624,7 +647,7 @@ Long-lived unresolved Cash Disbursement требует последующего 
 Для recognized Payment дополнительно:
 
 - Payment identity;
-- link to exactly one Cash Disbursement source;
+- links to one or more Cash Disbursement source referents, with attributable source amount where cardinality requires it;
 - payer=Community;
 - financial recipient;
 - amount/currency;
@@ -634,7 +657,7 @@ Long-lived unresolved Cash Disbursement требует последующего 
 - Refund/Expense/contractual context where applicable;
 - correction/replacement links.
 
-Payment provenance не поглощает Cash Disbursement provenance.
+Cash Disbursement ↔ Payment linkage не имеет universal `1:1`. Если один Payment опирается на несколько Cash Disbursements, provenance сохраняет continuity/merge basis и attributable amount каждого source fact. Payment provenance не поглощает Cash Disbursement provenance.
 
 ## 38. Temporal semantics
 
@@ -753,8 +776,14 @@ CD=2000; 1200 recognized Payment to A; 800 financial meaning unresolved. 800 is 
 ### 41.24. Long-lived unresolved disbursement
 Cash has left Community custody/control to an external-side receiver but recipient/purpose cannot be sufficiently resolved. Cash Disbursement remains visible for reconciliation/decision; no automatic write-off or Expense.
 
-### 41.25. Separate Cash Disbursements are not one Payment
-Cashier completes CD1 = 500 to Recipient A. Later another separate CD2 = 500 occurs. They are separate physical money movements and are not silently merged into one Payment 1000.
+### 41.25. Separate Cash Disbursements do not merge automatically
+Cashier completes CD1 = 500 to Recipient A. Later another separate CD2 = 500 occurs.
+
+`CD1 ≠ CD2` as source facts.
+
+Совпадение recipient/date/purpose/obligation само по себе не создаёт Payment 1000.
+
+Если owning-domain evidence отдельно подтверждает, что CD1 и CD2 являются частями одного предметного Payment, один Payment 1000 допустим при explainable continuity basis и attributable contributions 500 + 500. В отсутствие такого основания это два Payments либо unresolved cardinality согласно применимой семантике.
 
 ### 41.26. Additional cash before one Disbursement completes
 Cashier hands 800 and, before the same coherent disbursement is completed, adds 200. This may remain one Cash Disbursement 1000 and one Payment 1000 where recipient semantics are unambiguous.
@@ -827,6 +856,36 @@ two prior Bank Transactions / custody inflows
 
 Cash Disbursement identity is determined by the external physical payout, not by how many prior bank withdrawals funded the cash.
 
+### 41.35. Acting disburser is also financial recipient
+Chairman is both the acting person who physically executes the payout and the entitled recipient of an approved reimbursement/remuneration.
+
+Role coincidence does not collapse the roles:
+
+- acting disburser identity does not prove entitlement;
+- recipient identity does not prove authority to execute the payout;
+- Cash Disbursement/Payment recognition requires sufficient independent obligation/basis and authority evidence.
+
+BP-CASH-002 does not introduce a universal conflict-of-interest rule; applicable governance policy may be stricter.
+
+### 41.36. Theft/loss without Community-side disbursement action
+Cash disappears from Community custody because of theft/loss and there was no Community-side physical release action to an intended external receiver.
+
+This is **not Cash Disbursement** and does not create outgoing Payment or Expense automatically.
+
+The event belongs to custody/loss/incident semantics (REF-FIN-016 or another future owning process).
+
+### 41.37. Multi-currency physical payout
+One interaction attempts to give 1000 UAH + 20 EUR to the same receiver.
+
+If both currencies are actually released:
+
+```text
+CD1 = 1000 UAH
+CD2 = 20 EUR
+```
+
+They are separate currency-specific source facts. No implicit FX conversion or one mixed-currency Payment is created by BP-CASH-002.
+
 ## 42. Инварианты
 
 1. Cash Disbursement is an identity-bearing cash-channel source/process referent for external-side physical cash release.
@@ -851,8 +910,8 @@ Cash Disbursement identity is determined by the external physical payout, not by
 20. If the whole Cash Disbursement is resolved specifically as outgoing Payments, linked Payment amounts equal Cash Disbursement amount.
 21. Any remaining Disbursement amount must stay separately explainable and is not automatic Expense/write-off.
 22. One Cash Disbursement may support 0..N Payments.
-23. One outgoing Cash Payment refers to one Cash Disbursement source.
-24. Separate finalized Cash Disbursements are not silently merged into one Payment.
+23. One outgoing Cash Payment may be supported by 1..N Cash Disbursement sources on sufficient owning-domain basis; source cardinality does not define Payment identity.
+24. Separate finalized Cash Disbursements never merge into one Payment automatically; many-source linkage requires explainable continuity basis and attributable source amounts.
 25. Cash Disbursement amount without Payment recognition ≠ Expense.
 26. Cash Disbursement amount without Payment recognition ≠ Payment Allocation.
 27. Unknown recipient does not create fake Subject.
@@ -879,6 +938,8 @@ Cash Disbursement identity is determined by the external physical payout, not by
 48. Later authority confirmation may enable primary Payment recognition from original Cash Disbursement without rewriting actual event time.
 49. If custody-vs-external classification itself is unresolved, no Cash Disbursement is created by default; the source handoff remains explicitly unresolved under REF-FIN-016.
 50. Unresolved custody/handoff source facts and unresolved Cash Disbursements must remain visible/reconcilable and are not auto-reclassified by timeout.
+51. Each Cash Disbursement has one determinable currency; multi-currency physical payout uses separate currency-specific source facts unless separate FX semantics is defined elsewhere.
+52. Theft/loss without a Community-side physical release action ≠ Cash Disbursement and ≠ outgoing Payment automatically.
 
 ## 43. Что намеренно не решается
 
@@ -925,8 +986,8 @@ Independent review подтвердил вариант **B**: Cash Disbursement 
 Нормативная синхронизация выполнена:
 
 - ADR-006 — добавлен Cash Disbursement, completion, authority/cardinality и custody/bank-withdrawal boundaries;
-- DOMAIN_MODEL 0.16 — добавлены identity/history Cash Disbursement, `0..N` Payment linkage, completion и unresolved external-release semantics;
-- TERMINOLOGY 0.14 — введён термин `Cash Disbursement (выдача наличных)` и направление cash-channel source referents;
+- DOMAIN_MODEL 0.17 — Cash Disbursement сохраняет identity/history, completion/unresolved external-release semantics и non-1:1 source↔Payment cardinality;
+- TERMINOLOGY 0.15 — `Cash Disbursement (выдача наличных)` и cash-channel Payment синхронизированы с non-1:1 source↔Payment cardinality;
 - BP-FIN-ALLOCATION-001 — Initial Allocation работает только с recognized Payment, никогда напрямую с Cash Disbursement amount;
 - BP-FIN-BANK-001 — own-bank cash withdrawal отделён от Cash Disbursement/outgoing Payment; later external payout является отдельным Cash Disbursement;
 - REFERENCE_CANDIDATE_MATRIX — REF-FIN-009 закрыт решением; REF-FIN-016 уточнён как custody/internal movement/unresolved handoff; REF-FIN-017 создан для подотчётных средств без предрешённой финансовой модели.
@@ -935,13 +996,15 @@ Independent review подтвердил вариант **B**: Cash Disbursement 
 
 Universal Cashbox/CashBalance/CashOperation и universal Cash Disbursement lifecycle/status machine не вводятся.
 
+Post-merge independent review DeepSeek выявил, что прежнее правило `one Payment → exactly one Cash Disbursement` было жёстче уже принятой банковской модели и принципа ADR-011. Модель уточнена: один outgoing Payment может опираться на `1..N` Cash Disbursements при sufficient owning-domain basis; automatic merge запрещён, source contributions и continuity basis должны быть explainable.
+
 ## 46. Решения independent review
 
 1. Cash Disbursement признан самостоятельным identity-bearing channel-side referent не из-за зеркальности с Cash Acceptance, а потому что physical external release может существовать до/без Payment recognition.
 2. Cash Disbursement completion является domain boundary coherent physical release, а не lifecycle/status machine.
 3. До completion дополнительные суммы/immediate return могут относиться к тому же Disbursement; после completion отдельный release получает новую identity.
-4. One Cash Disbursement may support `0..N` outgoing Payments; one outgoing Cash Payment refers to one Cash Disbursement source.
-5. Separate completed Cash Disbursements не объединяются молча в один Payment.
+4. Cash Disbursement ↔ Payment does not have universal 1:1 cardinality: one Disbursement may support 0..N Payments, and one Payment may use 1..N Disbursements on sufficient owning-domain basis.
+5. Separate completed Cash Disbursements never merge automatically; many-source Payment requires explainable continuity basis and attributable source amounts.
 6. External-side release established + unresolved financial recipient/purpose → Cash Disbursement exists, Payment may remain unresolved.
 7. If custody-vs-external release itself is unresolved → Cash Disbursement is NOT created by default; source handoff remains explicitly unresolved under REF-FIN-016.
 8. Internal transfer between Community-side custodians and own-bank cash withdrawal are not Cash Disbursement of this BP.

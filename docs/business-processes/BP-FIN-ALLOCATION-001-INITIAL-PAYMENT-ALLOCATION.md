@@ -128,9 +128,14 @@ Payment может быть:
 - наличным;
 - иным допустимым способом.
 
-Для cash-channel Initial Allocation применяется только к уже признанному Cash Payment. `Cash Acceptance` является source/process referent физического приёма наличных и не может быть Allocation target/source вместо Payment. Даже если один Cash Acceptance впоследствии поддерживает несколько Payments, Allocation выполняется отдельно относительно identity и available amount каждого признанного Payment.
+Для cash-channel Initial Allocation применяется только к уже признанному Cash Payment. Channel-side source referent не может быть Allocation target/source вместо Payment:
 
-Accepted-but-unrecognized Cash Acceptance amount не является Unallocated Remainder и не доступен Initial Allocation до Payment recognition.
+- incoming Cash Payment относится к `Cash Acceptance`;
+- outgoing Cash Payment относится к `Cash Disbursement`.
+
+Даже если один Cash Acceptance или Cash Disbursement поддерживает несколько Payments, Allocation выполняется отдельно относительно identity и available amount каждого признанного Payment.
+
+Accepted-but-unrecognized Cash Acceptance amount и Cash Disbursement amount без recognized outgoing Payment не являются Unallocated Remainder и не доступны Initial Allocation до Payment recognition.
 
 Направление и способ Payment не определяют правила Allocation автоматически. Настоящий BP применим как к исполнению обязательств перед Community, так и к исполнению обязательств самого Community перед другими сторонами, если соответствующая финансовая семантика допускает Allocation.
 
@@ -804,8 +809,10 @@ Water       → 400
 45. Excess applied amount from BP-FIN-005 is not available for new Initial Allocation while current effective financial use still accounts for it.
 46. Excess applied amount ≠ automatic Overpayment.
 47. Cash Acceptance ≠ Payment and is not a source for Initial Allocation directly.
-48. Accepted-but-unrecognized Cash Acceptance amount ≠ Unallocated Remainder and cannot be allocated before Payment recognition.
-49. If one Cash Acceptance supports several Payments, each Payment has its own Allocation scope and available amount.
+48. Cash Disbursement ≠ Payment and is not a source for Initial Allocation directly.
+49. Accepted-but-unrecognized Cash Acceptance amount ≠ Unallocated Remainder and cannot be allocated before Payment recognition.
+50. Cash Disbursement amount without recognized outgoing Payment cannot be allocated or treated as fulfillment.
+51. If one Cash Acceptance or Cash Disbursement supports several Payments, each Payment has its own Allocation scope and available amount.
 
 ## 33. Связанные документы
 

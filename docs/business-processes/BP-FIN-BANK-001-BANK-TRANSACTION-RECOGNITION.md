@@ -642,6 +642,25 @@ Bank Transaction внесения наличности может быть св�
 
 Не создаётся fake Expense ради классификации банковского движения.
 
+Отдельный practically significant case — снятие наличных с собственного Community Bank Account, при котором деньги после банковского движения остаются под Community custody/control:
+
+```text
+Community Bank Account
+→ outgoing Bank Transaction (cash withdrawal)
+→ Community cash under custody/control
+```
+
+Такое банковское движение само по себе:
+
+- не является outgoing Payment внешней стороне;
+- не является Expense;
+- не является `Cash Disbursement` BP-CASH-002;
+- не делает physical withdrawer financial recipient.
+
+Если эти наличные позднее выдаются external-side receiver и Community custody/control прекращается, последующий physical payout является самостоятельным `Cash Disbursement` и может стать source для outgoing Cash Payment according to BP-CASH-002.
+
+Bank withdrawal ↔ custody/internal movement ↔ later Cash Disbursement reconciliation не имеет universal `1:1` cardinality и не выводится только из банковских данных.
+
 ## 39. Ignored / non-actionable transaction
 
 OSBBX показывает практическую потребность игнорировать банковские транзакции, не относящиеся к платежам собственников.
@@ -974,6 +993,10 @@ Imported representation содержит календарную дату без 
 60. Cash Acceptance ≠ Cash Payment ≠ Bank Transaction.
 61. Aggregated cash deposit reconciliation may link Bank Transaction to Cash Acceptance and/or recognized Cash Payments without imposing universal 1:1 cardinality.
 62. Bank data alone does not determine which Cash Acceptance or Cash Payments compose an aggregated deposit.
+63. Cash withdrawal from Community own bank account ≠ Cash Disbursement ≠ outgoing external Payment.
+64. Physical bank withdrawer ≠ financial recipient automatically.
+65. Later external cash payout is a separate Cash Disbursement source fact governed by BP-CASH-002.
+66. Bank withdrawal, custody/internal movement and later Cash Disbursement do not have universal 1:1 cardinality.
 
 ## 55. Нормативные последствия
 
@@ -1010,6 +1033,7 @@ Bank-specific fields по-прежнему не переносятся в уни
 - ADR-016;
 - `BP-CONTRACT-001-CONTRACTUAL-RELATIONSHIP.md`;
 - `BP-FIN-ALLOCATION-001-INITIAL-PAYMENT-ALLOCATION.md`;
+- `BP-CASH-002-CASH-PAYMENT-DISBURSEMENT.md`;
 - `BP-CASH-001-CASH-PAYMENT-RECEIPT.md`;
 - `BP-FIN-001-PAYMENT-REALLOCATION.md`;
 - OSBBX reference analysis;

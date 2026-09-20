@@ -836,15 +836,17 @@ Independent review подтвердил необходимость identity-bear
 Нормативная синхронизация выполнена:
 
 - ADR-006 — добавлен Cash Acceptance, его граница с Payment/document/custody, amount semantics, authority и cardinality;
-- DOMAIN_MODEL 0.15 — добавлены identity/history Cash Acceptance, `0..N` Payment linkage и unresolved/custody boundary;
-- TERMINOLOGY 0.13 — введён термин `Cash Acceptance (приём наличных)`;
+- DOMAIN_MODEL 0.17 — Cash Acceptance сохраняет identity/history, unresolved/custody boundary и non-1:1 source↔Payment cardinality без определения Payment identity через source facts;
+- TERMINOLOGY 0.15 — термин `Cash Acceptance (приём наличных)` синхронизирован с non-1:1 source↔Payment cardinality;
 - BP-FIN-ALLOCATION-001 — Initial Allocation работает только с recognized Payment, не с Cash Acceptance amount напрямую;
 - BP-FIN-BANK-001 — cash-side reconciliation связывает Bank Transaction с Cash Acceptance и/или recognized Cash Payments без universal `1:1`;
-- REFERENCE_CANDIDATE_MATRIX — inbound часть REF-FIN-009 закрыта BP-CASH-001, общий кандидат остаётся частично закрытым до BP-CASH-002; custody/internal cash movement зафиксирован как REF-FIN-016 Backlog.
+- REFERENCE_CANDIDATE_MATRIX — REF-FIN-009 закрыт совместно BP-CASH-001 + BP-CASH-002; custody/internal movement остаётся REF-FIN-016 Backlog, accountable funds — REF-FIN-017 Backlog.
 
 Новый standalone ADR не требуется: аналогичный channel-side referent Bank Transaction уже определяется ADR-006, который остаётся owning architectural document финансовой модели.
 
 Universal Cashbox/CashOperation/CashBalance и universal Cash Acceptance status machine не вводятся.
+
+Post-merge independent review DeepSeek выявил чрезмерно жёсткую cash source↔Payment cardinality. Нормативная модель уточнена: один Payment может опираться на `1..N` Cash Acceptance source facts при достаточном owning-domain основании; source facts не объединяются автоматически, а их attributable amounts и continuity basis остаются explainable.
 
 ## 45. Решения independent review
 
@@ -862,12 +864,12 @@ Universal Cashbox/CashOperation/CashBalance и universal Cash Acceptance status 
 12. Cash→bank deposit remains Bank Transaction and does not recreate underlying Payments.
 13. Mirror notes added to BP-FIN-ALLOCATION-001 and BP-FIN-BANK-001.
 14. New standalone ADR is not required; ADR-006 is the owning architectural document for the financial/channel boundary.
-15. Inbound half REF-FIN-009 is closed by BP-CASH-001 after normative synchronization; outgoing cash remains for BP-CASH-002, custody/internal movement is tracked separately as REF-FIN-016 Backlog.
+15. REF-FIN-009 is now fully closed by BP-CASH-001 + BP-CASH-002; custody/internal movement remains REF-FIN-016 Backlog and accountable funds remain REF-FIN-017 Backlog.
 
 ## 46. Следующий шаг
 
 После финальной сверки BP-CASH-001 может быть принят как рабочая предметная основа incoming cash-channel recognition.
 
-Следующий процесс Stage 5 — `BP-CASH-002 — выдача наличных / исходящий наличный платёж без автоматического создания Expense`.
+BP-CASH-002 уже принят как outgoing cash-channel counterpart. Текущий следующий процесс Stage 5 — `BP-EXPENSE-001 — регистрация расхода и его связь со сметой, обязательствами, платежами и источниками финансирования`.
 
-REF-FIN-016 (custody/internal cash movement/reconciliation) остаётся Backlog и не блокирует BP-CASH-002; возвращаться к нему следует при появлении конкретной потребности в accountable custody, инвентаризации остатка или cash→bank reconciliation.
+REF-FIN-016 (custody/internal cash movement/reconciliation) и REF-FIN-017 (accountable funds) остаются Backlog и не блокируют BP-EXPENSE-001.

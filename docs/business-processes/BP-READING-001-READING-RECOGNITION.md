@@ -943,26 +943,37 @@ For recognized Reading, where materially relevant, should be determinable:
 
 Блокирующих предметных вопросов по базовому Reading recognition после internal review не осталось.
 
-## 63. Предварительные нормативные последствия
+## 63. Нормативная синхронизация
 
-Fundamental model уже существует в ADR-007 / DOMAIN_MODEL / TERMINOLOGY.
+Новый ADR и новые fundamental entities не требуются.
 
-Новый ADR и новые fundamental entities предварительно не требуются.
+В текущей Draft-ветке выполнена точечная синхронизация:
 
-После internal review могут понадобиться mirror-уточнения:
+- ADR-007 — Reading identity, recognition outcomes, historical Meter Installation mapping, duplicate/conflict/correction boundaries, late/out-of-order semantics и telemetry/provider boundary;
+- DOMAIN_MODEL → 0.20 — Reading закреплён как самостоятельный recognized fact с identity, temporal/provenance semantics и correction boundary;
+- TERMINOLOGY → 0.18 — термин Reading уточнён для manual/import/telemetry/provider scenarios;
+- REFERENCE_CANDIDATE_MATRIX — Stage 7 переведён в состояние «выполняется», BP-READING-001 зафиксирован как foundation, REF-METER-002 остаётся следующим.
 
-- ADR-007 — Reading identity, recognition outcomes, duplicate/conflict/correction boundaries;
-- DOMAIN_MODEL — Reading recognition/correction and historical Meter Installation mapping;
-- TERMINOLOGY — уточнение Reading;
-- REFERENCE_CANDIDATE_MATRIX — выделить базовый Reading recognition BP как foundation Stage 7; REF-METER-002 остаётся следующим для automatic import.
+Новые universal Reading Candidate, Measurement Submission, Measurement Event, Meter Register, Rejection или Correction entities не введены.
 
-## 64. Следующий шаг
+ADR-010 и ADR-011 не требуют изменения: existing authority/access и external-information recognition semantics уже покрывают manual/automatic Reading recognition.
 
-1. выполнить финальную consistency check против ADR-004/005/007/010/011 и current DOMAIN_MODEL/TERMINOLOGY;
-2. синхронизировать ADR-007 / DOMAIN_MODEL / TERMINOLOGY с Reading identity/recognition/correction boundaries;
-3. обновить Stage 7 в REFERENCE_CANDIDATE_MATRIX как начатый и зафиксировать BP-READING-001 как foundation;
-4. открыть Draft PR для BP-READING-001;
-5. после его принятия перейти к REF-METER-002 — automatic Reading import/recognition;
-6. затем control reading → Control Reconciliation → Calculated Imbalance → Operational Loss recognition.
+## 64. Текущее состояние и следующий шаг
 
-Дополнительный внешний review сейчас не инициируется: новых фундаментальных сущностей или спорного архитектурного разворота BP не создаёт.
+BP прошёл:
+
+- internal review against ADR-004/005/007/010/011;
+- pilot-ST scenario check по electricity/water, individual/group/two-zone Meter, replacement boundary, late Reading, conflicting owner/control values, telemetry/manual duplication, supplier settlement quantity, temporal precision и correction;
+- нормативную синхронизацию ADR-007 / DOMAIN_MODEL / TERMINOLOGY / REFERENCE_CANDIDATE_MATRIX.
+
+Блокирующих предметных вопросов по базовому Reading recognition не осталось.
+
+Следующий процесс Stage 7 после принятия/merge BP-READING-001:
+
+**REF-METER-002 — automatic Reading import/recognition**.
+
+Он должен использовать BP-READING-001 как единую domain recognition model и добавить только integration semantics: external source/device mapping, delivery/redelivery, batch/stream behavior, unknown outcome, conflict and re-recognition where needed.
+
+После automatic import последовательность Stage 7 продолжается: control reading → Control Reconciliation → Calculated Imbalance → Operational Loss recognition.
+
+Дополнительный внешний review BP-READING-001 сейчас не инициируется: Draft не вводит новой фундаментальной сущности и не меняет уже принятую границу resource/finance/integration contexts.

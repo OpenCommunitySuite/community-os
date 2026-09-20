@@ -1127,19 +1127,20 @@ Recoverability from owners does not by itself determine whether a cost is or is 
 - OSBBX_REFERENCE_ANALYSIS;
 - `docs/process/INDEPENDENT_MULTI_REVIEW.md`.
 
-## 53. Предварительные нормативные последствия
+## 53. Нормативная синхронизация
 
-По итогам internal review новый ADR и новая fundamental entity предварительно не требуются: Expense, Budget, Budget Item, Funding Source, Use Direction и Expense Financing уже присутствуют в нормативной модели.
+Новый ADR и новая fundamental entity не требуются: Expense, Budget, Budget Item, Funding Source, Use Direction и Expense Financing уже присутствуют в нормативной модели.
 
-Если BP будет принят, потребуется точечная нормативная синхронизация:
+В этой Draft-ветке выполнена точечная синхронизация:
 
-- ADR-006 — уточнить Expense identity/recognition boundary, Expense Budget Distribution и amount-scoped relations без превращения их в Payment Allocation;
-- DOMAIN_MODEL — зафиксировать Expense identity, relation cardinality/amount-scope и Budget Distribution boundary;
-- TERMINOLOGY — при необходимости зарегистрировать `Expense Budget Distribution` как специализированную relation/action, не как универсальную Financial Allocation;
-- BP-FIN-BANK-001 / BP-CASH-002 — при необходимости добавить mirror-note, что outgoing movement не создаёт Expense автоматически и Expense relation не меняет Payment identity;
-- REFERENCE_CANDIDATE_MATRIX — после принятия BP закрыть либо уточнить REF-FIN-010.
+- ADR-006 — закреплены Expense identity/recognition boundary, amount-scoped Expense↔Obligation/Payment relations, recoverability/off-budget boundaries и Expense Budget Distribution;
+- DOMAIN_MODEL → 0.18 — зафиксированы Expense identity/cardinality/amount-scope, Expense Budget Distribution, Expense Financing constraints и supplier-side settlement calculation boundary;
+- TERMINOLOGY → 0.16 — уточнён термин Expense и нормативно описан Expense Budget Distribution без введения новой fundamental entity;
+- REFERENCE_CANDIDATE_MATRIX — REF-FIN-010 закрыт решением; Этап 5 отмечен завершённым.
 
-Отдельный Expense Correction BP сейчас не вводится: minimal no-silent-rewrite/correction boundary уже задан §43–45. Возвращаться к специализированному correction process следует только при самостоятельных практических сценариях.
+Дополнительные изменения BP-FIN-BANK-001 и BP-CASH-002 не требуются: они уже фиксируют, что исходящая Bank Transaction/Cash Payment не создают Expense автоматически и recognition Expense принадлежит специализированному финансовому процессу.
+
+Отдельный Expense Correction BP сейчас не вводится: minimal no-silent-rewrite/correction boundary задан §43–45. Возвращаться к специализированному correction process следует только при самостоятельных практических сценариях.
 
 ## 54. Решения internal review
 
@@ -1193,13 +1194,17 @@ individual measured resource cost
 - для воды применяется та же базовая граница: индивидуально возмещаемое потребление не становится Expense автоматически, а common-use water может иметь Expense meaning;
 - коллективная услуга Community (например, вывоз ТБО) может оставаться Expense даже если её стоимость затем покрывается начислениями участникам; сам факт возмещения не определяет Expense semantics.
 
-## 55. Следующий шаг
+## 55. Текущее состояние и следующий шаг
 
-1. выполнить финальную internal consistency check Draft против current ADR-003/004/005/006/008/010/011, DOMAIN_MODEL/TERMINOLOGY и neighboring finance BP;
-2. отдельно проверить pilot-ST examples и локальный вопрос §54.1;
-3. после стабилизации Draft сформировать frozen review package согласно `INDEPENDENT_MULTI_REVIEW.md`;
-4. выполнить предусмотренный процессом independent review / multi-review **одним раундом по стабильному Draft**, не возвращаясь к уже закрытым cash-boundaries без нового сценария;
-5. внести только принятые point fixes;
-6. синхронизировать нормативные документы и закрыть/refine REF-FIN-010;
-7. определить следующий Stage 5/6 priority.
+Draft прошёл:
 
+- internal review against current ADR-003/004/005/006/008/010/011;
+- проверку against neighboring finance BP;
+- pilot-ST scenario check по электроэнергии, supplier-calculated transformation loss, воде, коллективным услугам, mixed funding и budget distribution;
+- нормативную синхронизацию ADR-006 / DOMAIN_MODEL / TERMINOLOGY / REFERENCE_CANDIDATE_MATRIX.
+
+Новых открытых предметных вопросов, блокирующих BP-EXPENSE-001, после internal review не осталось. Локальная policy пилотного СТ зафиксирована в §54.1.
+
+Следующий проектный этап после принятия/merge этого BP — Stage 6: `BP-METER-001 — замена прибора и непрерывность точки учёта`.
+
+Дополнительный новый круг review BP-EXPENSE-001 сейчас не инициируется. Если перед merge будет принято решение применить `INDEPENDENT_MULTI_REVIEW.md`, review должен выполняться одним замороженным пакетом по текущему Draft без повторного открытия уже закрытых cash-channel вопросов.

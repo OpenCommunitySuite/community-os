@@ -19,7 +19,9 @@ cash physically prepared / handed out
 → cash document as evidence/formalization where applicable
 ```
 
-`Cash Disbursement` в настоящем Draft — кандидат на identity-bearing cash-channel source/process referent физической выдачи наличных из Community-side control. Независимый review должен проверить его необходимость и границы по аналогии, но не механическому копированию, с `Cash Acceptance`.
+`Cash Disbursement` в настоящем Draft — кандидат на identity-bearing cash-channel source/process referent physical release наличных из Community custody/control **во внешнюю сторону потенциального financial outflow**. Независимый review должен проверить его необходимость и границы по аналогии, но не механическому копированию, с `Cash Acceptance`.
+
+Внутреннее перемещение между Community-side custodians не является Cash Disbursement настоящего BP и остаётся в границе REF-FIN-016.
 
 ## 2. Основная граница
 
@@ -86,7 +88,7 @@ Cash method не создаёт отдельную модель Financial Obliga
 
 Для Draft вводится рабочее понятие:
 
-**Cash Disbursement (выдача наличных)** — historically significant cash-channel source/process fact/referent, фиксирующий physical release определённой суммы наличных в определённой currency из Community-side control конкретному physical receiver в рамках одного coherent disbursement scope.
+**Cash Disbursement (выдача наличных)** — historically significant cash-channel source/process fact/referent, фиксирующий physical release определённой суммы наличных в определённой currency из Community custody/control к external-side physical receiver в рамках одного coherent disbursement scope, когда выдача является кандидатом на outgoing financial movement.
 
 Cash Disbursement:
 
@@ -99,6 +101,8 @@ Cash Disbursement:
 - не является Cashbox/CashBalance;
 - не определяет Payment identity/cardinality автоматически;
 - сам по себе не доказывает, что physical receiver является financial recipient.
+
+Если cash передаётся только другому Community-side custodian/agent и Community custody/control предметно сохраняется, это не Cash Disbursement настоящего BP; такой факт относится к REF-FIN-016. Если classification неясна, source event остаётся unresolved в custody/internal-movement semantics и может позднее стать основанием для Cash Disbursement recognition только при достаточном основании.
 
 ```text
 cash prepared
@@ -187,6 +191,22 @@ Cash Disbursement amount
 если applicable physical scope действительно завершён как одна выдача.
 
 Universal `1 Cash Disbursement = 1 Payment` не вводится.
+
+Для одного Cash Disbursement:
+
+```text
+sum(recognized outgoing Payments linked to Cash Disbursement)
+≤ Cash Disbursement amount
+```
+
+Если вся сумма Disbursement полностью разрешена именно как outgoing Payments:
+
+```text
+sum(recognized outgoing Payments)
+= Cash Disbursement amount
+```
+
+Если часть physical release имеет иной допустимый смысл либо остаётся unresolved, она должна быть отдельно explainable и не становится Expense, Payment Allocation или write-off автоматически.
 
 ## 10. Immediate refusal / return before completion
 
@@ -423,6 +443,10 @@ cash handed to employee/chairman
 ≠ Payment to that person automatically
 ```
 
+Если лицо получает Community-owned cash только как custodian/agent для дальнейшей оплаты третьим лицам и Community control предметно сохраняется, это internal custody movement и **не Cash Disbursement BP-CASH-002**.
+
+Если отдельная финансовая семантика устанавливает самостоятельный advance/claim между Community и этим Subject, последующая физическая выдача может быть Cash Disbursement и outgoing Payment, но такая accountable-advance semantics должна быть определена отдельно и не выводится из факта выдачи.
+
 Полная accountable/custody semantics относится к REF-FIN-016 либо отдельному будущему процессу.
 
 ## 26. Internal custody transfer
@@ -446,7 +470,7 @@ Community bank funds
 → cash under Community control
 ```
 
-само по себе не является outgoing Payment другому Subject и не создаёт Expense.
+само по себе не является Cash Disbursement настоящего BP, outgoing Payment другому Subject или Expense.
 
 Bank Transaction withdrawal и последующий Cash Disbursement внешней стороне — разные facts.
 
@@ -692,50 +716,73 @@ Same real payout entered twice → Payment correction/idempotency rules.
 CD=2000; 1200 recognized Payment to A; 800 financial meaning unresolved. 800 is not Expense/Payment automatically.
 
 ### 41.24. Long-lived unresolved disbursement
-Cash has left Community control but recipient/purpose cannot be sufficiently resolved. Remains visible for reconciliation/decision; no automatic write-off or Expense.
+Cash has left Community custody/control to an external-side receiver but recipient/purpose cannot be sufficiently resolved. Cash Disbursement remains visible for reconciliation/decision; no automatic write-off or Expense.
+
+### 41.25. Separate Cash Disbursements are not one Payment
+Cashier completes CD1 = 500 to Recipient A. Later another separate CD2 = 500 occurs. They are separate physical money movements and are not silently merged into one Payment 1000.
+
+### 41.26. Additional cash before one Disbursement completes
+Cashier hands 800 and, before the same coherent disbursement is completed, adds 200. This may remain one Cash Disbursement 1000 and one Payment 1000 where recipient semantics are unambiguous.
+
+### 41.27. Partial resolution of one Disbursement
+CD = 2000. Evidence supports Payment 1200 to Recipient A; remaining 800 recipient/purpose unresolved. 800 remains unresolved at outgoing Payment recognition level and is not Expense or Allocation automatically.
+
+### 41.28. Internal custodian handoff then supplier payout
+Cashier gives 5000 to chairman solely as Community custodian: REF-FIN-016 internal movement, no Cash Disbursement/Payment to chairman. Chairman later hands 3000 to Supplier: Cash Disbursement 3000 → outgoing Payment 3000. Remaining 2000 remain Community cash.
+
+### 41.29. Accountable financial advance explicitly recognized
+Applicable future accountable process establishes a genuine financial advance relation Community → Employee for 2000. Physical payout may then be Cash Disbursement 2000 and outgoing Payment 2000 under that relation. Expense is still not created automatically.
+
+### 41.30. Prepared payout exceeds actual physical release
+Authorized payout 3000; cashier physically releases only 2500 and retains 500 before completion. Cash Disbursement = 2500; recognized Payments cannot exceed 2500.
 
 ## 42. Инварианты
 
-1. Cash Disbursement is a cash-channel source/process referent candidate for outgoing physical cash release.
+1. Cash Disbursement is a candidate identity-bearing cash-channel source/process referent for external-side physical cash release.
 2. Cash Disbursement ≠ outgoing Cash Payment.
 3. Cash Disbursement ≠ Expense.
 4. Cash Disbursement ≠ cash document.
 5. Cash Disbursement ≠ Cashbox/CashBalance.
-6. Outgoing Cash Payment is a Payment.
-7. Cash method does not alter Financial Obligation semantics.
-8. Outgoing Payment ≠ Expense.
-9. Outgoing Payment ≠ Payment Allocation.
-10. Cashier/disburser ≠ payer identity; payer is Community.
-11. Physical receiver ≠ financial recipient automatically.
-12. Physical receiver ≠ entitled party automatically.
-13. Prepared cash ≠ Cash Disbursement.
-14. Cash Disbursement amount ≠ requested/authorized amount automatically.
-15. Immediate return/refusal before completion is not a later incoming Payment.
-16. Cash Disbursement alone does not create Payment.
-17. One Cash Disbursement may support 0..N Payments.
-18. One outgoing Cash Payment refers to one Cash Disbursement source.
-19. Separate finalized Cash Disbursements are not silently merged into one Payment.
-20. Cash Disbursement amount without Payment recognition ≠ Expense.
-21. Cash Disbursement amount without Payment recognition ≠ Payment Allocation.
-22. Unknown recipient does not create fake Subject.
-23. Lack of authority does not erase physical Cash Disbursement but blocks automatic Payment recognition.
-24. Cash document does not define Cash Disbursement/Payment identity automatically.
-25. Document without physical payout does not create Cash Disbursement or Payment.
-26. Payment correction belongs to BP-FIN-002.
-27. Allocation correction belongs to BP-FIN-001.
-28. Expense correction belongs to Expense-owning process.
-29. Cash Refund payout uses BP-FIN-003 + cash-channel recognition.
-30. Cash withdrawal from Community bank ≠ outgoing Payment.
-31. Cash withdrawal from Community bank ≠ Expense.
-32. Internal Community cash custody transfer ≠ outgoing external Payment.
-33. Employee/chairman receipt of cash ≠ Payment to that person automatically.
-34. Prepayment may precede Expense/Obligation only where applicable semantics permits.
-35. Fake Expense/Obligation is not created to explain physical disbursement.
-36. Retry/late recording does not create duplicate payout.
-37. Same receiver/amount/date does not prove duplicate.
-38. Long-lived unresolved Cash Disbursement remains visible; no automatic write-off/income/Expense.
-39. Cash reconciliation ≠ Payment recognition.
-40. Universal Cashbox/CashBalance/CashOperation is not introduced by this BP.
+6. Internal Community custody transfer ≠ Cash Disbursement of BP-CASH-002.
+7. Cash withdrawal from Community bank ≠ Cash Disbursement of BP-CASH-002.
+8. Outgoing Cash Payment is a Payment.
+9. Cash method does not alter Financial Obligation semantics.
+10. Outgoing Payment ≠ Expense.
+11. Outgoing Payment ≠ Payment Allocation.
+12. Cashier/disburser ≠ payer identity; payer is Community.
+13. Physical receiver ≠ financial recipient automatically.
+14. Physical receiver ≠ entitled party automatically.
+15. Prepared cash ≠ Cash Disbursement.
+16. Cash Disbursement amount ≠ requested/authorized amount automatically.
+17. Immediate return/refusal before completion is not a later incoming Payment.
+18. Cash Disbursement alone does not create Payment.
+19. Sum of recognized outgoing Payments linked to one Cash Disbursement cannot exceed Cash Disbursement amount.
+20. If the whole Cash Disbursement is resolved specifically as outgoing Payments, linked Payment amounts equal Cash Disbursement amount.
+21. Any remaining Disbursement amount must stay separately explainable and is not automatic Expense/write-off.
+22. One Cash Disbursement may support 0..N Payments.
+23. One outgoing Cash Payment refers to one Cash Disbursement source.
+24. Separate finalized Cash Disbursements are not silently merged into one Payment.
+25. Cash Disbursement amount without Payment recognition ≠ Expense.
+26. Cash Disbursement amount without Payment recognition ≠ Payment Allocation.
+27. Unknown recipient does not create fake Subject.
+28. Lack of authority does not erase physical Cash Disbursement but blocks automatic Payment recognition.
+29. Cash document does not define Cash Disbursement/Payment identity automatically.
+30. Document without physical payout does not create Cash Disbursement or Payment.
+31. Payment correction belongs to BP-FIN-002.
+32. Allocation correction belongs to BP-FIN-001.
+33. Expense correction belongs to Expense-owning process.
+34. Cash Refund payout uses BP-FIN-003 + cash-channel recognition.
+35. Cash withdrawal from Community bank ≠ outgoing Payment.
+36. Cash withdrawal from Community bank ≠ Expense.
+37. Employee/chairman receipt of cash ≠ Payment to that person automatically.
+38. Accountable/custody semantics must determine whether employee/chairman receipt is internal movement or genuine financial Payment.
+39. Prepayment may precede Expense/Obligation only where applicable semantics permits.
+40. Fake Expense/Obligation is not created to explain physical disbursement.
+41. Retry/late recording does not create duplicate Cash Disbursement or Payment automatically.
+42. Same receiver/amount/date does not prove duplicate.
+43. Long-lived unresolved Cash Disbursement remains visible; no automatic write-off/Expense.
+44. Cash reconciliation ≠ Payment recognition.
+45. Universal Cashbox/CashBalance/CashOperation is not introduced by this BP.
 
 ## 43. Что намеренно не решается
 

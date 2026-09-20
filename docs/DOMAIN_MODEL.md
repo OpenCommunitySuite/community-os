@@ -1,7 +1,7 @@
 # Community OS — Domain Model
 
 **Статус:** Draft  
-**Версия:** 0.20  
+**Версия:** 0.21  
 **Язык документа:** русский
 
 > Документ описывает концептуальную предметную модель. Он не определяет структуру хранения, программные классы, API, интерфейсы, механизм исполнения правил или технический аудит.
@@ -337,6 +337,12 @@ Estimated/substitute value и supplier-side settlement quantity не являю�
 Исправление recognized Reading не удаляет исходный Reading молча. Reading correction, новое физическое observation, Consumption recalculation и financial correction являются разными действиями.
 
 **Потребление** (Consumption) — предметно установленное количество ресурса за период и применимую область; оно может основываться на показаниях, расчёте, оценке, норме, замещающих данных или ином допустимом основании. Reading и Consumption не тождественны; Reading сам по себе не создаёт Consumption, Calculated Imbalance, Operational Loss, Accrual или Financial Obligation.
+
+Автоматическое получение/импорт resource values относится к integration semantics и не создаёт отдельный вид Reading. CSV/XLS row, API/telemetry sample либо external device message сначала проходят identification/mapping/validation; recognized Reading возникает только через ту же resource-domain recognition semantics, что и manual value.
+
+External device ID, channel code, source unit и current mapping не являются domain identity. Историческое mapping должно быть применимо к measurement time; late/out-of-order data не присваиваются current Meter Installation автоматически. Redelivery/re-import, external correction, mapping correction и re-recognition различаются и не переписывают Reading history молча.
+
+Unknown/ambiguous external device не создаёт Meter, Accounting Point или Reading автоматически. Missing source data не создаёт zero Reading/Consumption. Batch import может иметь partial success согласно concrete integration semantic contract.
 
 **Контрольная сверка** (Control Reconciliation) — исторически значимый процесс сопоставления связанных данных учёта в определённой области инженерной системы за временной срез или окно. Она сохраняет существенные входы, полноту и отсутствующие данные, применённые правила и преобразования, релевантную топологию, результат и ограничения качества. **Расчётный небаланс** (Calculated Imbalance) — самостоятельный количественный результат такого сопоставления. **Эксплуатационная потеря** (Operational Loss) — отдельно признанное явление утраты ресурса на допустимом для процесса основании. Небаланс не доказывает потерю, хищение, неисправность, долг или неучтённое потребление.
 

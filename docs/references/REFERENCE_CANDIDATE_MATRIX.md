@@ -2,7 +2,7 @@
 
 **Статус:** Working / рабочий документ анализа  
 **Область:** OSBBX, «Мій Дім Online» (МДО), DAH Online  
-**Актуально относительно:** нормативной модели после BP-METER-001; DOMAIN_MODEL 0.19, TERMINOLOGY 0.17  
+**Актуально относительно:** нормативной модели после BP-READING-001; DOMAIN_MODEL 0.20, TERMINOLOGY 0.18  
 **Назначение:** единая точка учёта кандидатов, выявленных во внешних референсах, их текущего состояния в Community OS и последовательности дальнейшей проработки.
 
 > Этот документ не является источником продуктовых требований и не заменяет DOMAIN_MODEL, TERMINOLOGY или ADR. Наличие функции у референса не означает, что она должна быть реализована в Community OS.
@@ -72,7 +72,7 @@
 | REF-SUBJ-001 | Универсальная внешняя сторона: субъект → роль → договор → операция/обязательство | OSBBX, МДО | Зафиксирован `BP-CONTRACT-001`: внешняя сторона остаётся Subject; Contractual Relationship имеет собственную identity в контексте Subject↔Community; Counterparty/PartyRole не вводятся; Supplier остаётся финансовой семантикой Subject; Document/Obligation/Payment/Expense/Use отделены | **Закрыт решением** | Не возвращаться к универсальному Counterparty без нового сценария; multi-party agreements и специализированные договорные случаи исследовать только при реальной потребности |
 | REF-BANK-001 | Импорт/признание/классификация банковских сведений | OSBBX, МДО | Зафиксирован `BP-FIN-BANK-001`: external representation → validation/mapping → Bank Transaction recognition → classification/matching → специализированные финансовые результаты; vendor-specific API semantics не входят в доменную модель | **Закрыт решением** | Конкретные API/XLSX/webhook contracts проектировать отдельно; Payment correction/Refund/Expense остаются специализированными BP |
 | REF-METER-001 | Замена прибора учёта | OSBBX, пилотный СТ | Зафиксирован `BP-METER-001`: replacement сохраняет Accounting Point при неизменной измерительной границе; old/new Meter Installations разделены по effective intervals; boundary Reading optional; gap/overlap, коэффициенты, late recording, duplicate/correction, relocation и topology boundary описаны без `Meter Replacement` entity | **Закрыт решением** | Не возвращаться к фундаментальной модели replacement без нового сценария; общий Reading recognition и эксплуатационные ресурсные процессы вести в Stage 7 |
-| REF-METER-002 | Автоматическое получение/импорт показаний | МДО, OSBBX | ADR-007/011: внешнее значение ≠ Reading; validation/mapping/recognition обязательны | **Следующий** | После базового BP показаний описать автоматический источник как интеграционный процесс |
+| REF-METER-002 | Автоматическое получение/импорт показаний | МДО, OSBBX | Базовый `BP-READING-001` определяет domain recognition Reading независимо от канала; ADR-007/011 сохраняют external representation → validation/mapping → recognition и `Telemetry sample ≠ Reading` | **Следующий** | Описать automatic import/telemetry как интеграционный BP поверх `BP-READING-001`, не создавая отдельную модель Reading |
 | REF-METER-003 | Контрольное снятие и сверка связанных точек учёта | OSBBX, МДО | Control Reconciliation, Calculated Imbalance и Operational Loss уже определены | **Следующий** | Описать практический BP контрольной сверки пилотного СТ |
 | REF-OPS-001 | Обращение → операционная заявка / Work Order | DAH, частично МДО | ADR-009 определяет Appeal и прямо не делает его универсальным workflow; самостоятельная семантика операционной работы не определена | **Следующий** | `BP-OPS-001`: отделить обращение от работы, результата, исполнителя, инфраструктурного объекта и затрат |
 | REF-DOC-001 | Подписание предметно значимого документа | DAH | ADR-009 уже определяет Signing как действие над конкретной Revision/Representation и отличает его от approval/registration/publication | **Частично закрыт** | Исследовать электронное доказательство подписания, внешние подписи и правовые требования; не пересматривать базовую семантику без причины |
@@ -275,15 +275,32 @@ Subject
 
 ### Этап 7. Ресурсные эксплуатационные процессы
 
-**Состояние:** следующий предметный этап.
+**Состояние:** выполняется.
 
-После замены прибора:
+Foundation процесса зафиксирован в `BP-READING-001 — Приём и признание показания`.
 
-1. приём и признание показания;
-2. автоматический импорт показаний;
+Принято:
+
+- observed/reported/received value ≠ Reading;
+- Reading имеет собственную исторически различимую identity;
+- meter-based historical Reading связывается с applicable Meter Installation по measurement time;
+- late/out-of-order values не привязываются к current Meter по record time;
+- universal one-Reading-per-day rule не вводится;
+- duplicate/conflict не решаются только по value/date;
+- owner/manual/control/telemetry/provider values используют одну domain recognition model;
+- automatic recognition допускается по rule/semantic contract без превращения automated mechanism в Subject;
+- rejected/unresolved input ≠ Reading;
+- Reading correction ≠ new observation ≠ Consumption recalculation ≠ financial correction;
+- Reading сам по себе не создаёт Consumption, Calculated Imbalance, Operational Loss или Accrual.
+
+Следующая последовательность Stage 7:
+
+1. **BP-READING-001 — приём и признание показания** — foundation завершён в текущем Draft;
+2. **REF-METER-002 — automatic Reading import/recognition** — следующий;
 3. контрольное снятие;
-4. контрольная сверка;
-5. расчётный небаланс и отдельное признание эксплуатационной потери.
+4. Control Reconciliation;
+5. Calculated Imbalance;
+6. отдельное признание Operational Loss.
 
 **Результат:** набор специализированных BP, а не универсальный Meter Workflow.
 

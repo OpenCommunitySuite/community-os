@@ -1105,20 +1105,20 @@ Community OS использует этот сценарий как провер�
 - отсутствие boundary Reading не отменяет реальный installation fact;
 - замена не создаёт универсальный Meter Workflow или Replacement entity.
 
-## 56. Предварительные нормативные последствия
+## 56. Нормативная синхронизация
 
-Текущие ADR-007, DOMAIN_MODEL и TERMINOLOGY уже содержат фундаментальные сущности и основные границы.
+Новый ADR и новые fundamental entities не требуются.
 
-Новый ADR предварительно не требуется.
+В этой Draft-ветке выполнена точечная синхронизация:
 
-После internal review BP может потребовать точечной синхронизации:
+- ADR-007 — explicit replacement boundary, сохранение Accounting Point, gap/overlap, optional boundary Reading, temporal precision и correction semantics;
+- DOMAIN_MODEL → 0.19 — replacement continuity, boundary Reading semantics, Meter identity/serial/external-ID boundary и correction/recalculation separation;
+- TERMINOLOGY → 0.17 — уточнены Meter, Reading, Accounting Point и Meter Installation;
+- REFERENCE_CANDIDATE_MATRIX — REF-METER-001 закрыт решением; Stage 6 отмечен завершённым, Stage 7 — следующим.
 
-- ADR-007 — explicit replacement boundary, gaps, boundary Reading optionality и correction semantics;
-- DOMAIN_MODEL — уточнение Meter Installation replacement continuity;
-- TERMINOLOGY — mirror-note для Meter Installation / Accounting Point;
-- REFERENCE_CANDIDATE_MATRIX — закрытие REF-METER-001 и переход к Stage 7.
+Новые fundamental entities `Meter Replacement`, `Meter Register`, `Measurement Event`, `Resource Correction` не введены.
 
-Новые fundamental entities `Meter Replacement`, `Meter Register`, `Measurement Event`, `Resource Correction` сейчас не требуются.
+VISION.md не требует изменения: уже принятый принцип непрерывности Accounting Point при замене Meter полностью согласуется с BP-METER-001.
 
 ## 57. Решения internal review
 
@@ -1145,11 +1145,24 @@ Community OS использует этот сценарий как провер�
 
 Новых фундаментальных сущностей или блокирующих предметных вопросов по итогам internal review не выявлено.
 
-## 58. Следующий шаг
+## 58. Текущее состояние и следующий шаг
 
-1. выполнить финальную consistency check против current ADR-004/005/007/010/011, DOMAIN_MODEL и TERMINOLOGY;
-2. точечно синхронизировать ADR-007 / DOMAIN_MODEL / TERMINOLOGY;
-3. закрыть/refine REF-METER-001 в REFERENCE_CANDIDATE_MATRIX;
-4. зафиксировать Stage 6 как завершённый при отсутствии новых противоречий;
-5. после принятия перейти к Stage 7: recognition Reading, automatic import, control reading, Control Reconciliation, Calculated Imbalance и Operational Loss;
-6. дополнительный review запускать только если нормативная синхронизация выявит новое спорное архитектурное решение.
+Draft прошёл:
+
+- internal review against ADR-004/005/007/010/011;
+- проверку against current DOMAIN_MODEL / TERMINOLOGY;
+- practical scenario check по индивидуальным, общим/промежуточным, двухзонным электрическим и водяным Meter пилотного СТ;
+- проверку gap/overlap, missing boundary Reading, coefficient change, same-Meter reinstallation, relocation, changed Accounting Point boundary, late recording, duplicate и correction;
+- нормативную синхронизацию ADR-007 / DOMAIN_MODEL / TERMINOLOGY / REFERENCE_CANDIDATE_MATRIX.
+
+Блокирующих предметных вопросов после internal review не осталось.
+
+Следующий предметный этап после принятия/merge BP-METER-001 — Stage 7 resource operational processes:
+
+1. приём и признание Reading;
+2. автоматический импорт/получение показаний;
+3. контрольное снятие;
+4. Control Reconciliation;
+5. Calculated Imbalance и отдельное признание Operational Loss.
+
+Дополнительный review BP-METER-001 сейчас не инициируется. Возвращаться к фундаментальной модели replacement следует только при новом практическом сценарии или обнаруженном противоречии.

@@ -133,7 +133,7 @@ Payment может быть:
 - incoming Cash Payment относится к `Cash Acceptance`;
 - outgoing Cash Payment относится к `Cash Disbursement`.
 
-Даже если один Cash Acceptance или Cash Disbursement поддерживает несколько Payments, Allocation выполняется отдельно относительно identity и available amount каждого признанного Payment.
+Даже если один Cash Acceptance или Cash Disbursement поддерживает несколько Payments, Allocation выполняется отдельно относительно identity и available amount каждого признанного Payment. И наоборот, если один recognized Payment опирается на несколько Cash Acceptance/Cash Disbursement source referents, это остаётся **одним Payment Allocation scope**: channel-source cardinality не дробит Payment и не создаёт дополнительные Allocation автоматически.
 
 Accepted-but-unrecognized Cash Acceptance amount и Cash Disbursement amount без recognized outgoing Payment не являются Unallocated Remainder и не доступны Initial Allocation до Payment recognition.
 
@@ -813,6 +813,7 @@ Water       → 400
 49. Accepted-but-unrecognized Cash Acceptance amount ≠ Unallocated Remainder and cannot be allocated before Payment recognition.
 50. Cash Disbursement amount without recognized outgoing Payment cannot be allocated or treated as fulfillment.
 51. If one Cash Acceptance or Cash Disbursement supports several Payments, each Payment has its own Allocation scope and available amount.
+52. If one Payment is supported by several cash source referents, Allocation still operates on that Payment identity/available amount; source cardinality does not create multiple Allocation scopes.
 
 ## 33. Связанные документы
 

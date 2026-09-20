@@ -803,9 +803,9 @@ Water       → 400
 44. Provenance must explain confirmed Allocation without universal Audit entity.
 45. Excess applied amount from BP-FIN-005 is not available for new Initial Allocation while current effective financial use still accounts for it.
 46. Excess applied amount ≠ automatic Overpayment.
-45. Cash Acceptance ≠ Payment and is not a source for Initial Allocation directly.
-46. Accepted-but-unrecognized Cash Acceptance amount ≠ Unallocated Remainder and cannot be allocated before Payment recognition.
-47. If one Cash Acceptance supports several Payments, each Payment has its own Allocation scope and available amount.
+47. Cash Acceptance ≠ Payment and is not a source for Initial Allocation directly.
+48. Accepted-but-unrecognized Cash Acceptance amount ≠ Unallocated Remainder and cannot be allocated before Payment recognition.
+49. If one Cash Acceptance supports several Payments, each Payment has its own Allocation scope and available amount.
 
 ## 33. Связанные документы
 

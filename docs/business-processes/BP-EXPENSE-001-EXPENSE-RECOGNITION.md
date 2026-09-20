@@ -155,6 +155,22 @@ Universal `1 Expense = 1 Financial Obligation` не вводится.
 
 Такая связь объясняет, какая часть monetary claim имеет соответствующий expense meaning; она не является Payment Allocation и не создаёт/исполняет Financial Obligation.
 
+### 8.1. Monetary scope Expense ↔ Obligation
+
+Если связь Expense↔Financial Obligation используется как additive monetary attribution, должны соблюдаться ограничения против двойного учёта:
+
+```text
+sum(expense-attributed scopes of one Obligation)
+≤ Obligation amount
+
+sum(obligation-attributed scopes explaining one Expense)
+≤ Expense amount
+```
+
+Равенство не обязательно: Financial Obligation может включать non-Expense monetary meaning, а Expense может иметь basis, не представленный Financial Obligation.
+
+Эти ограничения не являются Payment Allocation и не определяют очередность исполнения Obligation.
+
 ## 9. Expense ↔ Payment
 
 Outgoing Payment не создаёт Expense автоматически.
@@ -173,6 +189,22 @@ Outgoing Payment не создаёт Expense автоматически.
 Если direct Payment↔Expense relation имеет monetary scope, этот scope должен быть исторически объясним и не может использоваться как второй Payment Allocation.
 
 Если Payment уже связан с Financial Obligation, Expense обычно может объясняться через obligation-scope; direct Payment↔Expense relation не является universal mandatory.
+
+### 9.1. Monetary scope direct Expense ↔ Payment relation
+
+Direct Expense↔Payment relation не вводит второй механизм исполнения обязательств.
+
+Если такая relation всё же несёт attributable amount для traceability/reconciliation, то при additive mutually exclusive attribution:
+
+```text
+sum(expense-attributed scopes of one Payment)
+≤ Payment amount
+
+sum(payment-attributed scopes explaining one Expense)
+≤ Expense amount
+```
+
+Эта связь не должна одновременно изображать ту же monetary portion как независимый второй Payment Allocation. Если settlement уже объясняется через Financial Obligation + Payment Allocation, direct Expense↔Payment relation должна оставаться согласованной с этой семантикой и не создавать двойного финансового эффекта.
 
 ## 10. Payment without Expense
 
@@ -202,12 +234,15 @@ Expense может существовать до фактической опла
 
 Expense может быть признан до фактического использования/Payment, если sufficient basis и applicable authority/policy уже устанавливают конкретное предметно признанное intended use средств с определимыми purpose/activity, scope и amount/currency.
 
+Само наличие Management Decision, Contractual Relationship, договора, заказа, estimate или Budget reservation недостаточно: применимая financial-management semantics должна **явно** считать этот конкретный committed/intended-use case уже возникшим Expense.
+
 Proposal, estimate, Budget reservation либо намерение, ещё не получившее такого предметного признания, Expense не являются.
 
 Пример:
 
 ```text
 competent decision / contract
++ applicable policy recognizes this concrete committed use as Expense
 → concrete repair Expense 30 000
 → Supplier/Obligation/Payment may follow later
 ```
@@ -254,6 +289,22 @@ pump electricity consumption
 Resource context owns Consumption; finance context owns Expense.
 
 Correction Consumption не переписывает Expense silently; owning financial process решает recalculation/correction consequences.
+
+### 15.1. Calculated Imbalance / Operational Loss ≠ Expense automatically
+
+Расчётный небаланс и признанная эксплуатационная потеря принадлежат resource-domain semantics и не становятся Expense автоматически.
+
+Если applicable financial-management semantics устанавливает, что Community принимает на себя определённую денежную стоимость такого resource loss, отдельный Expense может быть признан на sufficient valuation/basis.
+
+```text
+resource imbalance / operational loss
+≠ Expense automatically
+
+recognized Community financial burden for that loss
+→ Expense where justified
+```
+
+Распределение resource loss между собственниками, начисление компенсации и Expense сообщества являются разными процессами и не выводятся друг из друга автоматически.
 
 ## 16. Pilot ST — pump electricity
 
@@ -786,7 +837,22 @@ Competent basis establishes emergency repair 15 000 not present in current Budge
 Cash Disbursement/Payment 5 000 occurred without valid spending basis and is under dispute. Do not create Expense 5 000 merely to reconcile the outflow; financial meaning remains unresolved/specialized until sufficient basis exists.
 
 ### 49.27. Concrete intended use vs generic plan
-Budget contains 300 000 annual repair plan: no Expense yet. Later competent decision/contract fixes a specific pump-station repair use 30 000 on sufficient basis: prospective Expense may now be recognized before Payment where applicable semantics permits.
+Budget contains 300 000 annual repair plan: no Expense yet. Later competent decision/contract fixes a specific pump-station repair use 30 000 on sufficient basis. Prospective Expense may be recognized before Payment only if applicable financial-management semantics explicitly recognizes this concrete committed use as Expense.
+
+### 49.28. Loan principal and interest
+Community repays 20 000 principal and 1 000 interest/fee.
+
+Principal repayment is Payment/Obligation settlement and does not become Expense automatically. Interest/fee may have Expense meaning on sufficient basis.
+
+### 49.29. Purchase of durable equipment
+Community purchases a pump for 40 000.
+
+Community OS may recognize a 40 000 financial-management Expense if applicable semantics treats the acquisition as use of Community funds for the relevant purpose. Whether external regulated accounting records the pump as inventory/fixed asset and depreciates it is outside BP-EXPENSE-001 and does not redefine the Community OS Expense automatically.
+
+### 49.30. Resource loss financially borne by Community
+Resource context recognizes an operational electricity loss valued at 2 000.
+
+Loss fact alone creates no Expense. If applicable financial policy establishes that Community bears this 2 000 cost, a separate Expense may be recognized; if the amount is charged onward to owners, the resulting accruals/obligations remain separate facts.
 
 ## 50. Инварианты
 
@@ -846,6 +912,11 @@ Budget contains 300 000 annual repair plan: no Expense yet. Later competent deci
 54. Expense Financing requires a recognized Expense; pre-recognition source assignment is proposal/planning semantics.
 55. Expense Financing does not settle an Obligation and does not prove a specific Payment funded the Expense.
 56. Additive Expense Financing must not double-count the same monetary portion of Expense.
+57. Additive Expense↔Obligation attribution must not exceed the relevant Obligation/Expense monetary scope.
+58. Additive direct Expense↔Payment attribution must not double-count a Payment amount or create a second Payment Allocation effect.
+59. Calculated Imbalance / Operational Loss ≠ Expense automatically.
+60. Loan principal repayment ≠ Expense automatically.
+61. External accounting treatment as inventory/fixed asset/depreciation does not define Community OS Expense automatically.
 
 ## 51. Что намеренно не решается
 
@@ -886,7 +957,8 @@ Budget contains 300 000 annual repair plan: no Expense yet. Later competent deci
 - `BP-CASH-001-CASH-PAYMENT-RECEIPT.md`;
 - `BP-CASH-002-CASH-PAYMENT-DISBURSEMENT.md`;
 - REFERENCE_CANDIDATE_MATRIX;
-- OSBBX_REFERENCE_ANALYSIS.
+- OSBBX_REFERENCE_ANALYSIS;
+- `docs/process/INDEPENDENT_MULTI_REVIEW.md`.
 
 ## 53. Предварительные нормативные последствия
 
@@ -927,9 +999,10 @@ Budget contains 300 000 annual repair plan: no Expense yet. Later competent deci
 
 ## 55. Следующий шаг
 
-1. internal review against ADR-003/004/005/006/008/010/011 and neighboring finance BP;
-2. pilot-ST scenario check;
-3. independent Claude review;
-4. point fixes;
-5. normative synchronization and close/refine REF-FIN-010;
-6. determine next Stage 5/6 priority.
+1. завершить internal review against current ADR-003/004/005/006/008/010/011, DOMAIN_MODEL/TERMINOLOGY и neighboring finance BP;
+2. проверить pilot-ST scenarios и открытые вопросы §54;
+3. после стабилизации Draft сформировать frozen review package согласно `INDEPENDENT_MULTI_REVIEW.md`;
+4. выполнить необходимый independent review / multi-review без повторного review уже закрытых cash-boundaries;
+5. внести только принятые point fixes;
+6. синхронизировать нормативные документы и закрыть/refine REF-FIN-010;
+7. определить следующий Stage 5/6 priority.

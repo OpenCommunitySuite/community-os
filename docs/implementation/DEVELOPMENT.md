@@ -45,6 +45,8 @@ AI-assisted development и AI coding agents допустимы как инстр
 
 Generated implementation проходит те же compiler, formatting, static, architecture, test, diff и review gates, что и human-written code. Проект не зависит от конкретного AI product или provider.
 
+Для существенных предметных и архитектурных изменений применяется процесс [Independent Multi-Review](../process/INDEPENDENT_MULTI_REVIEW.md): независимые рецензенты работают с одним замороженным review package, а их выводы проходят отдельный синтез и сверку с repository source of truth.
+
 ## 5. Reproducibility и data safety
 
 Local и CI workflows должны использовать один reproducible set of build/test commands. Для .NET baseline standard entry points — `dotnet build` и `dotnet test`; Application Bootstrap фиксирует необходимые toolchain/package/image pins в repository configuration.

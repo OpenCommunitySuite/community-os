@@ -621,7 +621,16 @@ Account B → incoming Bank Transaction
 - не создаёт заново индивидуальные Payments плательщиков;
 - не определяет состав и распределение внесённой наличности только по банковским данным.
 
-Индивидуальные наличные Payments признаются соответствующим кассовым процессом. Bank Transaction внесения наличности может быть связана с уже признанными cash-side facts для reconciliation/provenance при наличии достаточного основания. Источник разбивки суммы относится к кассовому контуру или иному независимому основанию, а не выводится из самой Bank Transaction.
+Индивидуальные наличные Payments признаются соответствующим кассовым процессом. В cash-channel понятие `cash-side facts` включает прежде всего identity-bearing `Cash Acceptance` referents и связанные с ними recognized Cash Payments.
+
+Bank Transaction внесения наличности может быть связана с одним или несколькими Cash Acceptance и/или recognized Cash Payments для reconciliation/provenance при наличии достаточного основания. Такая связь:
+
+- не превращает Cash Acceptance в Payment;
+- не создаёт новый Payment из Bank Transaction;
+- не требует universal 1:1 между Bank Transaction, Cash Acceptance и Payment;
+- не позволяет выводить состав агрегированного bank deposit только из банковских данных.
+
+Источник разбивки суммы относится к кассовому контуру или иному независимому основанию, а не выводится из самой Bank Transaction.
 
 Предметный смысл других входящих движений определяется специализированным финансовым процессом.
 
@@ -873,13 +882,14 @@ Bank Transaction recognized; Payment/Expense only through applicable financial p
 
 ### 53.11. Внесение агрегированной наличности на банковский счёт
 
-До банковского внесения применимый кассовый процесс уже признал, например, несколько индивидуальных наличных Payments.
+До банковского внесения применимый кассовый процесс уже имеет соответствующие Cash Acceptance referents и, где recognition завершено, индивидуальные Cash Payments.
 
 Появившаяся incoming Bank Transaction на общую сумму:
 
 - не создаёт новый Payment от кассира/председателя;
 - не создаёт повторно индивидуальные cash Payments;
-- может быть сопоставлена с cash-side facts для reconciliation/provenance при достаточном основании;
+- может быть сопоставлена с Cash Acceptance и/или recognized Cash Payments для reconciliation/provenance при достаточном основании;
+- не обязана иметь universal 1:1 связь ни с Cash Acceptance, ни с Cash Payments;
 - остаётся без искусственной разбивки, если независимого источника состава внесённой суммы недостаточно.
 
 ### 53.12. Вторая сторона собственного перевода поступила позже
@@ -961,6 +971,9 @@ Imported representation содержит календарную дату без 
 57. Source temporal precision is preserved; date-only source data does not justify inventing an actual transaction time.
 58. Proposed or automatically calculated allocation ≠ actual Payment Allocation until established by the applicable financial process.
 59. Hide/delete-like UI disposition does not erase an already recognized Bank Transaction.
+60. Cash Acceptance ≠ Cash Payment ≠ Bank Transaction.
+61. Aggregated cash deposit reconciliation may link Bank Transaction to Cash Acceptance and/or recognized Cash Payments without imposing universal 1:1 cardinality.
+62. Bank data alone does not determine which Cash Acceptance or Cash Payments compose an aggregated deposit.
 
 ## 55. Нормативные последствия
 
@@ -997,6 +1010,7 @@ Bank-specific fields по-прежнему не переносятся в уни
 - ADR-016;
 - `BP-CONTRACT-001-CONTRACTUAL-RELATIONSHIP.md`;
 - `BP-FIN-ALLOCATION-001-INITIAL-PAYMENT-ALLOCATION.md`;
+- `BP-CASH-001-CASH-PAYMENT-RECEIPT.md`;
 - `BP-FIN-001-PAYMENT-REALLOCATION.md`;
 - OSBBX reference analysis;
 - Мій Дім Online reference analysis;

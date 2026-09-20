@@ -128,6 +128,10 @@ Payment может быть:
 - наличным;
 - иным допустимым способом.
 
+Для cash-channel Initial Allocation применяется только к уже признанному Cash Payment. `Cash Acceptance` является source/process referent физического приёма наличных и не может быть Allocation target/source вместо Payment. Даже если один Cash Acceptance впоследствии поддерживает несколько Payments, Allocation выполняется отдельно относительно identity и available amount каждого признанного Payment.
+
+Accepted-but-unrecognized Cash Acceptance amount не является Unallocated Remainder и не доступен Initial Allocation до Payment recognition.
+
 Направление и способ Payment не определяют правила Allocation автоматически. Настоящий BP применим как к исполнению обязательств перед Community, так и к исполнению обязательств самого Community перед другими сторонами, если соответствующая финансовая семантика допускает Allocation.
 
 ## 7. Доступная сумма
@@ -799,6 +803,9 @@ Water       → 400
 44. Provenance must explain confirmed Allocation without universal Audit entity.
 45. Excess applied amount from BP-FIN-005 is not available for new Initial Allocation while current effective financial use still accounts for it.
 46. Excess applied amount ≠ automatic Overpayment.
+47. Cash Acceptance ≠ Payment and is not a source for Initial Allocation directly.
+48. Accepted-but-unrecognized Cash Acceptance amount ≠ Unallocated Remainder and cannot be allocated before Payment recognition.
+49. If one Cash Acceptance supports several Payments, each Payment has its own Allocation scope and available amount.
 
 ## 33. Связанные документы
 

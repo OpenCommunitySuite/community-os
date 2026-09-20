@@ -1,7 +1,7 @@
 # Community OS — Терминология проекта
 
 **Статус:** Draft  
-**Версия:** 0.17  
+**Версия:** 0.18  
 **Язык документа:** русский
 
 ---
@@ -246,11 +246,43 @@
 
 # 14. Показание
 
-**Показание** (Reading) — предметно признанное значение, относящееся к измерению ресурса и имеющее достаточный для соответствующего процесса контекст.
+**Показание** (Reading) — предметно признанное значение, относящееся к измерению ресурса и имеющее достаточный для соответствующего процесса контекст и собственную исторически различимую identity.
 
-Полученное, импортированное или телеметрическое значение не становится показанием автоматически. В зависимости от процесса могут быть значимы точка учёта, прибор и установка, значение и единица, предметное время, источник, сообщивший, зафиксировавший или признавший субъект, автоматическое происхождение, основание и способ получения. Универсальный обязательный набор таких сведений не вводится.
+Наблюдаемое, сообщённое, полученное, импортированное или телеметрическое значение не становится Reading автоматически. Domain recognition выполняется resource context согласно applicable validation, authority, rules и provenance.
 
-Конечное показание старой Meter Installation и начальное показание новой, если признаны при замене прибора, являются обычными Reading соответствующих установок. Отсутствие такого Reading не отменяет реальный installation fact и не заменяется фиктивным значением. New initial Reading не обязан быть нулевым или совпадать с old final Reading.
+Reading identity не определяется универсально сочетанием Accounting Point/date/value либо Meter serial/value. Совпадение числа и времени не доказывает duplicate, а повторная доставка одного measurement fact не должна автоматически создавать новый Reading.
+
+Для обычного meter-based Reading должна быть определима historically applicable Meter Installation по measurement time. Late/out-of-order Reading не относится к current Meter только потому, что записано позже. При иной допустимой measurement semantics конкретный процесс может признать Reading относительно Accounting Point без фиктивного Meter.
+
+В зависимости от процесса могут быть значимы:
+
+- Accounting Point;
+- Meter и Meter Installation;
+- value;
+- unit / scale;
+- measurement channel/semantics;
+- measurement time и temporal precision;
+- source;
+- reporting Subject where applicable;
+- User Account/access context where applicable;
+- recognition Subject либо automatic rule/process;
+- basis/Rule Version;
+- external source/provenance;
+- correction/conflict/quality limitations.
+
+Универсальный обязательный набор полей не вводится.
+
+Конечное Reading старой Meter Installation и начальное Reading новой, если признаны при замене прибора, являются обычными Reading соответствующих установок. Отсутствие такого Reading не отменяет installation fact. New initial Reading не обязан быть нулевым или совпадать с old final Reading.
+
+Received value может быть recognized, rejected либо unresolved в owning process. Rejected/unresolved value не является Reading. Universal Reading Candidate/Submission/Rejection entity не вводится.
+
+Value lower than previous, equal value, large jump или conflict сами по себе не определяют invalidity, duplicate, Consumption или Operational Loss без applicable context/rule.
+
+Estimated/substitute value и supplier-calculated settlement quantity не являются Reading автоматически. Raw и converted representations одного measurement fact не создают две Reading identities автоматически.
+
+Исправление recognized Reading сохраняет original Reading и sufficient correction provenance; Reading correction не является новым physical observation, Consumption recalculation или financial correction автоматически.
+
+Reading сам по себе не создаёт Consumption, Calculated Imbalance, Operational Loss, Accrual или Financial Obligation.
 
 ---
 

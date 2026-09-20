@@ -1,7 +1,7 @@
 # Community OS — Терминология проекта
 
 **Статус:** Draft  
-**Версия:** 0.13  
+**Версия:** 0.14  
 **Язык документа:** русский
 
 ---
@@ -484,13 +484,38 @@ Late/offline recording Cash Acceptance не создаёт нового физи
 
 ---
 
+# 27.4. Выдача наличных (Cash Disbursement)
+
+**Cash Disbursement (выдача наличных)** — исторически значимый outgoing cash-channel source/process fact, фиксирующий physical release определённой суммы наличных в определённой currency из Community custody/control к external-side physical receiver в рамках одного coherent disbursement scope, когда Community custody/control над этой суммой предметно прекращено.
+
+Cash Disbursement имеет собственную identity независимо от Payment, Expense и cash document. Он может существовать до Payment recognition либо без него.
+
+Cash Disbursement не является Payment, Payment Allocation, Financial Obligation, Expense, кассовым документом, Cashbox, CashBalance или универсальной CashOperation.
+
+**Cash Disbursement completion** — предметная граница завершения coherent physical release. До completion дополнительные суммы и immediate refusal/return могут оставаться частью того же source fact; после completion отдельная physical release получает новую Cash Disbursement identity. Completion не является Payment/Expense recognition и не требует universal lifecycle/status machine.
+
+Один Cash Disbursement может поддерживать `0..N` outgoing Cash Payments. Один outgoing Cash Payment относится к одному Cash Disbursement source; несколько завершённых самостоятельных Cash Disbursements не объединяются молча в один Payment.
+
+Internal custody handoff при сохранении Community custody/control и withdrawal с собственного банковского счёта Community не являются Cash Disbursement настоящего смысла. Если external-vs-custody classification пока неразрешима, source handoff остаётся unresolved и не становится Disbursement/Payment по умолчанию.
+
+Physical receiver не становится автоматически financial recipient или entitled party. Later authority confirmation может дать основание для Payment recognition из исходного Cash Disbursement без переписывания original physical event time.
+
+Неразрешённая сумма Cash Disbursement не становится автоматически Expense, Payment Allocation, loss или write-off.
+
+---
+
 # 28. Наличный платёж
 
 **Наличный платёж** — платёж, совершённый наличными денежными средствами; он может быть входящим или исходящим.
 
-Наличный платёж имеет тот же предметный смысл движения средств, что и платёж иным способом. Для cash-channel recognized Payment его source referent — Cash Acceptance. Один Cash Acceptance может поддерживать несколько Cash Payments, если он содержит доказуемо разные money movements, но один Cash Payment не объединяет несколько завершённых самостоятельных Cash Acceptances.
+Наличный платёж имеет тот же предметный смысл движения средств, что и платёж иным способом. Cash-channel source referent зависит от направления:
 
-Лицо, физически принимающее или фиксирующее наличные, не становится автоматически получателем как стороной финансового отношения; физический tenderer, acting acceptor, payer, obligated Subject и recipient различаются.
+- incoming Cash Payment относится к Cash Acceptance;
+- outgoing Cash Payment относится к Cash Disbursement.
+
+Channel-side referent не является Payment и не определяет его identity/cardinality автоматически. Один Cash Acceptance или Cash Disbursement может поддерживать несколько Payments только если evidence/domain semantics подтверждают несколько самостоятельных money movements; один Cash Payment не объединяет несколько завершённых самостоятельных source events.
+
+Физический tenderer/receiver, acting acceptor/disburser, payer, recipient, obligated и entitled parties различаются и не отождествляются автоматически.
 
 ---
 

@@ -88,7 +88,7 @@ Cash method не создаёт отдельную модель Financial Obliga
 
 Для Draft вводится рабочее понятие:
 
-**Cash Disbursement (выдача наличных)** — historically significant cash-channel source/process fact/referent, фиксирующий physical release определённой суммы наличных в определённой currency из Community custody/control к external-side physical receiver в рамках одного coherent disbursement scope, когда выдача является кандидатом на outgoing financial movement.
+**Cash Disbursement (выдача наличных)** — historically significant cash-channel source/process fact/referent, фиксирующий physical release определённой суммы наличных в определённой currency из Community custody/control к external-side physical receiver в рамках одного coherent disbursement scope, когда Community custody/control над этой суммой предметно прекращено независимо от того, удалось ли уже признать outgoing Payment.
 
 Cash Disbursement:
 
@@ -102,7 +102,13 @@ Cash Disbursement:
 - не определяет Payment identity/cardinality автоматически;
 - сам по себе не доказывает, что physical receiver является financial recipient.
 
-Если cash передаётся только другому Community-side custodian/agent и Community custody/control предметно сохраняется, это не Cash Disbursement настоящего BP; такой факт относится к REF-FIN-016. Если classification неясна, source event остаётся unresolved в custody/internal-movement semantics и может позднее стать основанием для Cash Disbursement recognition только при достаточном основании.
+Граница классификации:
+
+1. если evidence подтверждает, что cash вышел из Community custody/control к external-side receiver, Cash Disbursement существует даже если financial recipient/purpose ещё unresolved;
+2. если receiver принимает cash как Community-side custodian/agent и Community custody/control предметно сохраняется, это internal custody movement REF-FIN-016, а не Cash Disbursement;
+3. если невозможно пока определить, прекратился ли Community custody/control, source handoff должен оставаться **явно unresolved** в границе REF-FIN-016; Cash Disbursement и Payment не создаются до достаточного resolution.
+
+Unresolved handoff не может быть молча отброшен, скрыт либо автоматически переклассифицирован по истечении времени. Если позднее установлено, что исходный handoff фактически был external release, Cash Disbursement фиксируется с сохранением исходного physical event time и отдельного later classification/recording time.
 
 ```text
 cash prepared
@@ -111,6 +117,24 @@ cash prepared
 ```
 
 Cash Disbursement возникает только после фактического release наличных из Community-side control. Подготовленные, пересчитанные или оформленные к выдаче деньги, которые фактически не были переданы, Cash Disbursement не создают.
+
+### 5.1. Cash Disbursement completion
+
+**Cash Disbursement completion** — предметная граница, после которой конкретный coherent physical release считается завершённым, а его фактическая сумма, currency, physical receiver и event time достаточно определены для исторического source fact.
+
+Completion:
+
+- не является Payment recognition;
+- не является cash-document issuance/signature;
+- не является Expense recognition;
+- не требует универсального lifecycle/status machine;
+- может быть зафиксирован позднее по достаточному offline/manual evidence.
+
+До completion дополнительные купюры/суммы либо немедленный отказ/возврат могут оставаться частью того же coherent Disbursement scope.
+
+После completion последующая отдельная physical release создаёт новый Cash Disbursement source fact.
+
+Универсальный timeout или технический UI-event не определяет completion автоматически; applicable cash process должен позволять объяснить, почему физический scope считался завершённым.
 
 ## 6. Community как payer
 

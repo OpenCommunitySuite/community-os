@@ -1038,6 +1038,8 @@ Expense может существовать без Budget Item, до Payment и,
 
 Expense Budget Distribution не является Payment Allocation, не меняет Expense identity и не создаёт Budget либо Funding Source. Один Expense может относиться к нескольким Budget Items, а одна Budget Item — к нескольким Expenses. Для additive mutually exclusive portions сумма распределения не превышает Expense amount; при полном распределении равна ему.
 
+---
+
 # 56. Источник финансирования
 
 **Источник финансирования** — предметная классификация происхождения средств сообщества. Он может применяться к полученным или иным доступным средствам независимо от того, возник ли уже конкретный расход.

@@ -962,47 +962,62 @@ Loss fact alone creates no Expense. If applicable financial policy establishes t
 
 ## 53. Предварительные нормативные последствия
 
-Предварительно новый ADR и новая fundamental entity не требуются: Expense, Budget, Budget Item, Funding Source, Use Direction и Expense Financing уже присутствуют в нормативной модели.
+По итогам internal review новый ADR и новая fundamental entity предварительно не требуются: Expense, Budget, Budget Item, Funding Source, Use Direction и Expense Financing уже присутствуют в нормативной модели.
 
-После review проверить:
+Если BP будет принят, потребуется точечная нормативная синхронизация:
 
-- достаточно ли Expense identity/basis semantics;
-- нужна ли normative фиксация Expense Budget Distribution;
-- корректны ли additive amount constraints;
-- нужна ли amount-bearing relation Expense↔Obligation/Payment;
-- достаточно ли Expense Financing semantics;
-- нужны ли mirror notes в payment/bank/cash BP;
-- можно ли закрыть REF-FIN-010;
-- нужен ли отдельный candidate/BP для Expense Correction.
+- ADR-006 — уточнить Expense identity/recognition boundary, Expense Budget Distribution и amount-scoped relations без превращения их в Payment Allocation;
+- DOMAIN_MODEL — зафиксировать Expense identity, relation cardinality/amount-scope и Budget Distribution boundary;
+- TERMINOLOGY — при необходимости зарегистрировать `Expense Budget Distribution` как специализированную relation/action, не как универсальную Financial Allocation;
+- BP-FIN-BANK-001 / BP-CASH-002 — при необходимости добавить mirror-note, что outgoing movement не создаёт Expense автоматически и Expense relation не меняет Payment identity;
+- REFERENCE_CANDIDATE_MATRIX — после принятия BP закрыть либо уточнить REF-FIN-010.
 
-## 54. Открытые вопросы для review
+Отдельный Expense Correction BP сейчас не вводится: minimal no-silent-rewrite/correction boundary уже задан §43–45. Возвращаться к специализированному correction process следует только при самостоятельных практических сценариях.
 
-1. является ли Expense concrete use/intended-use case с обязательным amount/currency;
-2. не дублирует ли prospective Expense Budget/Management Decision;
-3. где проходит identity boundary one Expense vs several Expenses;
-4. нужна ли explicit amount-bearing Expense↔Obligation relation;
-5. нужна ли direct Expense↔Payment relation либо достаточно Obligation/Allocation context;
-6. корректен ли pilot scenario 10 000 obligation / 3 000 Community Expense;
-7. корректна ли one Expense→multiple Budget Items model;
-8. нужен ли `Expense Budget Distribution` как process relation или это уже отдельная entity;
-9. должны ли Budget Distribution amounts всегда sum to Expense amount when complete;
-10. как трактовать Budget Items, если они аналитически перекрываются;
-11. должен ли off-budget Expense всегда быть допустим;
-12. корректно ли Expense Financing total ≤ Expense amount;
-13. когда Expense Financing может возникнуть относительно Payment;
-14. можно ли Funding Source выводить из incoming Payment/PA/Budget Item автоматически;
-15. достаточно ли Use Direction boundary;
-16. нужен ли separate Expense Correction BP;
-17. какие downstream effects у Expense correction;
-18. нужна ли direct link Supplier/Contractual Relationship;
-19. какие части REF-FIN-010 можно закрыть после этого BP.
+## 54. Решения internal review
+
+1. **Expense имеет обязательный amount/currency для recognition.** Generic qualitative intent без достаточно определимой monetary scope остаётся plan/proposal, а не recognized Expense.
+2. **Prospective Expense допустим, но не выводится из Budget/Management Decision/Contract автоматически.** Нужна applicable financial-management semantics, явно признающая конкретный committed/intended-use case Expense.
+3. **Expense identity не определяется source cardinality.** Рабочая граница — coherent financial-management use case: purpose/activity, basis, materially significant scope и историческая explainability.
+4. **Amount-bearing Expense↔Financial Obligation relation нужна.** Она необходима для mixed obligations, где только часть денежного требования имеет Expense meaning.
+5. **Direct Expense↔Payment relation остаётся optional.** Она нужна для traceability/reconciliation и immediate-settlement cases без отдельно признанного persistent Obligation, но не является вторым Payment Allocation.
+6. **Pilot scenario 10 000 Obligation / 3 000 Community Expense корректен.** Supplier Obligation/Payment cardinality не определяет Expense amount.
+7. **One Expense → multiple Budget Items допустим.** Budget classification не должна искусственно дробить coherent Expense.
+8. **Expense Budget Distribution принимается как specialized relation/action, не новая fundamental entity.**
+9. **Additive Budget Distribution:** сумма распределённых mutually exclusive portions не превышает Expense amount; при полном распределении равна ему.
+10. **Overlapping analytical Budget Items не подчиняются additive rule молча.** Для такой модели нужна отдельная explicit semantics.
+11. **Off-budget Expense должен быть представим.** Off-budget ≠ unauthorized; Budget variance/nonconformance не скрывает реальный Expense. При этом disputed/unauthorized money movement не становится Expense автоматически только ради reconciliation.
+12. **Additive Expense Financing total ≤ Expense amount.** Double-count одного monetary portion запрещён.
+13. **Expense Financing может быть признано до или после outgoing Payment**, потому что описывает financial-management coverage источником средств, а не исполнение Obligation/Payment.
+14. **Funding Source не выводится автоматически** из incoming Payment, Personal Account, Budget Item, Bank Account или payment method.
+15. **Use Direction boundary достаточна:** Use Direction ≠ Budget Item ≠ Funding Source ≠ Expense Financing; автоматическое mapping допускается только по explicit rule/policy.
+16. **Отдельный Expense Correction BP сейчас не нужен.** Confirmed Expense не редактируется/удаляется silently; специализированный BP вводится только при самостоятельной практической потребности.
+17. **Expense correction не запускает universal cascade.** Related Obligation, Payment relation, Budget Distribution и Expense Financing revalidate/dispose отдельно согласно owning semantics.
+18. **Supplier / Contractual Relationship — optional context/basis Expense, не обязательная identity relation.** Expense может существовать без Supplier.
+19. **REF-FIN-010 предметно покрывается этим BP.** Закрывать его следует после принятия BP и нормативной синхронизации.
+
+### 54.1. Открытый локальный вопрос пилотного СТ
+
+Остаётся один вопрос, который нельзя универсально решить из действующей нормативной модели:
+
+> Должна ли индивидуально возмещаемая часть supplier cost (например, электроэнергия участков, которую Community оплачивает поставщику, а затем начисляет собственникам) иметь самостоятельный `Expense` meaning Community, либо для пилотного СТ Expense отражает только собственное/common use Community?
+
+Действующая модель однозначно требует только следующего:
+
+- Supplier Obligation/Payment не создаёт Expense автоматически;
+- individual consumption / owner accrual / supplier obligation / payment / Community Expense — разные facts;
+- pump/common-use portion может быть Expense Community;
+- recoverable portion не должна автоматически становиться Expense только потому, что Community рассчиталось с Supplier.
+
+Окончательная локальная policy по recoverable supplier cost не блокирует принятие универсального BP-EXPENSE-001, если BP сохраняет обе семантически допустимые модели без автоматической классификации.
 
 ## 55. Следующий шаг
 
-1. завершить internal review against current ADR-003/004/005/006/008/010/011, DOMAIN_MODEL/TERMINOLOGY и neighboring finance BP;
-2. проверить pilot-ST scenarios и открытые вопросы §54;
+1. выполнить финальную internal consistency check Draft против current ADR-003/004/005/006/008/010/011, DOMAIN_MODEL/TERMINOLOGY и neighboring finance BP;
+2. отдельно проверить pilot-ST examples и локальный вопрос §54.1;
 3. после стабилизации Draft сформировать frozen review package согласно `INDEPENDENT_MULTI_REVIEW.md`;
-4. выполнить необходимый independent review / multi-review без повторного review уже закрытых cash-boundaries;
+4. выполнить предусмотренный процессом independent review / multi-review **одним раундом по стабильному Draft**, не возвращаясь к уже закрытым cash-boundaries без нового сценария;
 5. внести только принятые point fixes;
 6. синхронизировать нормативные документы и закрыть/refine REF-FIN-010;
 7. определить следующий Stage 5/6 priority.
+

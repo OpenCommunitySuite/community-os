@@ -91,7 +91,8 @@ Community OS создаётся не как программа для одног
 - [архитектурные решения (ADR)](docs/architecture/adr/);
 - [Implementation Baseline](docs/implementation/IMPLEMENTATION_BASELINE.md);
 - [workflow разработки](docs/implementation/DEVELOPMENT.md);
-- [стратегия тестирования](docs/implementation/TESTING.md).
+- [стратегия тестирования](docs/implementation/TESTING.md);
+- [Independent Multi-Review](docs/process/INDEPENDENT_MULTI_REVIEW.md).
 
 ---
 
@@ -117,6 +118,8 @@ Community OS создаётся не как программа для одног
 5. разработка;
 6. тестирование;
 7. включение в релиз.
+
+Существенные предметные и архитектурные изменения проходят независимое рецензирование согласно [Independent Multi-Review](docs/process/INDEPENDENT_MULTI_REVIEW.md) до фиксации решения и передачи в реализацию.
 
 ---
 

@@ -63,6 +63,8 @@ Document
 
 Новая фундаментальная сущность `Receipt`, `CashReceipt`, `PrintedReceipt` или `CashDocumentFile` не вводится.
 
+Термин **Cash Document** в настоящем BP используется как контекстное обозначение Document, который оформляет/подтверждает cash-channel facts согласно document-kind policy, а не как новый фундаментальный тип или отдельную identity-модель.
+
 Кассовая квитанция, приходный/расходный кассовый документ или иной локально допустимый документ являются **видами/специализациями Document**, определяемыми applicable document policy.
 
 ## 4. Вид кассового документа
@@ -237,7 +239,7 @@ PDF-файл является возможным носителем Representati
 
 ## 14. Повторная печать
 
-Повторная печать того же исторически значимого содержания обычно использует тот же Document и ту же Revision.
+Повторная печать того же исторически значимого содержания обычно использует тот же Document, ту же Revision и то же предметное Representation, если повторно воспроизводится та же форма без предметно значимых изменений.
 
 ```text
 reprint same Revision
@@ -248,6 +250,8 @@ reprint same Revision
 ```
 
 Если applicable policy требует пометки `Копія`, `Дублікат`, `Повторна видача` или иной специальной формы, это может быть отдельным Representation той же Revision либо иным document action согласно виду документа.
+
+Физический экземпляр, полученный повторным нажатием Print для того же Representation, не получает самостоятельную универсальную domain identity. Если document-kind policy считает факт повторной выдачи/экземпляр предметно значимым, соответствующая выдача должна быть прослеживаема отдельно без создания нового Payment или cash source fact.
 
 Универсальная модель «оригинал/копия/дубликат» не вводится.
 
@@ -369,6 +373,31 @@ Personal Account
 
 Если документ показывает распределение, оно должно соответствовать фактически подтверждённому состоянию на момент Document Revision, а не proposal.
 
+## 21.1. Производные финансовые сведения в документе
+
+Документ может показывать производные сведения, например:
+
+- задолженность до/после платежа;
+- текущий баланс Personal Account;
+- сумму remaining obligation;
+- иной расчетный итог.
+
+Такие сведения являются содержанием конкретной Revision/Representation на определённый момент и не становятся новым источником финансовой истины.
+
+Если historically significant Revision включает derived financial value, должны быть объяснимы, где применимо:
+
+- значение;
+- момент/период, относительно которого оно вычислено;
+- исходные financial facts/rules либо достаточный provenance расчёта.
+
+Позднее изменение текущего баланса/задолженности не переписывает ранее выданную Revision.
+
+```text
+value printed on receipt
+≠ current balance forever
+≠ primary financial fact
+```
+
 ## 22. Нумерация и регистрация
 
 Вид кассового документа может требовать регистрации и/или номера.
@@ -385,12 +414,16 @@ Community OS не вводит универсальную сквозную ну�
 
 Policy конкретного document kind может определять:
 
+- момент присвоения номера — draft, finalization или registration;
 - серию;
 - формат номера;
 - область уникальности;
 - дату регистрации;
+- правила пропусков/аннулированных номеров;
 - правила повторного использования номера;
 - separate numbering for incoming/outgoing docs.
+
+Не вводится universal требование «без разрывов» либо universal reuse-policy. Если номер уже стал historically significant через registration/issuance, его дальнейшая судьба должна быть объяснима и он не переиспользуется молча.
 
 ## 23. Подписание
 
@@ -423,6 +456,8 @@ Document created
 ≠ handed to recipient
 ```
 
+Для кассовой квитанции первое фактическое предоставление получателю historically significant Revision/Representation считается предметно значимым использованием: выданное содержание не переписывается молча.
+
 Где это предметно значимо, должны быть объяснимы:
 
 - кому предназначено Representation;
@@ -431,7 +466,7 @@ Document created
 - каким способом;
 - было ли это первое или повторное предоставление, если policy различает их.
 
-Настоящий BP не вводит universal Document Delivery state machine.
+Настоящий BP не вводит universal Document Delivery state machine. Непосредственная выдача печатного экземпляра в рамках кассового interaction описывается настоящим BP только в необходимом объёме; техническая/удалённая доставка электронного Representation относится к коммуникационным/integration semantics.
 
 ## 25. Электронное предоставление
 
@@ -688,6 +723,41 @@ Policy requires a reissued copy to display `Дублікат`.
 
 This may be a new Representation of same Revision rather than a new financial/document fact; specific document-kind policy decides.
 
+### 35.19. Registration number reserved, cash event does not occur
+
+Document draft receives/reserves number according to local policy, but payer leaves without paying.
+
+No Cash Acceptance/Payment is created.
+
+Whether the number remains reserved, becomes cancelled/void or can be reused belongs to registration/document-kind policy. Historically significant registration/issuance is not silently erased.
+
+### 35.20. Receipt shows balance after payment
+
+Revision R1 prints:
+
+```text
+Payment = 1000
+Debt after payment = 250
+```
+
+Later another Accrual changes current Debt to 700.
+
+R1 remains historical with printed value 250 and its calculation time/provenance; it is not silently rerendered as 700.
+
+### 35.21. Recipient refuses signature after taking cash
+
+Cash Disbursement/Payment already occurred, but physical receiver refuses to sign the outgoing cash document.
+
+Financial facts are not erased or rewritten automatically.
+
+Signing/formalization outcome remains separate and requires applicable document/authority resolution.
+
+### 35.22. Same Representation printed twice
+
+Same finalized Revision and same rendering are sent to printer twice because first paper copy was damaged.
+
+This is not automatically a new Document, Revision or Representation and never creates a second Payment/cash source fact.
+
 ## 36. Инварианты
 
 1. Cash Document is a Document under ADR-009, not a financial fact.
@@ -717,6 +787,25 @@ This may be a new Representation of same Revision rather than a new financial/do
 25. Original/copy/duplicate semantics are document-kind-specific, not universal.
 26. Document policy may impose stronger legal/formalization prerequisites without changing financial identities.
 27. No universal cash-document lifecycle/state machine is introduced.
+28. Reprinting the same rendering does not create a new Document Representation automatically.
+29. First issuance of a finalized receipt Representation is historically significant use unless applicable document semantics explicitly establish otherwise.
+30. Derived balance/debt printed in a Revision is historical document content, not a live financial truth.
+31. Community OS Cash Document ≠ fiscal/RRO/PRRO receipt automatically.
+32. Numbering gaps/reuse/cancellation are document-kind registration semantics, not universal finance rules.
+
+## 36.1. Фискальный документ / РРО-ПРРО boundary
+
+Документ, сформированный Community OS по настоящему BP, **не является автоматически фискальным чеком, расчётным документом РРО/ПРРО либо доказательством выполнения всех требований кассовой дисциплины конкретной юрисдикции**.
+
+```text
+Community OS Cash Document
+≠ fiscal receipt automatically
+≠ RRO/PRRO document automatically
+```
+
+Если для конкретного community/операции законодательство требует фискализации, специальной формы, регистрации, внешнего устройства/сервиса или дополнительного документа, это определяется отдельной legal/formalization policy и integration contract.
+
+Настоящий BP не должен создавать ложное ощущение юридического соответствия только потому, что квитанция успешно распечатана.
 
 ## 37. Что намеренно не решается
 
@@ -757,10 +846,12 @@ This may be a new Representation of same Revision rather than a new financial/do
 
 ## 39. Нормативные последствия
 
-Предварительный вывод Draft:
+Internal review вывод:
 
+- отдельный BP оправдан как cross-context formalization process; одной document-kind policy недостаточно для описания связи financial/source facts с Document/Revision/Representation/issuance/correction;
 - новый ADR не требуется;
 - новая fundamental Document/Receipt entity не требуется;
+- `Cash Document` остаётся контекстным обозначением Document, отдельный фундаментальный термин в TERMINOLOGY предварительно не требуется;
 - DOMAIN_MODEL/TERMINOLOGY фундаментально менять не требуется;
 - ADR-009 уже содержит Document/Revision/Representation/Signing/Registration;
 - ADR-006 и cash BP уже отделяют документ от financial/source facts.

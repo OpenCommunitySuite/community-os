@@ -266,6 +266,8 @@ BP-FIN-004 / applicable initial accrual process
 
 Replacement Accrual имеет собственную historically significant identity/provenance.
 
+Если correct claim предметно существовал в прошлом, а correct Accrual ранее не был признан в Community OS, replacement может быть late initial Accrual по semantics BP-FIN-004 с отдельными recording time и historical/effective context.
+
 Old Payment Allocations не relink к нему автоматически.
 
 ## 16. Wrong liable party
@@ -368,7 +370,9 @@ Confirmed Payment Allocation не удаляется и не переписыв�
 Если obligation уменьшается:
 
 - historical Allocation остаётся explainable;
-- amount, который больше не может исполнять current effective obligation, перестаёт выполнять эту функцию;
+- amount, который больше не может исполнять current effective obligation, перестаёт выполнять именно fulfillment-функцию этого obligation;
+- confirmed Allocation продолжает удерживать соответствующую часть Payment в current effective financial use до отдельного допустимого disposition/reallocation;
+- excess part не становится Unallocated Remainder автоматически;
 - это dependent financial consequence Accrual change, а не Reallocation само по себе.
 
 Если требуется направить средства на другое obligation, применяется `BP-FIN-001`.
@@ -389,6 +393,8 @@ excess applied amount
 ```
 
 Она является входом для дальнейшего disposition.
+
+Пока disposition не изменил financial meaning, excess applied amount не считается свободной суммой для нового Initial Payment Allocation. Existing confirmed Allocation/current effective financial use предотвращают повторное использование той же части Payment.
 
 ## 25. Overpayment
 
@@ -541,11 +547,13 @@ Historical periods, в которых Debt/Overdue ранее отображал
 
 Due Date относится к Financial Obligation, а не к Accrual автоматически.
 
-Если Accrual correction/recalculation basis также требует изменения Due Date:
+Если тот же sufficient change basis, из-за которого выполняется Accrual correction/recalculation, также изменяет Due Date соответствующего obligation:
 
-- изменение должно иметь собственное sufficient basis;
+- change of Due Date остаётся отдельным historically significant obligation consequence;
 - historical due date остаётся explainable;
 - Overdue state revalidates accordingly.
+
+Самостоятельная correction Due Date, не связанная с изменением Accrual result/basis, не становится BP-FIN-005 только ради отсутствия другого workflow; она принадлежит applicable owning obligation process.
 
 Настоящий BP не считает любое amount recalculation достаточным основанием автоматически менять Due Date.
 
@@ -1158,6 +1166,44 @@ BP-FIN-005 does not perform implicit currency conversion or assume same obligati
 
 Requires Decision / separate multi-currency semantics.
 
+### 57.32. Excess is not available for duplicate Initial Allocation
+
+Payment 1000 had confirmed Allocation 1000 to Obligation A.
+
+Recalculation A: 1000 → 800.
+
+```text
+fulfillment A = 800
+excess applied amount = 200
+```
+
+Before any Reallocation/Refund/Advance disposition, another process tries Initial Allocation 200 to Obligation B.
+
+This is rejected:
+
+```text
+confirmed Allocation/current effective financial use still accounts for 1000
+→ available amount for new Initial Allocation = 0
+```
+
+To direct 200 to B, use BP-FIN-001 Reallocation or another explicitly applicable disposition.
+
+### 57.33. Replacement as late initial Accrual
+
+Original August Accrual was assigned to wrong target and is corrected/cancelled.
+
+Correct August claim for another target never had an Accrual in Community OS.
+
+BP-FIN-004 may recognize replacement as late initial:
+
+```text
+historical/effective context = August
+recording/confirmation = later date
+new Accrual identity
+```
+
+Original erroneous Accrual remains history.
+
 ## 58. Инварианты
 
 1. Confirmed Accrual is never silently overwritten/deleted.
@@ -1183,30 +1229,31 @@ Requires Decision / separate multi-currency semantics.
 21. Confirmed Payment Allocation remains historical after obligation change.
 22. Excess applied amount is a derived process value, not a new fundamental entity.
 23. Excess applied amount ≠ Overpayment/Advance/Refund/Reallocation automatically.
-24. Overpayment may arise from changed effective financial state.
-25. Advance requires meaningful future purpose.
-26. Refund requires separate BP-FIN-003 semantics.
-27. Reallocation requires separate BP-FIN-001 semantics.
-28. No universal excess disposition order exists.
-29. Unallocated Remainder is not automatically consumed by increased obligation.
-30. Existing Advance is not automatically consumed by increased obligation.
-31. Historical Refund Payment is never reversed silently by later Accrual change.
-32. Debt derives from current effective obligation and fulfillment.
-33. Due Date change requires sufficient basis and does not follow amount change automatically.
-34. Penalty is not silently recalculated after base obligation change.
-35. Resource/relationship/governance source corrections occur in owning contexts first.
-36. Current/latest rule is not retroactively applied by default.
-37. Group recalculation scope follows dependency semantics, not batch implementation.
-38. Aggregate interdependent distribution is recalculated consistently.
-39. Independent target correction need not change unaffected results.
-40. Delta is derived, not necessarily a separate Accrual.
-41. Zero result does not create fake Payment/negative Accrual.
-42. Proposal ≠ confirmed correction/recalculation/cancellation.
-43. Confirmation revalidates materially significant current state.
-44. Technical retry ≠ new financial change.
-45. Domain authority ≠ technical access.
-46. Retroactive financial effect does not backdate correction action.
-47. No universal Correction/Adjustment/Storno/Accrual Revision entity is introduced.
+24. Excess applied amount does not become Unallocated Remainder or available Initial Allocation while existing confirmed Allocation/current effective financial use still accounts for it.
+25. Overpayment may arise from changed effective financial state.
+26. Advance requires meaningful future purpose.
+27. Refund requires separate BP-FIN-003 semantics.
+28. Reallocation requires separate BP-FIN-001 semantics.
+29. No universal excess disposition order exists.
+30. Unallocated Remainder is not automatically consumed by increased obligation.
+31. Existing Advance is not automatically consumed by increased obligation.
+32. Historical Refund Payment is never reversed silently by later Accrual change.
+33. Debt derives from current effective obligation and fulfillment.
+34. Due Date change requires sufficient basis and does not follow amount change automatically.
+35. Penalty is not silently recalculated after base obligation change.
+36. Resource/relationship/governance source corrections occur in owning contexts first.
+37. Current/latest rule is not retroactively applied by default.
+38. Group recalculation scope follows dependency semantics, not batch implementation.
+39. Aggregate interdependent distribution is recalculated consistently.
+40. Independent target correction need not change unaffected results.
+41. Delta is derived, not necessarily a separate Accrual.
+42. Zero result does not create fake Payment/negative Accrual.
+43. Proposal ≠ confirmed correction/recalculation/cancellation.
+44. Confirmation revalidates materially significant current state.
+45. Technical retry ≠ new financial change.
+46. Domain authority ≠ technical access.
+47. Retroactive financial effect does not backdate correction action.
+48. No universal Correction/Adjustment/Storno/Accrual Revision entity is introduced.
 
 ## 59. Что намеренно не решается
 

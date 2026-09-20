@@ -398,13 +398,25 @@ excess applied amount
 
 ## 25. Overpayment
 
-Согласно ADR-006 Overpayment может возникнуть, когда ранее применённая к исполнению сумма становится избыточной в current effective financial state.
+Согласно ADR-006 Overpayment — **признанное** финансовое состояние, при котором ранее применённая к исполнению сумма в current effective financial state оказывается избыточной согласно applicable domain semantics.
 
-Настоящий BP может определить, что условия Overpayment выполнены, но не навязывает Overpayment как единственно возможный disposition каждого excess.
+Следует различать:
 
-Если local financial semantics сразу устанавливает другой допустимый смысл, например Refund или purpose-specific Advance, universal промежуточный Overpayment state не требуется.
+```text
+excess applied amount
+= derived process condition/value
 
-История причины excess сохраняется.
+Overpayment
+= recognized financial meaning/state of that excess
+```
+
+Поэтому само возникновение `excess applied amount` не создаёт Overpayment автоматически.
+
+Если applicable financial semantics признаёт excess как Overpayment, такой state становится текущим финансовым смыслом соответствующей суммы и сохраняет provenance причины возникновения.
+
+Если excess в том же coherent business resolution сразу получает другой допустимый смысл — например Reallocation, purpose-specific Advance или Refund basis — отдельный промежуточный факт recognition Overpayment не является универсально обязательным.
+
+Уже признанная Overpayment может позднее уменьшиться, прекратиться или изменить текущий объём согласно subsequent effective financial state и owning semantics, но это не делает Overpayment purely arithmetic derived state.
 
 ## 26. Advance
 
@@ -494,10 +506,11 @@ separate Advance application / Payment Allocation
 
 ## 32. Previously recognized Overpayment after later increase
 
-Если previous recalculation создал/подтвердил Overpayment, а subsequent valid recalculation увеличивает obligation:
+Если previous recalculation привёл к **признанной** Overpayment, а subsequent valid recalculation увеличивает obligation:
 
-- historical Overpayment state не переписывается;
-- current Overpayment может уменьшиться/исчезнуть according to owning semantics;
+- historical recognition Overpayment и его provenance не переписываются;
+- current effective amount/state признанной Overpayment может уменьшиться или прекратиться согласно owning semantics;
+- это не означает, что любая арифметически избыточная сумма автоматически была Overpayment до recognition;
 - applied funds не relink автоматически без applicable process;
 - если средства уже refunded, Refund Payment остаётся реальным historical fact.
 
@@ -573,6 +586,8 @@ base obligation changed
 - используемые base/rate/period/rule остаются explainable.
 
 Настоящий BP может координировать need for penalty revalidation, но не задаёт universal penalty cascade.
+
+Детальная penalty recalculation/correction требует специализированной process/policy semantics. Отдельный BP для неё может быть определён позднее при проработке реальных сценариев; его отсутствие не разрешает silent recalculation и не вводит universal manual-only правило.
 
 ## 38. Source Consumption / Reading correction
 
@@ -652,6 +667,18 @@ total 10 000
 - оставить aggregate total/remainder rule нарушенными;
 - silently preserve stale results остальных targets.
 
+Для **каждого** target-specific result, сумма которого изменилась внутри interdependent recalculation scope, независимо revalidate соответствующие downstream consequences:
+
+- current fulfillment / Payment Allocations;
+- excess applied amount;
+- Debt / Overdue;
+- Due Date, если change basis её затрагивает;
+- Advance / recognized Overpayment / Refund state;
+- Penalty/dependent results;
+- другие materially affected financial consequences.
+
+Group recalculation не превращает эти target-specific последствия в один общий баланс или один общий excess.
+
 Historical original distribution сохраняется.
 
 ## 44. Partial group correction
@@ -664,6 +691,19 @@ Historical original distribution сохраняется.
 - retry does not repeat already confirmed correction.
 
 Если original decision requires atomic/interdependent set, partial correction «as-is» запрещена.
+
+## 44.1. Period and claim continuity
+
+Accrual Period сам по себе не является universal obligation identity key.
+
+Period образует самостоятельный monetary claim только если applicable owning financial process/rule определяет каждый такой period как отдельный предметный повод возникновения Financial Obligation.
+
+Например:
+
+- monthly regular charge может создавать отдельный claim для каждого месяца;
+- one-off project contribution может иметь period как contextual/informational characteristic одного claim.
+
+Поэтому correction Period требует проверки domain continuity, а не механического правила `period changed → replacement`.
 
 ## 45. Rule/version for Recalculation
 
@@ -805,7 +845,9 @@ Otherwise:
 - original Accrual identity/referent;
 - original target-specific result;
 - original Financial Obligation;
-- change type: correction/recalculation/cancellation;
+- immediately preceding effective result/change action, который настоящий action пересматривает или изменяет;
+- ordered chain предыдущих Correction/Recalculation/Cancellation/Review actions, достаточная для восстановления переходов между effective states;
+- change type: correction/recalculation/cancellation/review-no-change;
 - change basis;
 - corrected source fact and owning process, if any;
 - original and used rule/version;
@@ -823,6 +865,8 @@ Otherwise:
 - calculation/confirmation/effective times;
 - relation to subsequent replacement Accrual where applicable.
 
+Связь с immediately preceding effective result/action является provenance/referential requirement и не требует universal Accrual Revision, Correction Chain или Adjustment entity.
+
 Provenance не требует universal Correction/Adjustment entity.
 
 ## 54. Temporal semantics
@@ -833,16 +877,19 @@ Provenance не требует universal Correction/Adjustment entity.
 - original Accrual Period;
 - original obligation inception;
 - source fact correction time;
-- correction/recalculation decision time;
+- time каждого preceding change action в ordered chain;
+- correction/recalculation/review decision time;
 - recalculation calculation time;
 - confirmation/recording time;
 - effective-from time of changed financial result, if applicable;
 - Payment movement/allocation times;
 - Refund/reallocation times.
 
+Каждый subsequent change должен позволять определить, какое immediately preceding effective state он изменял, даже если все изменения ultimately refer to the same original Accrual.
+
 Retroactive effective change does not backdate the correction action itself.
 
-Historical state must remain explainable for times before and after the change.
+Historical state must remain explainable for times before and after each change.
 
 ## 55. Idempotency / repeated processing
 
@@ -1164,6 +1211,8 @@ Correction evidence suggests 1000 EUR.
 
 BP-FIN-005 does not perform implicit currency conversion or assume same obligation identity automatically.
 
+If original obligation already has confirmed Payment Allocation in UAH, the currency mismatch does not authorize implicit conversion, relink or preservation of obligation identity merely for convenience. Existing Payment/Allocation history remains unchanged until a separate supported decision/process resolves the currency/claim semantics.
+
 Requires Decision / separate multi-currency semantics.
 
 ### 57.32. Excess is not available for duplicate Initial Allocation
@@ -1203,6 +1252,93 @@ new Accrual identity
 ```
 
 Original erroneous Accrual remains history.
+
+### 57.34. Aggregate recalculation with mixed payment states
+
+Aggregate contribution 10 000 is distributed among three targets.
+
+Before correction:
+
+- Target A is fully paid;
+- Target B is partially paid;
+- Target C is unpaid.
+
+Corrected area of one target changes all three amounts.
+
+Interdependent Recalculation recomputes the whole target set.
+
+Then each target is processed independently for downstream consequences:
+
+- A may produce excess applied amount;
+- B may produce either additional Debt or excess depending on new amount;
+- C changes Debt only;
+- any existing Penalty/recognized Overpayment/Advance/Refund consequences are revalidated per target.
+
+No group-wide synthetic Overpayment or group-wide Payment disposition is created.
+
+### 57.35. Sequential Recalculations form an ordered chain
+
+Original Accrual effective amount = 1000.
+
+Successive valid Recalculations produce:
+
+```text
+R1: 1000 → 800
+R2: 800 → 900
+R3: 900 → 750
+```
+
+Each action preserves:
+
+- link to original Accrual;
+- link to immediately preceding effective result/action;
+- own basis/rule/inputs/time;
+- own downstream disposition state.
+
+R3 must not be explainable only as `original 1000 → current 750`; transitions through 800 and 900 remain reconstructible.
+
+### 57.36. Excess from one allocation of a multi-obligation Payment
+
+Payment 1500 has confirmed Allocations:
+
+```text
+1000 → Obligation A
+500  → Obligation B
+```
+
+Recalculation changes A from 1000 → 800.
+
+```text
+excess applied amount for Allocation A = 200
+Allocation B remains effective 500
+```
+
+Excess is scoped to the affected Allocation/use, not to the whole Payment.
+
+Until separate disposition/Reallocation, total current effective financial use still accounts for the full 1500 and prevents duplicate Initial Allocation of the same 200.
+
+### 57.37. Correction of erroneous Cancellation vs new claim after valid Cancellation
+
+Case 1 — Cancellation itself was erroneous:
+
+```text
+Accrual A valid
+→ erroneous Cancellation C1
+→ Correction of C1
+```
+
+A subsequent correction may restore the effective financial effect of the original Accrual while preserving A, C1 and correction history. New Accrual identity is not required merely because an erroneous Cancellation temporarily removed effect.
+
+Case 2 — Cancellation was valid, later a new business basis creates a new claim:
+
+```text
+Accrual A
+→ valid Cancellation
+→ later new decision/basis
+→ new claim
+```
+
+The later claim is evaluated as new/replacement Accrual according to BP-FIN-004/owning semantics; the old Accrual is not silently "uncancelled".
 
 ## 58. Инварианты
 
@@ -1253,7 +1389,12 @@ Original erroneous Accrual remains history.
 45. Technical retry ≠ new financial change.
 46. Domain authority ≠ technical access.
 47. Retroactive financial effect does not backdate correction action.
-48. No universal Correction/Adjustment/Storno/Accrual Revision entity is introduced.
+48. Excess applied amount does not create Overpayment automatically; Overpayment remains a recognized financial state according to applicable semantics.
+49. Each subsequent change links both to original Accrual and to the immediately preceding effective result/change required to reconstruct the ordered history.
+50. Interdependent group recalculation revalidates downstream financial consequences separately for every affected target.
+51. Period participates in claim identity only when the owning financial semantics defines periods as separate claims.
+52. Erroneous Cancellation may itself be corrected without forcing a new Accrual identity; a later new claim after valid Cancellation is not a silent un-cancel.
+53. No universal Correction/Adjustment/Storno/Accrual Revision entity is introduced.
 
 ## 59. Что намеренно не решается
 

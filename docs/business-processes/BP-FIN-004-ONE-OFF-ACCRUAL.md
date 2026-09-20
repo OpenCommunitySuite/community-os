@@ -20,6 +20,8 @@ subject/business basis
 
 Разовый или внецикловый характер является способом инициирования и временной характеристикой процесса, а не отдельным фундаментальным типом `Accrual`.
 
+Упрощённая цепочка `Accrual → Financial Obligation` не означает, что obligation всегда возникает именно из Accrual: согласно применимой семантике Accrual может также определить/зафиксировать финансовый результат для obligation, предметно возникшего на другом достаточном основании.
+
 ## 2. Основная граница
 
 ```text
@@ -50,6 +52,8 @@ one-off / out-of-cycle
 ≠ correction
 ≠ exception to obligation semantics
 ```
+
+В настоящем BP выражение `applicable policy` не обозначает новую универсальную сущность `Policy`. Это сокращённое обозначение применимой контекстно-владеемой финансовой политики, настройки, правила или процессной семантики согласно ADR-003/ADR-005. Если такая policy влияет на исторически значимый результат, должны быть определимы её применимость и фактически использованные значения/версия в требуемом предметном объёме.
 
 Примеры:
 
@@ -129,7 +133,7 @@ Document
 ≠ valid decision automatically
 ```
 
-Компетентность и предметная применимость решения определяются governance/owning semantics; наличие загруженного документа само по себе не создаёт начисление.
+Компетентность и предметная применимость управленческого решения определяются governance semantics ADR-008; полномочие конкретного Subject действовать от имени компетентного органа проверяется отдельно согласно ADR-010. Наличие загруженного документа само по себе не создаёт начисление и не заменяет проверку решения/компетенции.
 
 ## 7. Accrual ≠ Financial Obligation
 
@@ -170,7 +174,17 @@ business basis / rule
 
 Community OS сохраняет оба момента и не подменяет их друг другом.
 
-Настоящий BP не backdate-ит confirmation event, но допускает исторически определимый obligation inception на достаточном основании.
+Для настоящего BP следует различать:
+
+- **obligation inception** — момент, с которого obligation имеет предметную силу согласно достаточному basis/rule;
+- **recognition/recording** — момент, когда соответствующий domain fact признан/зафиксирован в Community OS;
+- **Accrual confirmation/recording** — момент подтверждения конкретного Accrual.
+
+Если соответствующее Financial Obligation ещё не было признано в Community OS, BP-FIN-004 может впервые признать/зафиксировать его при confirmation Accrual с более ранним obligation inception, если это следует из достаточного исторического basis/rule.
+
+Если то же Financial Obligation уже было признано другим допустимым финансовым процессом, BP-FIN-004 не создаёт duplicate obligation; Accrual связывается с уже признанным obligation либо определяет относящийся к нему result только там, где это допускает applicable semantics.
+
+Настоящий BP не предписывает технический момент создания записи/объекта хранения и не backdate-ит recognition/confirmation event.
 
 ## 8. Стороны Financial Obligation
 
@@ -277,7 +291,11 @@ selection rule
 
 Resolved target set является частью process provenance, а не обязательной новой domain entity.
 
-Не требуется копировать полный snapshot всех Subject/Object/Ownership/Membership данных, если использованные historical facts и relations надёжно определимы через их owning contexts. Если target-selection rule имеет собственную версию, она сохраняется/восстанавливается отдельно от calculation rule, когда это существенно.
+Если использованные historical facts/relations надёжно определимы через owning contexts, полный copied snapshot Subject/Object/Ownership/Membership данных не требуется.
+
+Если конкретный target criterion опирается на изменяемое состояние, для которого owning context не гарантирует достаточную историческую воспроизводимость, provenance Accrual должна сохранить фактически разрешённое membership target set и/или использованные значения в объёме, достаточном для объяснения результата. Это не вводит универсальную Snapshot entity.
+
+Если target-selection rule имеет собственную версию, она сохраняется/восстанавливается отдельно от calculation rule, когда это существенно.
 
 ## 13. Group Accrual ≠ joint obligation
 
@@ -300,6 +318,8 @@ Resolved target set является частью process provenance, а не о
 ```
 
 Одно общее решение/расчётное действие может иметь несколько target-specific результатов, а специализированная семантика может требовать отдельных Accrual identities. Архитектура на этом этапе требует не конкретной cardinality, а того, чтобы каждый historically significant target result, его basis, inputs, liable party и Financial Obligation были объяснимы.
+
+Каждый confirmed target-specific result должен оставаться однозначно и стабильно referable для последующего review/correction/recalculation, в том числе BP-FIN-005. Это может обеспечиваться собственной identity специализированного результата либо устойчивой связью с domain identities и достаточным provenance. Универсальная сущность `Accrual Result` или правило `1 target = 1 Accrual identity` не вводятся.
 
 ## 14. Accrual Proposal / Preview
 
@@ -571,7 +591,9 @@ One-off/out-of-cycle Accrual не подавляет и не заменяет re
 - amount;
 - date.
 
-Если one-off должен suppress/replace planned regular run, это должно следовать из применимой process/rule semantics.
+Если one-off должен suppress/replace planned regular run, это должно следовать из применимой context-owned policy/rule/process semantics.
+
+Повторяющееся ручное создание one-off Accrual не становится допустимым regular cycle только из-за регулярности действий оператора. Если фактически требуется периодическое начисление, его периодичность, применимые rules и duplicate/suppression semantics должны быть предметно определены; BP-FIN-004 не используется как неявная замена отсутствующего или сломанного regular process.
 
 ## 29. Duplicate / idempotency
 
@@ -585,7 +607,11 @@ same date + amount + article + Personal Account
 
 не доказывает duplicate автоматически.
 
-Для исторически значимого решения должны быть определимы sufficient identity/provenance criteria согласно process semantics.
+Для исторически значимого результата должны быть определимы sufficient distinguishing identity/provenance criteria согласно process semantics и §40.
+
+Initiating decision/fact и target reference могут входить в такой basis, но не образуют универсально достаточный tuple: одно decision может легитимно породить несколько Accrual results для одного target, различимых period/article/rule/stage или иной предметной семантикой.
+
+Для retry/duplicate detection должен существовать устойчиво определимый referent исходного target-specific result; universal duplicate key не вводится.
 
 Следует различать:
 
@@ -618,7 +644,7 @@ new Accrual / new Obligation
 
 Фактическое применение средств выполняется соответствующим Payment Allocation/Reallocation/Advance process согласно применимой семантике.
 
-Applicable policy может координировать создание obligation и немедленное применение уже существующего Advance/Payment в одном пользовательском или автоматическом business interaction, но это остаются отдельные domain actions/results. Сам Accrual не превращается в Payment Allocation.
+Applicable context-owned financial policy/rule может координировать создание obligation и немедленное применение уже существующего Advance/Payment в одном пользовательском или автоматическом business interaction, но это остаются отдельные domain actions/results. Сам Accrual не превращается в Payment Allocation.
 
 ## 31. Debt / Overdue
 
@@ -703,7 +729,7 @@ Group one-off Accrual может состоять из target cases, объед�
 Следует различать:
 
 1. **interdependent scope** — предметное решение требует согласованного полного набора targets/results;
-2. **independent target cases** — каждый result может быть подтверждён отдельно согласно policy.
+2. **independent target cases** — каждый result может быть подтверждён отдельно согласно applicable context-owned policy/rule/process semantics.
 
 Если общий decision/rule требует начислить всем resolved eligible targets, тихо пропустить invalid target нельзя.
 
@@ -759,7 +785,9 @@ Domain authority требуется, где применимо, чтобы:
 
 Technical role/access right само по себе не создаёт полномочие.
 
-Automatic confirmation допускается только по explicit policy, sufficiently determined inputs и explainable result.
+Automatic confirmation допускается только по явно применимой context-owned policy/rule, sufficiently determined inputs и explainable result.
+
+Governance decision/competence, если они являются basis Accrual, проверяются согласно ADR-008; предметное полномочие конкретного действующего Subject — согласно ADR-010.
 
 Иначе используется Requires Decision.
 
@@ -771,6 +799,7 @@ Automatic confirmation допускается только по explicit policy,
 - initiating decision/fact;
 - target selection criteria and their rule/version where applicable;
 - resolved target set;
+- stable referent/addressability of each historically significant target-specific result;
 - liable parties and how they were resolved;
 - Personal Account/Object context;
 - article;
@@ -783,8 +812,8 @@ Automatic confirmation допускается только по explicit policy,
 - tariff/used values;
 - precision/rounding/calculation-order semantics when materially significant;
 - source resource/other inputs;
-- authority/automatic policy;
-- created Financial Obligations;
+- authority and applicable context-owned automatic policy/rule where used;
+- created or linked Financial Obligations;
 - zero/no-obligation results when material;
 - reason for late initial recognition;
 - relation to regular cycle where applicable.
@@ -850,7 +879,7 @@ Technical locking mechanism настоящим BP не задаётся.
 7. Перед confirmation revalidate basis, targets, parties, amount and authority.
 8. Confirmed Accrual фиксирует target-specific financial results и, согласно applicable semantics, создаёт соответствующие Financial Obligations либо связывает результат с obligation, возникшим из иного достаточного основания.
 9. Obligations имеют due date согласно decision/rule, если applicable.
-10. Subsequent Payments/Advances не применяются автоматически.
+10. Subsequent Payments/Advances не применяются автоматически самим Accrual; координированное immediate application возможно только отдельным domain action/result согласно §30.
 11. Historical target set и used values сохраняются.
 
 ## 45. Проверочные сценарии
@@ -989,11 +1018,11 @@ Separate target contribution Decision = 1000.
 
 ### 45.11. One-off intended to replace scheduled charge
 
-Policy прямо устанавливает, что special out-of-cycle calculation replaces 아직 not-created scheduled charge for September.
+Applicable context-owned policy/rule прямо устанавливает, что special out-of-cycle calculation replaces not-yet-created scheduled charge for September.
 
 Out-of-cycle Accrual может быть confirmed.
 
-Scheduled process должен учитывать explicit suppression/replacement semantics; duplicate suppression не выводится из суммы/статьи эвристически.
+Будущий regular accrual process должен учитывать explicit suppression/replacement semantics; duplicate suppression не выводится из суммы/статьи эвристически. Это forward dependency и не определяет regular workflow настоящим BP.
 
 ### 45.12. Zero result
 
@@ -1162,7 +1191,7 @@ Owner has purpose-compatible Advance 1000.
 
 New Obligation = 700.
 
-Applicable policy allows automatic application immediately after obligation creation.
+Applicable context-owned financial policy/rule allows automatic application immediately after obligation creation.
 
 One business interaction may produce:
 
@@ -1203,6 +1232,83 @@ uploaded protocol
 → evidence/document only
 → no Accrual automatically
 ```
+
+### 45.30. Liability based on Use, not technical Access
+
+Historical rule establishes that a specific category of resource/service charge is owed by the Subject who held the applicable Use relation for the period.
+
+Owner A owns the Plot, Tenant B has the applicable historical Use relation, User C merely has system access.
+
+If the rule assigns liability to the user of the Object:
+
+```text
+liable Subject = Tenant B
+not Owner A
+not User C
+```
+
+Technical Access never becomes financial liability by itself.
+
+### 45.31. Aggregate total distribution with rounding remainder
+
+Competent decision sets total contribution:
+
+```text
+total = 10 000 UAH
+distribution = proportional to historical eligible area
+```
+
+Per-target calculated shares produce fractional currency values.
+
+Applicable rule must define precision, rounding and handling of the rounding remainder so that:
+
+```text
+sum of confirmed target results
+= required aggregate total
+```
+
+where that equality is part of the rule semantics.
+
+System must not invent which target receives the remainder.
+
+### 45.32. Partial group confirmation and later completion
+
+Group scope has 100 independent target cases.
+
+98 are valid and policy/rule allows independent confirmation; 2 are unresolved.
+
+First confirmation creates only the 98 allowed target-specific results.
+
+Later the remaining 2 cases are resolved.
+
+Second confirmation:
+
+- creates only the 2 previously unresolved results;
+- does not recreate the already confirmed 98;
+- uses stable result referents/provenance to distinguish completed from unresolved cases.
+
+### 45.33. Repeated manual one-off does not become regular cycle
+
+Operator manually creates the same one-off membership charge every month because regular scheduling is absent.
+
+Repeated operator behavior alone does not establish a valid recurring accrual policy.
+
+If periodic charging is intended, a regular process/rule must own its periodicity, applicability and duplicate semantics.
+
+### 45.34. Existing obligation amount conflicts with later Accrual calculation
+
+A Financial Obligation already exists from an independent sufficient basis:
+
+```text
+Obligation = 1000 UAH
+inception = 1 Sep
+```
+
+Later BP-FIN-004 calculation for the same claimed obligation produces 900 UAH.
+
+BP-FIN-004 must not silently overwrite the recognized obligation or create a duplicate 900 obligation.
+
+The mismatch requires specialized resolution/Requires Decision and, if an existing historical financial result must change, BP-FIN-005 or another owning correction process.
 
 ## 46. Инварианты
 
@@ -1253,6 +1359,15 @@ uploaded protocol
 45. Document/protocol ≠ Accrual or Financial Obligation automatically.
 46. Material precision/rounding/calculation-order semantics remain historically explainable.
 47. No universal rounding rule is introduced.
+48. Applicable policy is context-owned configuration/rule/process semantics, not a universal Policy entity.
+49. Obligation inception, obligation recognition/recording and Accrual confirmation are distinct when materially significant.
+50. An already recognized Financial Obligation is not duplicated by BP-FIN-004.
+51. Each historically significant target-specific result remains stably referable for later review/correction without requiring a universal Accrual Result entity.
+52. Owning-context history may replace copied snapshots only when it is sufficient to reproduce target selection; otherwise resolved membership/used values are preserved in Accrual provenance.
+53. No universal decision+target duplicate key is introduced.
+54. Governance competence is owned by ADR-008 semantics; technical/domain authority of the acting Subject remains separate under ADR-010.
+55. Technical Access ≠ financial liability.
+56. Repeated manual one-off actions do not establish a regular accrual policy by themselves.
 
 ## 47. Что намеренно не решается
 

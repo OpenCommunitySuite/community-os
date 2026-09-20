@@ -495,22 +495,33 @@ Where materially relevant, should be determinable:
 
 Блокирующих предметных вопросов после internal review не осталось.
 
-## 49. Предварительные нормативные последствия
+## 49. Нормативная синхронизация
 
-ADR-007 already defines control role and Control Reconciliation.
+Новый ADR и новые fundamental measurement entities не требуются.
 
-Expected synchronization:
+В текущей Draft-ветке выполнена точечная синхронизация:
 
-- ADR-007 — explicit distinction Control Observation vs Control Reconciliation and expected/completeness semantics;
-- DOMAIN_MODEL — introduce Control Observation as process/referent, not new fundamental measurement entity;
-- TERMINOLOGY — add Control Observation term;
-- REFERENCE_CANDIDATE_MATRIX — advance Stage 7 to Control Reconciliation and keep REF-METER-003 partially open until reconciliation is defined.
+- ADR-007 — explicit Control Observation ≠ Control Reconciliation, expected/completeness semantics, missing/excluded points и observation window;
+- DOMAIN_MODEL → 0.22 — Control Observation добавлен как исторически значимый process/referent, participating values остаются обычными Reading;
+- TERMINOLOGY → 0.19 — добавлен термин Control Observation; соседние локальные подпункты 64.x перенумерованы;
+- REFERENCE_CANDIDATE_MATRIX — REF-METER-003 переведён в Partial: control observation закрыто, Control Reconciliation остаётся следующим BP.
 
-## 50. Следующий шаг
+BP-READING-001/002 не требуют изменения: recognition и automatic intake semantics уже достаточны.
 
-1. consistency check against ADR-007 and BP-READING-001/002;
-2. normative synchronization;
-3. open Draft PR;
-4. next process: Control Reconciliation;
-5. then Calculated Imbalance;
-6. then Operational Loss recognition.
+## 50. Текущее состояние и следующий шаг
+
+BP прошёл internal consistency review against ADR-007 and BP-READING-001/002.
+
+Проверены expected scope, historical topology, manual/telemetry mix, missing/excluded/unresolved points, multi-channel values, replacement in observation window, no-access, evidence/photo timing, duplicate/conflict и pilot-ST 1–2 hour operational window.
+
+Блокирующих предметных вопросов после internal review не осталось.
+
+Следующий процесс Stage 7 после принятия/merge BP-READING-003:
+
+**BP-RECON-001 — Control Reconciliation**.
+
+Он должен использовать Control Observation/Reading inputs, explicit topology/window/completeness and produce reconciliation result including Calculated Imbalance where applicable, но не превращать imbalance в Operational Loss автоматически.
+
+После него — отдельный process Calculated Imbalance semantics where needed / Operational Loss recognition.
+
+Дополнительный внешний review BP-READING-003 сейчас не инициируется.

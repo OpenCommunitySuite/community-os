@@ -963,6 +963,57 @@ supplier-calculated L kWh
 
 If Community later distributes/reimburses this cost through owner Accruals, those Accruals do not erase the Expense.
 
+### 49.32. One supplier obligation across several Accounting Points / branches
+Supplier document/obligation aggregates electricity from several common/group Accounting Points or engineering branches.
+
+Meter/Accounting Point cardinality does not define Expense identity:
+
+```text
+several Accounting Points
+→ one Supplier Obligation possible
+→ one or several Expense cases according to purpose/activity
+```
+
+Amounts attributable to individual consumption, pump/common use and supplier-calculated loss remain distinguishable where source evidence permits. A separate meter does not automatically create a separate Expense, Budget Item or Funding Source.
+
+### 49.33. Supplier-calculated transformation loss is aggregate only
+Supplier adds `L` kWh for transformation losses for the settlement period but does not provide a defensible split by transformer, feeder, street or Accounting Point.
+
+Community OS preserves `L` as one supplier-calculated settlement component with its actual provenance.
+
+```text
+aggregate supplier-calculated L
+≠ invented branch-level loss allocation
+```
+
+An internal management allocation may be introduced only by an explicit Community rule/basis and must remain distinguishable from the supplier's original calculation. It must not rewrite the supplier basis or become Operational Loss automatically.
+
+### 49.34. Water: individual consumption vs common use
+Supplier Obligation for water may combine or be reconciled against individual and common-use consumption.
+
+```text
+individual recoverable water consumption
+→ no Community Expense automatically
+
+water for common хозяйственные needs / infrastructure
+→ Community Expense where sufficiently established
+```
+
+The fact that both scopes are paid through one Supplier Obligation/Payment does not merge their Expense meaning.
+
+### 49.35. Collective service recovered from owners
+Community contracts a waste-removal or other collective service for its activity. The service has Community Expense meaning on sufficient basis.
+
+If Community finances or later recovers the cost through member/owner Accruals:
+
+```text
+collective-service Expense
+≠ owner Accrual
+≠ owner Financial Obligation
+```
+
+Recoverability from owners does not by itself determine whether a cost is or is not Expense. The deciding factor is the underlying financial-management use/purpose and applicable Community policy.
+
 ## 50. Инварианты
 
 1. Expense ≠ Financial Obligation.
@@ -1029,6 +1080,10 @@ If Community later distributes/reimburses this cost through owner Accruals, thos
 62. Supplier-calculated transformation-loss quantity ≠ Meter Reading / Calculated Imbalance / Operational Loss automatically.
 63. Supplier-calculated transformation-loss monetary scope may be Community Expense without converting the supplier quantity into a resource-domain loss fact.
 64. Recovery of an Expense from owners through Accrual/Financial Obligation does not cancel or merge the Expense automatically.
+65. Accounting Point / Meter / engineering-branch cardinality does not determine Expense identity, Budget classification or Funding Source automatically.
+66. Supplier aggregate settlement scope must not be silently decomposed into branch-level Expense/loss attribution without explicit basis.
+67. Recoverability from owners is not a universal criterion for Expense recognition.
+68. One Supplier Obligation/Payment may contain monetary scopes with different Expense meaning.
 
 ## 51. Что намеренно не решается
 
@@ -1130,6 +1185,13 @@ individual measured resource cost
 ```
 
 Универсальный BP не запрещает другим Community использовать иную policy для recoverable supplier cost, но автоматическое равенство `Supplier Obligation = Expense` не допускается.
+Дополнительные правила пилота:
+
+- один счёт/обязательство поставщика может агрегировать несколько общих/групповых точек учёта и инженерных ветвей; количество точек не определяет количество Expenses;
+- если поставщик даёт трансформационные потери только общей величиной за период, Community OS не придумывает распределение по трансформаторам, улицам или ветвям;
+- внутреннее управленческое распределение такого общего компонента допускается только как отдельная policy/classification с собственным basis и provenance;
+- для воды применяется та же базовая граница: индивидуально возмещаемое потребление не становится Expense автоматически, а common-use water может иметь Expense meaning;
+- коллективная услуга Community (например, вывоз ТБО) может оставаться Expense даже если её стоимость затем покрывается начислениями участникам; сам факт возмещения не определяет Expense semantics.
 
 ## 55. Следующий шаг
 

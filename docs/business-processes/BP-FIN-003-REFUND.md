@@ -417,6 +417,14 @@ Refund Payment = bank
 
 Конкретная Community или legal/payment policy может устанавливать более строгие ограничения.
 
+Channel-specific recognition остаётся у соответствующего owning process:
+
+- исходящий наличный Refund Payment Community → внешняя сторона: `BP-CASH-002` (`Cash Disbursement` → outgoing Cash Payment);
+- входящий наличный Refund Payment внешняя сторона → Community: `BP-CASH-001` (`Cash Acceptance` → incoming Cash Payment);
+- банковский Refund Payment: `BP-FIN-BANK-001` и применимая bank/source recognition semantics.
+
+BP-FIN-003 определяет refund basis, Financial Obligation to return и финансовый смысл Refund, но не заменяет channel-specific Payment recognition.
+
 ## 20. Direction neutrality
 
 Refund не определяется как исключительно исходящий Payment Community.

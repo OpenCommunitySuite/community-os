@@ -179,7 +179,7 @@ Technical access role не создаёт финансовое полномоч�
 - immediate amount returned/refused before disbursement completion;
 - Cash Disbursement amount;
 - recognized outgoing Payment amount(s);
-- unresolved/custody/accountability amount.
+- unresolved outgoing-financial amount, если physical release уже квалифицирован как Cash Disbursement, но Payment recognition ещё не завершено.
 
 Для одного currency-specific Cash Disbursement:
 
@@ -360,7 +360,7 @@ outgoing Cash Payment
 - Payment является предоплатой до Expense;
 - Payment исполняет Refund obligation, который не является Expense;
 - Payment переводит средства в иной допустимый financial relation;
-- physical disbursement оказывается custody/internal movement и вообще не является Payment.
+- physical handover, первоначально рассматривавшийся как candidate outgoing flow, разрешается как custody/internal movement; тогда он не является Cash Disbursement настоящего BP и не создаёт Payment.
 
 Expense recognition принадлежит отдельному BP-EXPENSE-001.
 
@@ -555,15 +555,17 @@ Actual disbursement time и recording time различаются.
 
 ## 36. Cash Disbursement before Payment recognition
 
-Cash может физически покинуть Community control, но Payment recognition остаться unresolved из-за:
+Cash Disbursement может состояться, но Payment recognition остаться unresolved из-за:
 
-- unknown recipient;
+- unknown financial recipient;
 - authority uncertainty;
-- unclear custody/accountability;
 - insufficient basis;
-- ambiguous source/payment cardinality.
+- ambiguous source/payment cardinality;
+- unresolved financial purpose при уже установленном external-side physical release.
 
 Такой Cash Disbursement должен оставаться visible/reconcilable и не превращается автоматически в Expense, Payment or loss.
+
+Если unresolved-вопрос состоит в том, вышли ли деньги вообще из Community custody/control либо receiver остаётся Community-side custodian/agent, classification как Cash Disbursement ещё не подтверждена; source event остаётся в REF-FIN-016 custody/internal-movement boundary до resolution.
 
 ## 37. Provenance
 

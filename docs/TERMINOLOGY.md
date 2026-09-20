@@ -1,7 +1,7 @@
 # Community OS — Терминология проекта
 
 **Статус:** Draft  
-**Версия:** 0.19  
+**Версия:** 0.20  
 **Язык документа:** русский
 
 ---
@@ -1212,18 +1212,22 @@ Physical mounting/removal time не обязан совпадать с effective
 
 # 64. Расчётный небаланс
 
-**Расчётный небаланс** (Calculated Imbalance) — количественный результат сопоставления связанных входящих, исходящих, потреблённых или иным образом учитываемых объёмов ресурса в определённой области инженерной системы за период или контрольное окно.
+**Расчётный небаланс** (Calculated Imbalance) — самостоятельный количественный результат Control Reconciliation, возникающий там, где достаточные inputs, topology и applicable rule позволяют выполнить количественное сопоставление.
 
-Расчётный небаланс может быть положительным, отрицательным или нулевым. Для него должны быть определимы достаточные входы, единицы, правила, преобразования, полнота, релевантная топология и ограничения качества, когда они существенны для объяснимости.
+Calculated Imbalance может быть положительным, отрицательным или нулевым. Для него должны быть определимы достаточные inputs, единицы, правила, преобразования, полнота, релевантная topology, sign convention, percentage base where applicable и ограничения качества.
 
-Он не означает автоматически:
+Control Reconciliation может существовать без Calculated Imbalance, если количественный расчёт ненадёжен или невозможен. В таком случае zero imbalance не создаётся.
 
-- техническую неисправность;
-- неучтённое потребление;
-- задолженность;
-- финансовое обязательство.
+Calculated Imbalance не означает автоматически:
 
-Расчётный небаланс не является автоматически эксплуатационной потерей или хищением.
+- Operational Loss;
+- technical fault;
+- theft;
+- unaccounted consumption;
+- debt;
+- Financial Obligation.
+
+Zero imbalance не доказывает отсутствие physical loss. Negative imbalance не доказывает fraud/error. Supplier-calculated transformation-loss quantity не тождествен Calculated Imbalance.
 
 ---
 
@@ -1262,9 +1266,27 @@ Physical mounting/removal time не обязан совпадать с effective
 ---
 # 64.3. Контрольная сверка
 
-**Контрольная сверка** (Control Reconciliation) — исторически значимый предметный процесс сопоставления связанных данных учёта в определённой области инженерной системы за предметно определённый временной срез или окно.
+**Контрольная сверка** (Control Reconciliation) — исторически значимый предметный process/result сопоставления связанных ресурсных данных в определённой области инженерной системы и временном окне.
 
-Для неё могут быть существенны ожидаемые и участвовавшие точки учёта, использованные показания и замещающие данные, отсутствующие значения, полнота, правила, преобразования, релевантная топология, результат и ограничения качества. Контрольная сверка не тождественна набору показаний, снимку или расчётному небалансу.
+Для неё могут быть существенны:
+
+- scope / область;
+- Resource / engineering system;
+- historical topology;
+- expected and participating Accounting Points/flows;
+- Reading/Consumption/substitute inputs;
+- missing/excluded inputs;
+- completeness;
+- units/conversions/coefficients;
+- time alignment rules;
+- calculation Rule Version;
+- Calculated Imbalance where applicable;
+- quality limitations;
+- correction/recalculation provenance.
+
+Control Reconciliation не тождествен Control Observation или Calculated Imbalance. Она может завершиться без количественного imbalance, если inputs/topology/rules недостаточны.
+
+Nested/intermediate-meter topology может формировать несколько самостоятельных reconciliation results per scope; universal flat formula не вводится.
 
 ---
 

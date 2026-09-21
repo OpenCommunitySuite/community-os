@@ -1,7 +1,7 @@
 # Community OS — Терминология проекта
 
 **Статус:** Draft  
-**Версия:** 0.20  
+**Версия:** 0.21  
 **Язык документа:** русский
 
 ---
@@ -304,9 +304,13 @@ Reading сам по себе не создаёт Consumption, Calculated Imbalan
 
 # 17. Потери ресурса
 
-**Потери ресурса** — общее предметное обозначение признанной утраты ресурса. Эксплуатационная потеря определяется на допустимом для соответствующего процесса основании и не тождественна расчётному небалансу.
+**Потери ресурса** — общее предметное обозначение признанной утраты ресурса в инженерной системе.
 
-Расчётная разница между объёмами ресурса на связанных уровнях учёта называется расчётным небалансом. Ни потери, ни небаланс не должны автоматически считаться задолженностью или потреблением конкретного собственника.
+Operational Loss является самостоятельным resource-domain fact и не тождественна Calculated Imbalance, supplier settlement quantity, Consumption, Expense или owner debt.
+
+Факт существования loss и её количественная оценка могут возникать в разное время. Подтверждённая loss не получает fictitious quantity только ради полноты записи.
+
+Распределение loss либо Calculated Imbalance и финансовые последствия определяются отдельными процессами.
 
 ---
 
@@ -1132,16 +1136,36 @@ Funding Source не выводится автоматически из Bank Acco
 
 # 59. Эксплуатационная потеря
 
-**Эксплуатационная потеря** (Operational Loss) — отдельно признанное предметное явление утраты ресурса в инженерной системе, определённое на допустимом для соответствующего процесса основании.
+**Эксплуатационная потеря** (Operational Loss) — самостоятельный предметный факт признанной утраты ресурса в инженерной системе, установленный на допустимом для соответствующего процесса основании.
 
-Например:
+Operational Loss может быть признана по direct physical/technical evidence, engineering calculation, Calculated Imbalance в сочетании с дополнительным sufficient basis либо иному applicable rule.
+
+Calculated Imbalance и supplier-calculated transformation-loss quantity не становятся Operational Loss автоматически.
+
+Примеры возможной Operational Loss:
 
 - утечка воды;
-- повреждение трубопровода;
-- технические потери;
-- другие потери ресурса в инженерной системе.
+- повреждение трубопровода с фактической утратой ресурса;
+- технические потери электроэнергии в трансформаторе/линиях на достаточном engineering basis;
+- другие подтверждённые потери ресурса в инженерной системе.
 
-Эксплуатационная потеря отличается от расчётного небаланса между уровнями учёта.
+Факт loss может быть признан до quantification. Если quantity ещё неизвестна, она остаётся unresolved; значение не выдумывается. Когда quantity установлена, должны быть объяснимы unit, method, scope/period и существенные quality limitations.
+
+Cause может оставаться unknown. Закрытая universal cause taxonomy не вводится.
+
+Не являются Operational Loss автоматически:
+
+- Consumption, включая Community Consumption;
+- unauthorized/unaccounted consumption;
+- theft suspicion;
+- Meter/Reading error;
+- topology/mapping error;
+- timing mismatch;
+- missing data.
+
+Operational Loss не создаёт автоматически Expense, распределение по собственникам, Accrual, Financial Obligation или Payment.
+
+Recognition, quantification, re-estimation и correction сохраняются исторически; overlapping loss facts не должны silently double-count одну physical loss.
 
 ---
 

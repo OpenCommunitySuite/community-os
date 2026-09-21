@@ -19,14 +19,26 @@
 
 ```text
 authoritative financial facts
-+ applicable disclosure rules
-+ viewer/audience context
-+ time/as-of semantics
++ applicable locally owned disclosure rules
++ viewer/visibility scope
++ explicit temporal semantics
 → disclosure selection / aggregation / redaction
-→ Read Model / report representation
-→ authorized view
-   OR formal Document/Publication where required
+→ Read Model / Projection
+→ authorized dynamic view
 ```
+
+Если требуется исторически зафиксированное официальное раскрытие, действует отдельная ветвь:
+
+```text
+authoritative financial facts
++ applicable locally owned rules
++ report-generation semantics
+→ Document / Revision / Representation
+→ approval/signing where applicable
+→ Publication to Audience
+```
+
+Dynamic projection и formal Publication используют одни authoritative source facts, но одна ветвь не является обязательным источником другой.
 
 Ключевая граница:
 
@@ -130,14 +142,17 @@ Projection/report не заменяет исходные facts.
 
 Если требуется живой просмотр, используется derived Read Model / Projection.
 
-## 7. Четыре разных сценария видимости
+## 7. Основные сценарии видимости
 
 Не следует объединять в один смысл:
 
-1. **Personal financial view** — Subject видит допустимые сведения, связанные с его отношениями/Personal Accounts;
-2. **Community transparency view** — member/owner audience видит допустимые сведения о финансах Community;
-3. **Oversight/revision view** — уполномоченный контрольный орган/Subject получает более детальный scope для проверки;
-4. **Public disclosure** — сведения доступны широкой/анонимной аудитории по отдельному правилу.
+1. **Personal financial view** — Subject видит допустимые сведения, связанные с его отношениями и с Personal Accounts, относящимися к соответствующим объектам/финансовым отношениям;
+2. **Community transparency view** — допустимый participant/viewer scope сообщества видит раскрываемые сведения о финансах Community; таким viewer может быть owner, member, resident/tenant либо иной Subject только при наличии поддерживаемого отношения и applicable rule;
+3. **Governance/management view** — правление, управляющий орган или другой Subject получает operational financial scope по собственной предметной компетенции и access rules;
+4. **Oversight/revision view** — уполномоченный контрольный орган/Subject получает более детальный scope для проверки;
+5. **Public disclosure** — сведения доступны широкой/анонимной аудитории по отдельному правилу.
+
+Для dynamic views используется термин **viewer/visibility scope**. Термин **Audience** в смысле ADR-009 сохраняется для formal Publication semantics и не создаётся автоматически для каждой technical viewer group.
 
 Один и тот же financial fact может иметь разную допустимую детализацию в этих сценариях.
 
@@ -162,9 +177,15 @@ User Account access
 ≠ universal right to all historical finance
 ```
 
-Visibility определяется применимыми Subject/Object/Community relations, Domain Power и disclosure/access rules.
+Visibility определяется применимыми Subject/Object/Community relations, Domain Power и applicable disclosure/access rules.
 
-Смена owner/user не даёт автоматически право видеть чужую прежнюю историю.
+Personal Account относится к объекту/группе объектов, а не к конкретному owner. Поэтому при смене собственника следует различать:
+
+- current Personal Account state / object-related financial state, который может быть доступен новому Subject только по применимому rule;
+- person-identifiable historical Payments/Accruals/other facts прежнего Subject, которые не становятся видимыми автоматически;
+- Financial Obligations, identity которых не переносится на нового owner только из-за смены ownership.
+
+Смена owner/user не даёт автоматически право видеть чужую прежнюю историю и не переносит финансовые обязательства.
 
 ## 9. Community transparency view
 
@@ -183,6 +204,10 @@ Community-level transparency может показывать:
 
 Не существует universal перечня обязательных показателей для всех Community types.
 
+Community transparency может иметь более узкий domain scope внутри Community — например, конкретный дом, корпус, подъезд, группа объектов, инженерная ветвь или иной already-modeled scope — если такой scope существует в owning context и applicable rule связывает viewer с ним. Stage 9 не вводит universal `Disclosure Scope` entity.
+
+Resident/tenant/use-right relation может участвовать в visibility rule, но не делает такого Subject owner/member и не создаёт одинаковый scope для всех жителей.
+
 ## 10. Oversight / revision access
 
 Ревизионная комиссия либо другой контрольный орган не становится hardcoded Access Role.
@@ -200,6 +225,8 @@ Subject
 Контрольный scope может быть шире member transparency и включать детализированные source facts/documents.
 
 Но техническая роль `auditor` сама по себе не создаёт предметное полномочие.
+
+Обычное открытие dynamic oversight view не является Document Publication или отдельным financial disclosure fact. Technical access/audit logging остаётся cross-cutting responsibility. Если требуется исторически доказуемая formal передача конкретного набора сведений контрольному органу, используется применимая Document/Publication/Communication semantics.
 
 ## 11. Public disclosure
 
@@ -221,25 +248,35 @@ Public view не должен автоматически включать:
 
 Конкретная legal/privacy policy определяется отдельно.
 
-## 12. Disclosure rule
+## 12. Applicable disclosure rules
 
-Disclosure semantics может определять:
+Stage 9 не вводит один универсальный `Disclosure Rule`.
 
-- audience/viewer conditions;
+Согласно ADR-005 disclosure semantics складывается из locally owned rules/versions, каждый из которых принадлежит context, владеющему его предметным смыслом. Например:
+
+- Finance владеет правилами financial selection, classification, aggregation и metric semantics;
+- Documents владеет formal Publication/Revision/Representation semantics;
+- context, владеющий предметным действием/отношением, определяет его subject-matter admissibility;
+- cross-cutting access responsibility применяет Access Rights/Roles и technical authorization без присвоения ownership предметным правилам;
+- cross-cutting Rules responsibility задаёт общие требования identity/version/history, но не является централизованным owner.
+
+Applicable rule composition может определять:
+
+- viewer conditions / formal Audience where applicable;
 - financial scope;
 - period;
-- aggregation level;
+- aggregation level and additivity semantics;
 - allowed dimensions;
 - redaction/minimization;
-- whether drill-down is allowed;
-- freshness/as-of requirements;
-- whether historical snapshot/publication is required;
+- drill-down;
+- freshness and temporal axis;
+- requirement for formal historical fixation;
 - handling disputed/corrected facts;
 - document/evidence visibility.
 
-Disclosure rule не является новым financial fact.
+Applicable disclosure rules не являются новыми financial facts.
 
-Исторически значимая версия rule должна быть определима, если она влияет на formal historical disclosure.
+Если rule/version materially влияет на historical formal disclosure, фактически использованные версии и существенные параметры должны быть зафиксированы либо однозначно определимы из historical context согласно ADR-005/009.
 
 ## 13. Audience vs Access
 
@@ -255,19 +292,29 @@ Disclosure rule не является новым financial fact.
 
 Dynamic financial dashboard/list/report view может быть Read Model / Projection.
 
-Для него должны быть определимы:
+Каждая конкретная projection должна иметь declared producer/owner согласно ADR-013. Universal owner всех financial disclosure projections не вводится.
+
+Если view требует данных нескольких modules/contexts:
+
+- используются public application query contracts и/или explicitly published projections owning modules;
+- direct cross-module read internal tables не допускается;
+- composition layer/BFF/reporting projection не присваивает ownership исходных domain facts или local rules.
+
+Для projection должны быть определимы:
 
 - producer/owner;
 - source fact scope;
+- Community/sub-scope where applicable;
 - visibility semantics;
 - freshness;
-- applicable current/as-of semantics.
+- explicit temporal semantics.
 
 ```text
 Read Model
 ≠ financial source of truth
 ≠ command model
 ≠ correction mechanism
+≠ owner of source-domain rules
 ```
 
 ## 15. Formal report / official disclosure
@@ -283,6 +330,8 @@ financial facts
 ```
 
 Document не становится владельцем финансовых facts.
+
+Если composition/aggregation/redaction materially определили content formal report, historical context должен позволять установить фактически использованные rule versions/parameters без требования создавать новый Financial Disclosure entity.
 
 ## 16. Dynamic view ≠ formal publication
 
@@ -314,6 +363,8 @@ Historical view может означать разные вещи:
 
 Эти semantics не взаимозаменяемы.
 
+Возможность реконструировать вариант 2 ограничена historical guarantee owning context по ADR-004. Stage 9 не создаёт дополнительную bitemporal/history guarantee поверх source facts.
+
 Universal bitemporal dashboard не вводится.
 
 ## 19. Historical publication snapshot
@@ -324,16 +375,24 @@ Formal historical disclosure должен опираться на его actual 
 
 ## 20. Freshness and as-of
 
-Каждая materially current projection должна иметь определимую freshness/as-of semantics.
+Каждая materially current или historical projection должна иметь определимые freshness и temporal semantics.
+
+Термин `as-of` не используется без указания его временной оси. Конкретная projection должна явно определять, означает ли её historical parameter, например:
+
+- effective state at subject time using current known/corrected facts;
+- system-recognized/recording state at historical time, если owner context действительно поддерживает такую history guarantee;
+- другой explicitly defined temporal view.
 
 Например:
 
 ```text
-data as of 2026-09-21 08:00
+effective data through 2026-09-21 08:00
 generated at 2026-09-21 08:05
 ```
 
 не являются одним фактом автоматически.
+
+Formal historically published content определяется Publication/Revision history, а не реконструируется молча из текущей projection.
 
 Термин `real-time` не вводится как universal guarantee.
 
@@ -360,6 +419,8 @@ Aggregation может выполняться по:
 
 Aggregation использует только существующую semantics.
 
+Для каждой metric/dimension должна быть определима aggregation semantics: additive/mutually-exclusive либо overlapping/non-additive where applicable. Одновременная группировка по нескольким independent many-to-many dimensions не считается additive-safe автоматически.
+
 Нельзя создавать фиктивные Budget Items/Funding Sources/categories ради красивого отчёта.
 
 ## 23. Amount consistency
@@ -372,7 +433,10 @@ Aggregation использует только существующую semantics
 - Expense Budget Distribution;
 - Funding Source relation;
 - Payment Allocation;
-- repeated correction versions.
+- repeated correction versions;
+- simultaneous use of several overlapping analytical dimensions.
+
+Bank-account movement totals и classified Expense/Payment totals являются разными metrics/scopes и не суммируются друг с другом автоматически.
 
 ## 24. Bank Account transparency
 
@@ -381,9 +445,18 @@ Community может раскрывать balance/movements отдельных B
 Но нужно различать:
 
 - recognized Bank Transactions in Community OS;
-- external bank current balance;
+- external bank balance/state received from an external source;
+- provenance/confirmation time of that external information;
 - imported statement completeness;
-- derived internal balance.
+- derived internal balance from recognized facts.
+
+External bank balance/state является external information и не становится authoritative internal financial fact автоматически.
+
+Bank Transaction ↔ Payment/Expense/other financial operation не имеет universal 1:1 cardinality. Поэтому:
+
+- bank-movement projection и classified financial projection имеют отдельные metric semantics;
+- их суммы могут легитимно не совпадать;
+- unclassified Bank Transactions остаются representable как unclassified bank movement and must not disappear solely for report neatness.
 
 Если external bank balance не получен/не подтверждён, projection не должна выдавать derived value за подтверждённый bank balance.
 
@@ -418,7 +491,9 @@ Debt exists
 
 Публичное раскрытие identifiable debtor information требует отдельного privacy/legal/business basis.
 
-Stage 9 не делает public debtor list стандартной функцией.
+Member/owner/resident visibility также не означает automatic right to identifiable debtor list. Такое раскрытие требует explicit applicable rule/basis для соответствующего viewer scope.
+
+Stage 9 не делает identifiable debtor list стандартной функцией ни для public, ни для Community participant view.
 
 ## 28. Expenses
 
@@ -445,13 +520,23 @@ Budget
 ≠ Payment
 ```
 
-План-факт view может показывать Budget Item plan, recognized Expenses и другие explicitly defined actual metrics, но metric `исполнение сметы` должен иметь explicit calculation semantics.
+План-факт view может показывать Budget Item plan, recognized Expenses, Payments и другие explicitly defined actual metrics, но metric `исполнение сметы` должен иметь explicit calculation semantics и явно называть basis факта (например, Expense-based, Payment-based либо иной defined basis).
+
+Stage 9 не вводит universal правило, что «факт» сметы всегда считается только по Expense или только по Payment.
 
 ## 30. Funding Sources
 
 Funding Source показывает origin/classification of funds, а не технический reserve.
 
 Transparency не должна изображать Funding Source balance/reserve, если такого предметного факта/расчёта нет.
+
+Допустима derived metric целевого накопления/программы только если:
+
+- исходные targeted accrual/receipt/funding classifications и financed Expenses представлены существующими financial facts;
+- formula и period явно определены;
+- metric не называется «зарезервированными/заблокированными средствами», если отдельная finance semantics такого ограничения не установила.
+
+Если конкретному типу Community нужен юридически/предметно самостоятельный restricted reserve/fund, не представимый текущей Finance model, это отдельный Finance-domain вопрос, а не новая сущность Stage 9.
 
 ## 31. Financial Obligations
 
@@ -484,6 +569,10 @@ Expense visible
 
 Related Document can be linked from projection only when viewer has applicable visibility/access to that Document/Revision/Representation.
 
+Financial projection может показывать только document metadata, разрешённые соответствующим public/query contract и applicable Document visibility semantics. Она не должна читать/раскрывать restricted raw metadata только потому, что сам financial fact видим.
+
+Доступ к Document/Representation проверяется его owning context независимо от financial projection.
+
 Нельзя обходить Document access через financial dashboard.
 
 ## 35. Operational Work / project linkage
@@ -511,6 +600,8 @@ Disclosure rule может:
 
 Нельзя silently hide disputed facts simply to make report look clean.
 
+Если оспаривается correction/recalculation, именно owning Finance process определяет current effective financial result. Disclosure показывает current effective result согласно source semantics и separately preserves/discloses dispute marker where applicable; Stage 9 не выбирает, какая correction «побеждает».
+
 ## 37. Correction and recalculation
 
 When source financial fact changes through valid correction/recalculation/cancellation:
@@ -518,7 +609,8 @@ When source financial fact changes through valid correction/recalculation/cancel
 - current projection is rebuilt from current effective semantics;
 - historical source history remains;
 - previous formal publication remains historical;
-- corrected official report requires explicit new Revision/Document/Publication semantics where applicable.
+- corrected official report requires explicit new Revision/Document/Publication semantics where applicable;
+- where correction/replacement/withdrawal of a prior formal publication is materially significant, traceable relation to the affected Revision/Publication must be preserved according ADR-009.
 
 ```text
 financial correction
@@ -613,6 +705,8 @@ Disclosure never crosses Community boundary merely because same User Account/Sub
 
 Each projection/report has one explicit Community scope unless a separate cross-community product scenario is defined.
 
+Within one Community, projection/report may also have narrower domain scope only when such scope is already modeled by owning contexts and historically determinable where relevant. Stage 9 does not invent a universal sub-Community hierarchy or Scope entity merely for reporting.
+
 ## 46. Pilot ST — owner personal account
 
 Plot owner sees:
@@ -624,6 +718,8 @@ Plot owner sees:
 - related receipts/documents allowed by rules.
 
 He does not receive automatic access to all historical data of prior owner merely because current Object relation exists.
+
+Current Personal Account/object-related state may be visible only under applicable rule and does not transfer prior owner's obligations or expose person-identifiable prior-owner Payment history automatically.
 
 ## 47. Pilot ST — member community transparency
 
@@ -637,6 +733,16 @@ Member sees for selected period:
 
 Individual payer identity is not required for this aggregate view.
 
+If Community collects owner Payments related to individual resource consumption and separately settles supplier Obligations, transparency keeps these facts distinct:
+
+```text
+owner Accrual/Obligation/Payment
+≠ Community Expense
+≠ supplier Financial Obligation/Payment
+```
+
+A displayed `pass-through / reimbursable / transit` grouping is allowed only as an explicitly defined classification/metric supported by existing finance semantics; Stage 9 does not create a universal Transit Payment entity.
+
 ## 48. Pilot ST — revision commission
 
 Member of revision commission with valid participation/authority/access can inspect:
@@ -648,7 +754,9 @@ Member of revision commission with valid participation/authority/access can insp
 - Budget distributions;
 - supporting Documents where independently accessible.
 
-Removal from commission does not rewrite historical audit activity; current access can cease.
+Removal from commission does not rewrite historical control actions/documents where they exist; current dynamic access can cease.
+
+Opening the dynamic oversight view itself remains technical access/audit by default, not a new domain Financial Disclosure fact.
 
 ## 49. Pilot ST — public website
 
@@ -662,6 +770,54 @@ Community publishes annual summary:
 No identifiable individual debts/payments are included by default.
 
 If this is an official annual report, it should be a Document/Revision/Publication rather than only a volatile dashboard.
+
+### 49.1. Pilot ОСББ — resident/tenant limited transparency
+
+Resident/tenant with a recognized right-of-use or other supported relation may receive a limited Community transparency scope if applicable rules allow it.
+
+```text
+resident/tenant
+≠ owner
+≠ member automatically
+≠ public viewer
+```
+
+Access is derived from the actual Subject↔Object/Community relation plus applicable visibility/access rules.
+
+### 49.2. Pilot ОСББ — multi-building / entrance scope
+
+For a Community managing several buildings or entrances, a transparency view may disclose expenses for one building/entrance only to viewers with applicable relation to that already-modeled scope.
+
+Stage 9 does not create a new Building/Entrance hierarchy if the Object/organizational model does not already represent it.
+
+### 49.3. Pilot ОСББ/ЖСК — target accumulation / capital repair
+
+Community wants to show a capital-repair or other target accumulation position.
+
+Projection may show a derived metric such as defined targeted inflows minus defined financed expenses only when source classifications and formula are explicit.
+
+The displayed position is not a bank reserve or legally blocked fund automatically.
+
+### 49.4. Pilot — governance/board financial view
+
+Board member/authorized manager sees operational finance analytics according to participation/position, Domain Power and Access rules.
+
+This scope is distinct from ordinary member transparency and from independent revision/oversight scope.
+
+### 49.5. Pilot — assembly rejects annual financial report
+
+Draft annual report is generated as Document Revision and submitted for applicable approval.
+
+If assembly/governing procedure rejects it:
+
+```text
+rejected Revision
+→ correction/new Revision
+→ new approval attempt
+→ Publication only when applicable approval semantics are satisfied
+```
+
+Rejected draft is not silently rewritten; prior historical Publications, if any, remain historical.
 
 ## 50. Pilot ST — delayed bank statement
 
@@ -748,10 +904,11 @@ Where materially relevant, disclosure result should make determinable:
 - financial scope;
 - period/as-of;
 - source fact classes;
-- applied disclosure rule/version;
-- aggregation/transformation;
+- applied locally owned rule/version set and material parameters;
+- aggregation/transformation and additivity semantics;
 - redaction/minimization;
 - freshness/generated time;
+- explicit temporal axis/meaning of historical parameter;
 - Document/Revision/Representation where formal;
 - Publication/Audience where formal;
 - correction/dispute semantics;
@@ -794,6 +951,19 @@ Where materially relevant, disclosure result should make determinable:
 31. Cross-community access is not inferred.
 32. Formal disclosure uses existing Document/Publication semantics when historical fixation matters.
 33. No universal Financial Transparency/Disclosure entity is introduced.
+34. No universal Disclosure Rule/Rule Context is introduced; rule ownership remains local under ADR-005.
+35. Every projection has declared producer/owner; composition does not transfer source-domain ownership.
+36. Bare ambiguous `as-of` semantics are not allowed; temporal axis must be declared.
+37. Bank movement totals ≠ classified Expense/Payment totals and are not automatically additive.
+38. Unclassified Bank Transactions remain representable.
+39. Member/resident scope ≠ identifiable debtor disclosure automatically.
+40. Resident/tenant ≠ owner/member/public viewer automatically.
+41. Sub-Community disclosure scope must come from existing domain scope, not a reporting-only invented hierarchy.
+42. Current Personal Account state ≠ prior person's identifiable financial history.
+43. Overlapping analytical dimensions are not additive-safe automatically.
+44. Target-fund position ≠ reserved/blocked funds automatically.
+45. Pass-through/transit display classification ≠ new Payment/Expense type.
+46. Dynamic oversight access ≠ formal Publication/domain disclosure fact automatically.
 
 ## 60. Internal review conclusions
 
@@ -805,26 +975,34 @@ Where materially relevant, disclosure result should make determinable:
 6. A universal Financial Disclosure entity is not justified.
 7. Formal historical disclosure should use Document/Revision/Representation/Publication rather than a new snapshot entity.
 8. Dynamic dashboard does not create Publication.
-9. Disclosure policy is configuration/rule semantics, not a new financial fact.
-10. Public identifiable debtor disclosure is not adopted by this BP.
+9. No universal Disclosure Rule is introduced; disclosure semantics compose locally owned rules under ADR-005.
+10. Public/member/resident identifiable debtor disclosure is not granted automatically by this BP; it requires explicit applicable rule/basis.
 11. Audit/revision body scenario uses existing participation/Domain Power/access model, not hardcoded role.
-12. Current projection may reflect effective corrections; old formal publications remain historical.
-13. Source-fact visibility and supporting-Document visibility are checked independently.
-14. No new ADR is preliminarily required if existing context boundaries remain sufficient.
-15. Cross-cutting nature and financial/privacy sensitivity justify independent multi-review before normative sync.
+12. Governance/management view is separate from ordinary member and independent oversight scopes.
+13. Current projection may reflect effective corrections; old formal publications remain historical.
+14. Source-fact visibility and supporting-Document visibility are checked independently.
+15. Every concrete projection requires declared producer/owner and explicit temporal semantics under ADR-013.
+16. Sub-Community and resident/tenant scopes reuse existing domain relations/scopes; no new universal reporting hierarchy is introduced.
+17. Target accumulation and pass-through utility scenarios are reportable only from existing Finance semantics; Stage 9 does not invent reserve/transit facts.
+18. No new ADR is required if existing context boundaries remain sufficient.
+19. Independent multi-review Round 1 was required before normative sync and has been completed; no full Round 2 is required after the accepted clarifications.
 
 ## 61. Предварительные нормативные последствия
 
-После review могут потребоваться точечные изменения:
+Round 1 подтвердил, что новый ADR и новая fundamental entity не требуются.
 
-- ADR-006 — explicit financial disclosure/projection source-of-truth boundary;
-- ADR-009 — dynamic view vs formal publication boundary if current wording insufficient;
-- ADR-010 — likely no change; existing access semantics sufficient;
+Требуется точечная нормативная синхронизация:
+
+- ADR-005 — не менять фундаментальную модель; при необходимости добавить mirror-note, что disclosure использует composition locally owned rules, а не universal Disclosure Rule;
+- ADR-006 — financial disclosure/projection source-of-truth boundary, aggregation/additivity, bank-movement vs classified-finance distinction;
+- ADR-009 — dynamic view vs formal publication и correction/replacement traceability where needed;
+- ADR-010 — изменение не требуется; existing access/admissibility semantics sufficient;
+- ADR-013 — изменение минимальное/необязательное, если BP достаточно ссылается на declared projection producer/owner and public-contract composition;
 - DOMAIN_MODEL — financial disclosure/current-vs-historical projection boundaries;
-- TERMINOLOGY — potentially `Financial Disclosure` only if a stable term is useful; no entity semantics;
+- TERMINOLOGY — stable term may be added as process/view semantics only, not entity;
 - REFERENCE_CANDIDATE_MATRIX — close REF-TRANS-001 / Stage 9.
 
-VISION preliminarily does not require change.
+VISION does not require change.
 
 ## 62. Review requirement
 

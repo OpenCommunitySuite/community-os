@@ -2,7 +2,7 @@
 
 **Статус:** Working / рабочий документ анализа  
 **Область:** OSBBX, «Мій Дім Online» (МДО), DAH Online  
-**Актуально относительно:** нормативной модели после BP-RECON-001; DOMAIN_MODEL 0.23, TERMINOLOGY 0.20  
+**Актуально относительно:** нормативной модели после BP-LOSS-001; DOMAIN_MODEL 0.24, TERMINOLOGY 0.21  
 **Назначение:** единая точка учёта кандидатов, выявленных во внешних референсах, их текущего состояния в Community OS и последовательности дальнейшей проработки.
 
 > Этот документ не является источником продуктовых требований и не заменяет DOMAIN_MODEL, TERMINOLOGY или ADR. Наличие функции у референса не означает, что она должна быть реализована в Community OS.
@@ -73,7 +73,7 @@
 | REF-BANK-001 | Импорт/признание/классификация банковских сведений | OSBBX, МДО | Зафиксирован `BP-FIN-BANK-001`: external representation → validation/mapping → Bank Transaction recognition → classification/matching → специализированные финансовые результаты; vendor-specific API semantics не входят в доменную модель | **Закрыт решением** | Конкретные API/XLSX/webhook contracts проектировать отдельно; Payment correction/Refund/Expense остаются специализированными BP |
 | REF-METER-001 | Замена прибора учёта | OSBBX, пилотный СТ | Зафиксирован `BP-METER-001`: replacement сохраняет Accounting Point при неизменной измерительной границе; old/new Meter Installations разделены по effective intervals; boundary Reading optional; gap/overlap, коэффициенты, late recording, duplicate/correction, relocation и topology boundary описаны без `Meter Replacement` entity | **Закрыт решением** | Не возвращаться к фундаментальной модели replacement без нового сценария; общий Reading recognition и эксплуатационные ресурсные процессы вести в Stage 7 |
 | REF-METER-002 | Автоматическое получение/импорт показаний | МДО, OSBBX, пилотный СТ | Зафиксирован `BP-READING-002`: batch/API/synchronization/streaming используют одну integration boundary и передают values в `BP-READING-001`; historical device/channel/unit mapping, partial success, redelivery/duplicate, correction/re-import/re-recognition, outage/backlog и unknown-device semantics разделены без отдельной Imported/Telemetry Reading entity | **Закрыт решением** | Конкретные MQTT/Modbus/Home Assistant/АСКОЕ/API/CSV contracts проектировать отдельно; следующий ресурсный процесс — контрольное снятие и затем Control Reconciliation |
-| REF-METER-003 | Контрольное снятие и сверка связанных точек учёта | OSBBX, МДО, пилотный СТ | `BP-READING-003` определяет Control Observation; `BP-RECON-001` определяет Control Reconciliation как historical process/result с scope/topology/window/completeness, participating/missing/excluded/substitute inputs, nested scopes, correction/recalculation и Calculated Imbalance where possible; Operational Loss остаётся отдельным recognition process | **Закрыт решением** | Не возвращаться к control observation/reconciliation без нового сценария; следующий Stage 7 процесс — Operational Loss recognition |
+| REF-METER-003 | Контрольное снятие и сверка связанных точек учёта | OSBBX, МДО, пилотный СТ | `BP-READING-003` определяет Control Observation; `BP-RECON-001` — Control Reconciliation/Calculated Imbalance; `BP-LOSS-001` завершает resource chain отдельным Operational Loss recognition без автоматического приравнивания imbalance/supplier loss/owner debt | **Закрыт решением** | Не возвращаться к resource reconciliation/loss recognition без нового сценария; loss allocation анализировать отдельно только при конкретной policy |
 | REF-OPS-001 | Обращение → операционная заявка / Work Order | DAH, частично МДО | ADR-009 определяет Appeal и прямо не делает его универсальным workflow; самостоятельная семантика операционной работы не определена | **Следующий** | `BP-OPS-001`: отделить обращение от работы, результата, исполнителя, инфраструктурного объекта и затрат |
 | REF-DOC-001 | Подписание предметно значимого документа | DAH | ADR-009 уже определяет Signing как действие над конкретной Revision/Representation и отличает его от approval/registration/publication | **Частично закрыт** | Исследовать электронное доказательство подписания, внешние подписи и правовые требования; не пересматривать базовую семантику без причины |
 | REF-DOC-002 | Публикация документа/отчёта | МДО, DAH | ADR-009 определяет Publication, Audience и историчность публикаций | **Закрыт решением** | Конкретные публикационные BP вводить по продуктовой необходимости |
@@ -275,34 +275,33 @@ Subject
 
 ### Этап 7. Ресурсные эксплуатационные процессы
 
-**Состояние:** выполняется.
+**Состояние:** завершён в текущем Draft Stage 7 chain.
 
-Foundation процесса зафиксирован в `BP-READING-001 — Приём и признание показания`.
+Зафиксированы специализированные процессы:
 
-Принято:
+1. **BP-READING-001 — приём и признание показания**;
+2. **BP-READING-002 — automatic Reading import/recognition**;
+3. **BP-READING-003 — Control Observation / контрольное снятие**;
+4. **BP-RECON-001 — Control Reconciliation + Calculated Imbalance where applicable**;
+5. **BP-LOSS-001 — Operational Loss recognition**.
+
+Ключевые границы Stage 7:
 
 - observed/reported/received value ≠ Reading;
-- Reading имеет собственную исторически различимую identity;
-- meter-based historical Reading связывается с applicable Meter Installation по measurement time;
-- late/out-of-order values не привязываются к current Meter по record time;
-- universal one-Reading-per-day rule не вводится;
-- duplicate/conflict не решаются только по value/date;
-- owner/manual/control/telemetry/provider values используют одну domain recognition model;
-- automatic recognition допускается по rule/semantic contract без превращения automated mechanism в Subject;
-- rejected/unresolved input ≠ Reading;
-- Reading correction ≠ new observation ≠ Consumption recalculation ≠ financial correction;
-- Reading сам по себе не создаёт Consumption, Calculated Imbalance, Operational Loss или Accrual.
+- Reading ≠ Consumption;
+- Control Observation ≠ Control Reconciliation;
+- Control Reconciliation ≠ Calculated Imbalance;
+- Calculated Imbalance ≠ Operational Loss;
+- supplier-calculated transformation-loss quantity ≠ Operational Loss automatically;
+- Operational Loss may exist without Calculated Imbalance;
+- recognized loss may remain temporarily unquantified;
+- Consumption / unauthorized consumption / theft suspicion / Meter error / topology error / missing data ≠ Operational Loss automatically;
+- Operational Loss ≠ Expense / owner Accrual / Financial Obligation;
+- loss allocation and financial consequences remain separate follow-on processes and do not block closure of the resource fact chain.
 
-Следующая последовательность Stage 7:
+**Результат:** resource operational chain from received value through recognized Reading, control/reconciliation, Calculated Imbalance and separately recognized Operational Loss is defined without a universal Meter Workflow.
 
-1. **BP-READING-001 — приём и признание показания** — завершён;
-2. **BP-READING-002 — automatic Reading import/recognition** — завершён; REF-METER-002 закрыт;
-3. **BP-READING-003 — Control Observation / контрольное снятие** — завершён;
-4. **BP-RECON-001 — Control Reconciliation** — завершён в текущем Draft; REF-METER-003 закрывается;
-5. **Operational Loss recognition** — следующий;
-6. loss allocation / financial consequences only after separate owning-process analysis.
-
-**Результат:** набор специализированных BP, а не универсальный Meter Workflow.
+**Следующий основной этап:** Stage 8 — `BP-OPS-001`. Return to loss allocation only when a concrete pilot/business rule requires it.
 
 ### Этап 8. BP-OPS-001 — от обращения к операционной работе
 

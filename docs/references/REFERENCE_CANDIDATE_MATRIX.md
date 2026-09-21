@@ -78,7 +78,7 @@
 | REF-DOC-001 | Подписание предметно значимого документа | DAH | ADR-009 уже определяет Signing как действие над конкретной Revision/Representation и отличает его от approval/registration/publication | **Частично закрыт** | Исследовать электронное доказательство подписания, внешние подписи и правовые требования; не пересматривать базовую семантику без причины |
 | REF-DOC-002 | Публикация документа/отчёта | МДО, DAH | ADR-009 определяет Publication, Audience и историчность публикаций | **Закрыт решением** | Конкретные публикационные BP вводить по продуктовой необходимости |
 | REF-TRANS-001 | Финансовая прозрачность для участников, органов управления/контроля и публичного раскрытия | DAH, пилотный СТ/ОСББ/ЖСК | Зафиксирован `BP-TRANS-001`: personal/community/governance/oversight/public scopes разделены; dynamic view = Read Model/Projection, formal historical disclosure = Document/Revision/Representation/Publication; universal Disclosure entity/rule не вводятся; locally owned rules ADR-005, explicit temporal/additivity semantics, debtor/privacy, bank movement/classification, sub-community scope, resident/tenant, target accumulation и pass-through boundaries определены | **Закрыт решением** | Конкретные disclosure policies, privacy/legal rules, viewer scopes и report metrics задавать локально; не создавать второй financial source of truth |
-| REF-GOV-001 | Неформальный опрос ≠ формальное голосование | МДО, DAH | ADR-008 полно описывает формальные управленческие процедуры/голосования, но отдельная семантика неформального survey не принята | **Backlog** | Исследовать после базовых пользовательских процессов; определить принадлежность коммуникациям или управлению |
+| REF-GOV-001 | Неформальный опрос ≠ формальное голосование | МДО, DAH | Подготовлен Draft `BP-SURVEY-001`: Survey и Survey Response рассматриваются как самостоятельные понятия контекста «Коммуникации и обращения»; Survey Item имеет stable local identity; Survey ≠ Voting, Survey Response ≠ Vote; Survey Result/Right/Participant/Snapshot/Version не вводятся без дополнительного основания | **В работе (Draft Stage 10)** | Провести independent multi-review; проверить identity/ownership, response-unit/admissibility, anonymity/history, replacement-vs-versioning, external-channel recognition и границу с Governance; затем выполнить минимальную нормативную синхронизацию |
 | REF-GOV-002 | Электронное участие в собрании и доказательство волеизъявления | DAH, МДО | Канал подачи не меняет природу голоса; управление и подписание разделены; техническое/правовое доказательство удалённого участия не определено | **Отложен** | После исследования электронной подписи описать специализированный процесс удалённого участия |
 | REF-INT-001 | Экспорт канонических операций в BAS/BAF с устойчивыми идентификаторами | МДО | ADR-006/011 фиксируют границу внешней бухгалтерии и semantic contract; конкретный контракт отсутствует | **Backlog** | Проектировать отдельный integration semantic contract, не копируя модель BAS/BAF |
 | REF-INT-002 | API-first режим Community OS поверх внешней учётной системы | DAH | Архитектурно совместим с ADR-011; не является требованием первого внедрения | **Отложен** | Вернуться после стабилизации пилота и основных интеграционных контрактов |
@@ -361,15 +361,23 @@ Subject
 
 ### Этап 10. Неформальный опрос
 
+**Состояние:** в работе; подготовлен Draft `BP-SURVEY-001 — Неформальный опрос / Informal Survey`.
+
 **Источники:** МДО + DAH.
 
-Нужно определить, является ли survey:
+Stress-test текущей модели дал рабочее направление:
 
-- коммуникационным механизмом сбора мнений;
-- управленческой процедурой без юридически значимого решения;
-- локальной специализацией существующих понятий.
+- Survey является самостоятельным identity-bearing понятием контекста «Коммуникации и обращения»;
+- Survey Response является самостоятельным исторически различимым фактом;
+- Survey Item имеет stable local identity within Survey, но не объявляется fundamental top-level entity;
+- response unit, acting Subject/User и technical access различаются;
+- Survey audience ≠ response eligibility ≠ technical access;
+- Survey ≠ Voting, Survey Response ≠ Vote;
+- Survey aggregation ≠ Established Result ≠ Management Decision;
+- universal Survey Result / Survey Right / Survey Participant / Survey Eligibility Snapshot / Survey Version пока не вводятся;
+- materially significant Survey definition не должна silent-rewrite уже принятые Responses; baseline Draft предпочитает replacement Survey вместо преждевременного universal versioning.
 
-**Результат:** решение о необходимости отдельного понятия/BP. Не превращать любой опрос в Voting.
+**Следующий шаг:** independent multi-review Draft, затем adjudication и минимальная нормативная синхронизация. До review эти положения не считаются окончательно принятыми.
 
 ### Этап 11. Электронное подписание и удалённое участие
 

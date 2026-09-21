@@ -607,18 +607,32 @@ Current Ukrainian law подтверждает для ОСББ/совладел�
 
 ## 40. Пилотное СТ
 
-Для пилотного садового товарищества Stage 11A не предполагает, что ОСББ rules применимы.
+Для пилотного садового товарищества **дистанционное участие и подписанное электронное волеизъявление являются обязательным продуктовым сценарием Stage 11B**.
 
-До юридически значимого remote voting необходимо определить:
+Цель — дать владельцам/допустимым реализаторам права возможность участвовать в важных решениях, даже если они физически отсутствуют в СТ или находятся за границей.
+
+При этом Stage 11A не копирует ОСББ procedure как universal rule и не делает вывод:
+
+```text
+КЕП valid
+→ Vote legally valid automatically
+```
+
+До юридически значимого remote voting legal/governance profile пилотного СТ должен определить:
 
 - legal form pilot ST;
 - applicable law;
 - charter;
+- кто является носителем права участия и права голоса;
+- quorum/presence semantics;
+- допускаемые in-person / remote synchronous / signed asynchronous / mixed modes;
 - procedure requirements;
-- acceptable electronic participation/signature form.
+- acceptable electronic signature class;
+- document/ballot/protocol formalization.
+
+Если применимое право пилотного СТ содержит императивное правило, противоречащее текущей конфигурации `1 участок = 1 голос`, legal rule имеет приоритет для юридически значимой процедуры, а Community OS должна позволить profile-specific Voting Rule вместо сокрытия конфликта.
 
 Universal Signing model при этом остаётся reusable.
-
 ## 41. Проверочные сценарии
 
 ### 41.1. One signer / one Representation

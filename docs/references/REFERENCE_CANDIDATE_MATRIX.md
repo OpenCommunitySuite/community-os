@@ -2,7 +2,7 @@
 
 **Статус:** Working / рабочий документ анализа  
 **Область:** OSBBX, «Мій Дім Online» (МДО), DAH Online  
-**Актуально относительно:** нормативной модели после BP-OPS-001; DOMAIN_MODEL 0.25, TERMINOLOGY 0.22  
+**Актуально относительно:** нормативной модели после BP-TRANS-001; DOMAIN_MODEL 0.26, TERMINOLOGY 0.23  
 **Назначение:** единая точка учёта кандидатов, выявленных во внешних референсах, их текущего состояния в Community OS и последовательности дальнейшей проработки.
 
 > Этот документ не является источником продуктовых требований и не заменяет DOMAIN_MODEL, TERMINOLOGY или ADR. Наличие функции у референса не означает, что она должна быть реализована в Community OS.
@@ -77,7 +77,7 @@
 | REF-OPS-001 | Обращение → операционная работа / Work Order | DAH, частично МДО, пилотный СТ | Зафиксирован `BP-OPS-001`; `Operational Work` имеет самостоятельную identity, Appeal↔Work поддерживает many-to-many, Work может существовать без Appeal; Work Assignment/Work Result, completion vs acceptance, reopen/follow-up, volunteer/contractor execution, target/evidence/materials и finance/resource/document boundaries определены; ADR-002 расширен 11-м context `Community Operations` после independent multi-review | **Закрыт решением** | Не возвращаться к fundamental Work ownership без нового сценария; конкретные operational policies, priority/SLA/status projections и implementation design определять отдельно |
 | REF-DOC-001 | Подписание предметно значимого документа | DAH | ADR-009 уже определяет Signing как действие над конкретной Revision/Representation и отличает его от approval/registration/publication | **Частично закрыт** | Исследовать электронное доказательство подписания, внешние подписи и правовые требования; не пересматривать базовую семантику без причины |
 | REF-DOC-002 | Публикация документа/отчёта | МДО, DAH | ADR-009 определяет Publication, Audience и историчность публикаций | **Закрыт решением** | Конкретные публикационные BP вводить по продуктовой необходимости |
-| REF-TRANS-001 | Финансовая прозрачность для собственников и контрольных органов | DAH | Финансовые факты и публикационная семантика существуют; конкретный состав раскрываемой информации, аудитория и правила раскрытия не определены | **Backlog** | Сначала определить предметные требования к раскрытию, аудиториям, спорным данным и provenance; затем отобразить их на Read Model / Projection |
+| REF-TRANS-001 | Финансовая прозрачность для участников, органов управления/контроля и публичного раскрытия | DAH, пилотный СТ/ОСББ/ЖСК | Зафиксирован `BP-TRANS-001`: personal/community/governance/oversight/public scopes разделены; dynamic view = Read Model/Projection, formal historical disclosure = Document/Revision/Representation/Publication; universal Disclosure entity/rule не вводятся; locally owned rules ADR-005, explicit temporal/additivity semantics, debtor/privacy, bank movement/classification, sub-community scope, resident/tenant, target accumulation и pass-through boundaries определены | **Закрыт решением** | Конкретные disclosure policies, privacy/legal rules, viewer scopes и report metrics задавать локально; не создавать второй financial source of truth |
 | REF-GOV-001 | Неформальный опрос ≠ формальное голосование | МДО, DAH | ADR-008 полно описывает формальные управленческие процедуры/голосования, но отдельная семантика неформального survey не принята | **Backlog** | Исследовать после базовых пользовательских процессов; определить принадлежность коммуникациям или управлению |
 | REF-GOV-002 | Электронное участие в собрании и доказательство волеизъявления | DAH, МДО | Канал подачи не меняет природу голоса; управление и подписание разделены; техническое/правовое доказательство удалённого участия не определено | **Отложен** | После исследования электронной подписи описать специализированный процесс удалённого участия |
 | REF-INT-001 | Экспорт канонических операций в BAS/BAF с устойчивыми идентификаторами | МДО | ADR-006/011 фиксируют границу внешней бухгалтерии и semantic contract; конкретный контракт отсутствует | **Backlog** | Проектировать отдельный integration semantic contract, не копируя модель BAS/BAF |
@@ -330,20 +330,32 @@ Subject
 
 ### Этап 9. Финансовая прозрачность и раскрытие финансовой информации
 
-**Источник:** DAH.
+**Состояние:** завершён.
 
-Нужно определить:
+Зафиксирован `BP-TRANS-001 — Финансовая прозрачность и раскрытие финансовой информации`.
 
-- какие финансовые факты показываются собственнику;
-- какие — ревизору/контрольному органу;
-- какие — публичной аудитории;
-- текущие и исторические представления;
-- спорные/исправленные данные;
-- provenance и момент актуальности;
-- связь Projection с source-of-truth;
-- отсутствие права изменять домен через read model.
+Принято:
 
-**Результат:** предметные требования к раскрытию и публикации финансовой информации; их последующее отображение на Read Model / Projection не создаёт второго источника финансовой истины.
+- Financial disclosure/transparency не является новым financial fact или source of truth;
+- universal Financial Disclosure entity и universal Disclosure Rule не вводятся;
+- disclosure semantics используют composition locally owned rules/versions по ADR-005;
+- dynamic view = Read Model / Projection с declared producer/owner, scope, visibility, freshness и explicit temporal semantics;
+- formal historically fixed disclosure = Document / Revision / Representation / Publication;
+- personal, Community participant, governance/management, oversight/revision и public scopes различаются;
+- resident/tenant, owner/member и public viewer не приравниваются автоматически;
+- current Personal Account/object state отделён от person-identifiable history прежнего owner;
+- identifiable debtor visibility требует explicit applicable rule/basis;
+- sub-Community scope используется только если уже существует в owning domain;
+- bank movement и classified Payment/Expense analytics имеют разные semantics; unclassified Bank Transactions остаются representable;
+- aggregation обязана объявлять additivity/non-additivity semantics;
+- Funding Source/target accumulation не становится reserve/blocked funds автоматически;
+- owner resource payments, Community Expense и supplier settlement не сливаются в universal transit flow;
+- disputed/corrected facts, historical reconstruction и old formal Publications сохраняют distinct semantics;
+- Independent Multi-Review Round 1 завершён; BLOCKER не найдено; полный Round 2 не требуется.
+
+**Результат:** `REF-TRANS-001` закрыт решением; Stage 9 нормативно синхронизирован.
+
+**Следующий основной этап:** Stage 10 — неформальный опрос.
 
 ### Этап 10. Неформальный опрос
 

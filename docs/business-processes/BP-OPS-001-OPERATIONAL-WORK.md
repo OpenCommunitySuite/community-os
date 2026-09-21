@@ -1,7 +1,7 @@
 # BP-OPS-001 — Операционная работа / Work Order
 
-**Статус:** Draft / independent multi-review synthesized
-**Предлагаемый контекст:** Операционная деятельность (Community Operations) — не принят нормативно
+**Статус:** Draft / architecture accepted / normative synchronization performed
+**Контекст:** Операционная деятельность (Community Operations) — принят нормативно
 **Тип документа:** Бизнес-процесс
 
 ## 1. Назначение
@@ -895,20 +895,19 @@ Where materially relevant, should be determinable:
 
 ## 67. Normative synchronization status
 
-**Not performed yet.**
+**Performed.**
 
-Frozen independent multi-review Round 1 завершён и consolidated findings обработаны в Draft.
+Project owner accepted option A after frozen independent multi-review Round 1.
 
-Нормативная синхронизация всё ещё отложена по одной причине: proposed 11th top-level context меняет Accepted ADR-002 и требует explicit project-owner decision.
+Synchronized:
 
-Если Community Operations принимается, ожидаемая нормативная синхронизация:
+- ADR-002 — 11th top-level context `Операционная деятельность (Community Operations)`, including responsibility/boundary/dependencies/results;
+- ADR-009 — explicit Appeal ↔ Operational Work boundary;
+- DOMAIN_MODEL → **0.25**;
+- TERMINOLOGY → **0.22**;
+- REFERENCE_CANDIDATE_MATRIX — REF-OPS-001 closed; Stage 8 completed; Stage 9 next.
 
-- ADR-002 — add 11th Community Operations context with explicit boundary/dependencies/results;
-- ADR-009 — Appeal ↔ Operational Work boundary note where needed;
-- DOMAIN_MODEL — Operational Work / Work Assignment / Work Result and cross-context boundaries;
-- TERMINOLOGY — canonical Operational Work, Work Assignment, Work Result; Work Order only secondary UX alias;
-- VISION — only if operational-work capability needs explicit product-level statement;
-- REFERENCE_CANDIDATE_MATRIX — close REF-OPS-001 and complete Stage 8.
+VISION intentionally unchanged: its existing product-level scope already includes management of internal Community processes and does not need a duplicate capability statement.
 
 ## 68. Review
 
@@ -918,18 +917,16 @@ Consolidated result:
 
 - standalone Operational Work referent — supported;
 - no existing context provides clean ownership without boundary distortion;
-- proposed Community Operations context — preferred architecture option;
-- non-normative Draft findings — resolved;
-- no second round required if option A is accepted unchanged in substance.
+- option A / Community Operations — accepted by project owner;
+- review findings not requiring redesign were incorporated;
+- second review round is not required because accepted option A was not materially redesigned.
 
 See `STAGE-8-OPERATIONAL-WORK-MULTI-REVIEW-CONSOLIDATION.md`.
 
 ## 69. Следующий шаг
 
-1. project owner explicitly accepts or rejects proposed 11th top-level context `Операционная деятельность (Community Operations)`;
-2. if accepted — perform normative synchronization;
-3. final consistency check against current `main`;
-4. mark PR ready and merge Stage 8;
-5. proceed to Stage 9.
+1. final consistency check against current `main`;
+2. mark PR ready and merge Stage 8;
+3. proceed to **Stage 9 — финансовая прозрачность и раскрытие финансовой информации**.
 
-Implementation does not start before normative architecture decision and documentation sync.
+Implementation of operational work does not start merely because Stage 8 documentation is accepted; Documentation First sequence continues through requirements/specification before code.

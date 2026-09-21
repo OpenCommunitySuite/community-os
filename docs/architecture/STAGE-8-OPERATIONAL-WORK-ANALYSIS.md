@@ -82,9 +82,9 @@ Emergency/maintenance Work может возникать без отдельно
 
 ### 3.3. Ресурсный и инженерный учёт
 
-Многие работы относятся к инженерной инфраструктуре, но не все.
+Многие работы пилотного СТ относятся к инженерной инфраструктуре, но не все.
 
-Уборка, охрана, благоустройство, организационные действия и иные работы могут не иметь Resource semantics.
+Уборка, охрана, благоустройство, покос, работы по общему имуществу и иные действия могут не иметь Resource semantics. Большая доля инженерных примеров первого внедрения не является основанием передать ownership Work ресурсному контексту.
 
 ```text
 engineering target
@@ -127,6 +127,55 @@ Document
 
 **Вывод:** не рекомендуется.
 
+### 3.7. Субъекты
+
+Контекст «Субъекты» владеет identity и базовыми сведениями о Subject, но не действиями/работами только потому, что их выполняет Subject.
+
+```text
+Subject
+≠ Operational Work
+```
+
+Work использует Subject как исполнителя, ответственного, координатора или verifier через contextual role, не передавая ownership самого Subject.
+
+**Вывод:** не подходит.
+
+### 3.8. Объекты и отношения с ними
+
+Property/Object либо иное domain object может быть target Work, но владение объектом и историческими Subject↔Object relations не означает владение работой над этим объектом.
+
+```text
+Work target
+≠ ownership/use relation
+≠ Operational Work
+```
+
+**Вывод:** не подходит.
+
+### 3.9. Отношения субъекта с сообществом
+
+Employment/service/Contractual Relationship может быть одним из оснований участия Subject в Work, но Work не является самим отношением Subject↔Community.
+
+Волонтёрское/неоплачиваемое выполнение Work также показывает, что execution fact не должен зависеть от наличия трудового или договорного отношения.
+
+**Вывод:** не подходит.
+
+### 3.10. Полномочия и представительство
+
+Representation и иные основания Domain Power могут участвовать в проверке допустимости operational action согласно ADR-010.
+
+Но:
+
+```text
+Representation
+≠ Domain Power
+≠ Operational Work
+```
+
+Контекст Operational Work не должен поглощать Representation или technical access; одновременно context 5 не становится owner самой Work только потому, что для действия требуется полномочие.
+
+**Вывод:** не подходит как owner Work.
+
 ## 4. Предложение
 
 Предлагается новый верхнеуровневый контекст:
@@ -147,14 +196,22 @@ Document
 
 - Appeal;
 - Management Decision;
-- Subject/Employee/Supplier;
-- engineering target;
+- Subject identity / Employee / Supplier;
+- Property/Object identity и Subject↔Object relations;
+- Subject↔Community relations, включая employment/service/Contractual Relationship;
+- Representation;
+- engineering/resource target identity и resource facts;
 - Document;
 - Expense/Obligation/Payment;
-- Contractual Relationship;
-- user access.
+- user account, access roles/permissions.
 
 Он использует их через явные межконтекстные связи.
+
+Operational domain rules могут определять допустимость конкретного Work action и использовать applicable Domain Power/bases согласно ADR-010. Из этого не следует, что Community Operations становится владельцем Representation, должности, employment relation или универсальной модели полномочий.
+
+**Предлагаемые зависимости:** Community, Subjects, Objects/relations, Subject↔Community relations, Representation/Domain Power bases, Governance decisions, Resource facts/topology, Documents, Finance, Communications — только там, где они являются basis, target, evidence или связанным результатом.
+
+**Предоставляемые результаты:** Operational Work identity/history, assignment history, execution/completion facts, Work Result и связанные operational outcomes, которые другие contexts могут использовать как basis/evidence без передачи ownership.
 
 ## 5. Почему не вводится универсальный Problem / Incident
 
@@ -238,18 +295,39 @@ Document identity remains separate.
 - REFERENCE_CANDIDATE_MATRIX — закрыть REF-OPS-001;
 - architecture/module mapping later, but not at this stage.
 
-## 10. Альтернатива без нового контекста
+## 10. Альтернативы без нового контекста
 
-Технически возможно расширить контекст «Сообщество и организационная структура» до «Сообщество, организационная структура и операционная деятельность».
+### 10.1. Расширить «Сообщество и организационная структура»
 
-Недостатки:
+Теоретически возможно расширить контекст «Сообщество и организационная структура» до «Сообщество, организационная структура и операционная деятельность».
 
-- смешивает stable organization facts и high-volume operational facts;
-- делает ответственность контекста слишком широкой;
-- снижает ясность ownership;
-- затрудняет будущие maintenance/service/field-work processes.
+Но ADR-002 §6.1 уже проводит принципиальную границу: этот context не владеет всеми фактами только потому, что они принадлежат Community.
 
-Эта альтернатива считается менее предпочтительной.
+Добавление Operational Work сюда:
+
+- смешивает stable organization facts и execution facts;
+- превращает context в потенциальный контейнер «всего, что делает Community»;
+- требует материального переопределения его Accepted responsibility;
+- снижает ясность ownership.
+
+По предметной цене такое переопределение не проще добавления отдельного context и хуже сохраняет границы.
+
+### 10.2. Отказаться от самостоятельного Operational Work
+
+Вариант «Appeal / Decision / Document / Expense / Resource facts + связи без Work referent» также рассмотрен.
+
+Он не сохраняет корректно:
+
+- Work без Appeal/Decision/Expense/Document;
+- many-to-many Appeal↔Work;
+- assignment/reassignment history;
+- completion/result/verification;
+- reopen/follow-up identity;
+- единые invariants исполнения независимо от basis.
+
+Связующий узел, способный хранить эту семантику, фактически снова станет Operational Work под другим именем.
+
+**Вывод:** standalone Operational Work предметно оправдан; среди проверенных alternatives новый Community Operations context остаётся предпочтительным owner.
 
 ## 11. Статус решения
 

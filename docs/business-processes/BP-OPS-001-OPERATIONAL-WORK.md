@@ -50,14 +50,16 @@ Work имеет собственную stable identity.
 
 ## 4. Work Order terminology
 
-`Work Order` используется как допустимое английское название управляемой единицы Operational Work.
+Канонический предметный термин Community OS — **Operational Work / Операционная работа**.
 
-Это не означает отдельную Document entity.
+`Work Order` допускается только как secondary UX/localization label для управляемой единицы Work и не является отдельным нормативным понятием.
 
 ```text
-Work Order / Operational Work
-≠ written order Document automatically
+Operational Work
+≠ formal written order / permit / work-act Document
 ```
+
+Если конкретный процесс требует юридически или технически значимый наряд, приказ, допуск, акт либо иной формальный документ, он остаётся `Document`, связанным с Operational Work. Терминология интерфейса не должна стирать эту границу.
 
 ## 5. Что входит
 
@@ -171,7 +173,9 @@ Work может относиться к предметам других contexts
 
 Universal `Work Target` entity не вводится.
 
-Target relation typed/contextual and does not transfer ownership.
+Target relation должна быть typed/contextual и ссылаться на предметную identity, предоставляемую owning context. Она не переносит ownership target в Community Operations и не разрешает этому context изменять target semantics напрямую.
+
+Не вводится universal technical `Target Reference`, `ContextId + EntityId` contract или единый polymorphic storage pattern: конкретная DB/API/integration addressation относится к implementation/contract design, а не к Stage 8 domain model.
 
 ## 13. Text location
 
@@ -209,13 +213,40 @@ unless applicable rule/process explicitly creates it.
 
 Они не обязаны принадлежать одному Subject.
 
-Technical access ≠ subject-matter authority.
+Согласно ADR-010 предметная допустимость конкретного operational action может зависеть от Domain Power, Representation, должности, employment/service relation, участия в органе управления, решения, applicable rule и других достаточных оснований.
+
+Community Operations владеет semantics допустимости собственных operational actions, но не присваивает ownership исходных оснований:
+
+- Subject identity остаётся в контексте Subjects;
+- Representation — в контексте «Полномочия и представительство»;
+- employment/service/Contractual Relationship — в контексте Subject↔Community relations;
+- Management Decision — в Governance;
+- technical access — cross-cutting responsibility.
+
+```text
+Technical access
+≠ Representation
+≠ Domain Power
+≠ operational action admissibility automatically
+```
+
+Work Assignment также не создаёт universal Domain Power автоматически.
 
 ## 16. Emergency work
 
 Emergency Work может начаться без предварительного Management Decision, если applicable authority/rule это допускает.
 
-Post-factum document/decision may record/approve consequences where required, but does not rewrite actual start time.
+Post-factum Document/Decision может зафиксировать, подтвердить или одобрить последствия там, где этого требует конкретный процесс, но не переписывает actual start time.
+
+Emergency Work либо Work Result может быть одним из bases/evidence для последующего финансового recognition, однако:
+
+```text
+Emergency Work
+≠ Financial Obligation automatically
+≠ Expense automatically
+```
+
+Финансовый контекст самостоятельно определяет sufficient basis по своей семантике. Универсальное правило «сначала interim financial fact, затем обязательное post-factum approval» не вводится.
 
 ## 17. Planned Work
 
@@ -248,7 +279,9 @@ Missed deadline не означает Work failure автоматически.
 
 ## 21. Work Assignment
 
-**Work Assignment** — исторически значимое отношение/действие назначения Subject на contextual role по конкретной Work.
+**Work Assignment** — исторически значимое отношение конкретного Subject к конкретной Operational Work в contextual role на применимом интервале/временном контексте.
+
+Установление, изменение и прекращение Assignment являются исторически значимыми действиями/provenance этого отношения. Отдельная universal `Assignment Event` entity не вводится.
 
 Possible roles:
 
@@ -285,6 +318,19 @@ Supplier/Contractual Relationship may separately exist in financial/relationship
 Work executor role
 ≠ Supplier role automatically
 ```
+
+### 23.1. Community member / volunteer executor
+
+Community member, resident, board member or another Subject may perform Work voluntarily or without employment/Supplier relationship, when applicable rules and authority permit it.
+
+```text
+volunteer/community-member executor
+≠ Employee automatically
+≠ Supplier automatically
+≠ Contractual Relationship automatically
+```
+
+Work Assignment must not require creation of fictitious employment or contractor relations merely to record real execution.
 
 ## 24. Multiple performers
 
@@ -348,9 +394,21 @@ Universal project/task graph model not introduced.
 
 ## 30. Scope change
 
-Materially changing purpose/target can require a new Work or explicit scope correction according applicable policy.
+Scope correction сохраняет identity Work только пока сохраняется coherent operational purpose и target/intervention identity.
 
-Silent rewriting of completed/started Work scope is not allowed.
+Практический ориентир:
+
+- уточнение деталей, объёма или способа выполнения при сохранении той же цели и target может быть explicit scope correction;
+- изменение operational purpose;
+- замена target на другой самостоятельный domain object;
+- новая occurrence;
+- самостоятельная дополнительная intervention
+
+обычно требуют новой linked Work.
+
+Это не universal automatic algorithm, но изменение purpose/target не должно использоваться для бесконечного расширения identity старой Work.
+
+Silent rewriting of started/completed Work scope is not allowed.
 
 ## 31. Completion assertion
 
@@ -377,6 +435,8 @@ Possible semantics include:
 - other process-specific outcome.
 
 Closed universal result taxonomy not introduced.
+
+Каждый признанный Work Result сохраняется как исторически объяснимый факт. Позднейшая доработка, reopen, correction или acceptance не удаляет предыдущий result молча.
 
 Work Result ≠ Document.
 
@@ -446,7 +506,13 @@ This outcome remains distinct from successful execution.
 
 After completion, a need may reappear.
 
-Same Work may be reopened/corrected when original completion was premature/incorrect and coherent identity remains.
+Reopen той же Work допустим, когда есть sufficient basis считать прежнее completion premature/incorrect/incomplete и при этом сохраняется identity той же intervention:
+
+- тот же operational purpose;
+- тот же materially relevant target;
+- продолжение/исправление той же работы, а не новая occurrence.
+
+Reopen является исторически значимым действием с basis/provenance и не удаляет предыдущие completion assertions, Work Results или acceptance history. Если прежний result признан ошибочным/преждевременным, это фиксируется traceably; после дополнительного execution может возникнуть новый Work Result.
 
 A new Work is preferred when:
 
@@ -455,7 +521,7 @@ A new Work is preferred when:
 - independent intervention;
 - new operational objective.
 
-Universal automatic reopen rule not introduced.
+Universal automatic reopen rule не вводится.
 
 ## 40. Follow-up Work
 
@@ -543,7 +609,16 @@ Community OS is not inventory/TMC accounting system.
 
 BP does not introduce stock/material-balance entities.
 
-Material purchase/use can be evidenced/linked through documents, Work context and financial facts where needed.
+Execution/Work Result evidence may record actually used materials/components and quantities where this is relevant to explain the work, including a structured descriptive list in a concrete process.
+
+Such evidence:
+
+- does not create universal Material/Stock Item identity automatically;
+- does not maintain warehouse balance;
+- does not perform accounting write-off;
+- does not create Expense automatically.
+
+Material purchase/use may additionally be linked through Documents and separately recognized financial facts where needed.
 
 ## 49. Resource boundary
 
@@ -681,9 +756,34 @@ Authorized emergency executor begins Work immediately.
 
 Later board/document action may formalize consequences without moving actual start time.
 
-## 63. Outcomes
+### 62.1. Pilot ST — volunteer/community-member work
 
-### 63.1. Completed and accepted
+Several members voluntarily clear fallen branches from a common road.
+
+```text
+recognized operational need
+→ one Operational Work
+→ several community-member Subjects assigned as executors
+→ execution/result evidence
+```
+
+No Employee, Supplier or Contractual Relationship is invented solely for this Work.
+
+### 62.2. Pilot — access to privately controlled premises/object
+
+Work on common engineering infrastructure may require access through a privately controlled object.
+
+The access/right basis remains owned by applicable Object/Subject/authority semantics. Operational Work records the dependency/block/evidence but does not create a property/use/access right.
+
+### 62.3. Pilot — multi-stage long work
+
+A road repair may include preparation, contractor execution and verification over several days.
+
+These may remain one Work if they preserve one coherent purpose/target/intervention with several Assignments/execution facts, or become linked Works when stages have independent purposes/targets/results. Universal project-task decomposition is not introduced.
+
+## 63. Work Result semantics and current-state projection
+
+### 63.1. Completed and accepted result
 
 Execution completed; applicable verification accepts result.
 
@@ -691,21 +791,29 @@ Execution completed; applicable verification accepts result.
 
 Result itself is sufficient under process policy.
 
-### 63.3. Partial / follow-up required
+### 63.3. Partial / follow-up required result
 
 Work produced partial result and may create linked follow-up Work.
 
-### 63.4. Failed / unable
+### 63.4. Failed / unable result
 
 Execution attempted but intended result not achieved.
 
-### 63.5. Cancelled / no longer required
+### 63.5. Cancelled / no longer required termination
 
-Work ends without successful execution.
+Work ends without successful execution; this is not a successful Work Result.
 
-### 63.6. Ongoing / blocked
+### 63.6. Current state projection
 
-Work remains active with applicable limitation/dependency.
+`ongoing`, `blocked`, `awaiting verification`, `completed`, `cancelled` and similar operational labels may be projections over historical Work facts/actions according applicable process policy.
+
+```text
+current state projection
+≠ Work Result
+≠ universal status-machine entity
+```
+
+Community OS does not require one rigid state-transition graph for all Work types. Projection must nevertheless respect recognized facts: for example, acceptance cannot silently exist without an applicable result/completion basis.
 
 ## 64. Provenance
 
@@ -763,14 +871,19 @@ Where materially relevant, should be determinable:
 27. Universal Work Target entity is not introduced.
 28. Universal material inventory entity is not introduced.
 29. Universal status machine is not introduced.
-30. Operational Work requires a domain owner; existing contexts do not naturally own it without boundary distortion.
+30. Target relation does not transfer target ownership to Community Operations.
+31. Work Assignment does not create Representation or universal Domain Power automatically.
+32. Volunteer/community-member execution does not require fictitious employment/Supplier relation.
+33. Emergency Work does not create Expense/Financial Obligation automatically.
+34. Reopen does not erase prior Work Result/acceptance history.
+35. Materials usage evidence does not create inventory/TMC accounting automatically.
 
 ## 66. Internal review conclusions
 
 1. A standalone Operational Work referent is justified.
 2. Work and Appeal must remain many-to-many capable and independently identified.
 3. Work can originate from non-communication bases.
-4. Work Assignment is a specialized historical relation/action, not a Subject subtype.
+4. Work Assignment is a specialized historical Subject↔Work relation with role/temporal provenance; establishment/change/end are historical actions but do not require a universal Assignment Event entity.
 5. Internal employee and external contractor use the same execution-role semantics while preserving their own relations.
 6. Work Result is distinct from documents and financial consequences.
 7. Completion and acceptance are separate where process requires.

@@ -1,7 +1,7 @@
 # Community OS — Domain Model
 
 **Статус:** Draft  
-**Версия:** 0.22  
+**Версия:** 0.23  
 **Язык документа:** русский
 
 > Документ описывает концептуальную предметную модель. Он не определяет структуру хранения, программные классы, API, интерфейсы, механизм исполнения правил или технический аудит.
@@ -350,7 +350,17 @@ Unknown/ambiguous external device не создаёт Meter, Accounting Point и
 
 Control Observation не тождествен Control Reconciliation или Calculated Imbalance. Оно подготавливает inputs/completeness для последующей сверки и может использовать mixed manual/telemetry sources согласно applicable policy.
 
-**Контрольная сверка** (Control Reconciliation) — исторически значимый процесс сопоставления связанных данных учёта в определённой области инженерной системы за временной срез или окно. Она сохраняет существенные входы, полноту и отсутствующие данные, применённые правила и преобразования, релевантную топологию, результат и ограничения качества. **Расчётный небаланс** (Calculated Imbalance) — самостоятельный количественный результат такого сопоставления. **Эксплуатационная потеря** (Operational Loss) — отдельно признанное явление утраты ресурса на допустимом для процесса основании. Небаланс не доказывает потерю, хищение, неисправность, долг или неучтённое потребление.
+**Контрольная сверка** (Control Reconciliation) — исторически значимый process/result сопоставления связанных ресурсных данных в определённой области инженерной системы и временном окне. Она имеет собственную identity/context, достаточную для воспроизводимости результата, и не сводится к набору Reading или одному вычислению.
+
+Для Control Reconciliation могут быть значимы scope, Resource/engineering system, historical topology, expected and participating Accounting Points/flows, Reading/Consumption/substitute inputs, window, completeness, missing/excluded points, units/conversions, rules/versions, quality limitations и correction/recalculation provenance.
+
+Control Reconciliation может завершиться без Calculated Imbalance, если полнота, topology или rules недостаточны для надёжного количественного результата. В этом случае zero imbalance не создаётся. Nested/intermediate-meter topology может порождать отдельные reconciliation results per scope без обязательного flattening в одну формулу.
+
+**Расчётный небаланс** (Calculated Imbalance) — самостоятельный количественный результат Control Reconciliation where applicable. Он может быть positive, negative или zero; sign и percentage interpretation зависят от explicit rule/convention. Zero imbalance не доказывает отсутствие physical loss, negative imbalance не доказывает fraud/error, а сам Calculated Imbalance не является Operational Loss автоматически.
+
+**Эксплуатационная потеря** (Operational Loss) — отдельно признанное явление утраты ресурса на допустимом для процесса основании. Небаланс не доказывает потерю, хищение, неисправность, долг или неучтённое потребление.
+
+Correction Reading, topology или reconciliation rule не переписывает прежний result молча; при необходимости выполняется отдельная revalidation/recalculation.
 
 Исторически значимые показания и результаты сохраняют достаточные сведения о происхождении данных, предметное время, единицы, использованные установки, правила, коэффициенты и исходные значения, когда они существенны для объяснимости и воспроизводимости. Изменения показания, установки, правила, коэффициента или топологии не переписывают старые результаты молча; исправление исходных данных и перерасчёт различаются.
 

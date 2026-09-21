@@ -1,6 +1,6 @@
 # BP-TRANS-001 — Финансовая прозрачность и раскрытие финансовой информации
 
-**Статус:** Draft
+**Статус:** Draft / Round 1 consolidated / normative synchronization performed
 **Контексты:** Финансовые отношения + Документы и формализация + Коммуникации и обращения + сквозные Access/Rules/History
 **Тип документа:** Бизнес-процесс
 
@@ -987,22 +987,22 @@ Where materially relevant, disclosure result should make determinable:
 18. No new ADR is required if existing context boundaries remain sufficient.
 19. Independent multi-review Round 1 was required before normative sync and has been completed; no full Round 2 is required after the accepted clarifications.
 
-## 61. Предварительные нормативные последствия
+## 61. Нормативная синхронизация
 
-Round 1 подтвердил, что новый ADR и новая fundamental entity не требуются.
+Round 1 подтвердил, что новый ADR, новый top-level context и новая fundamental entity не требуются.
 
-Требуется точечная нормативная синхронизация:
+Выполнена точечная синхронизация:
 
-- ADR-005 — не менять фундаментальную модель; при необходимости добавить mirror-note, что disclosure использует composition locally owned rules, а не universal Disclosure Rule;
-- ADR-006 — financial disclosure/projection source-of-truth boundary, aggregation/additivity, bank-movement vs classified-finance distinction;
-- ADR-009 — dynamic view vs formal publication и correction/replacement traceability where needed;
-- ADR-010 — изменение не требуется; existing access/admissibility semantics sufficient;
-- ADR-013 — изменение минимальное/необязательное, если BP достаточно ссылается на declared projection producer/owner and public-contract composition;
-- DOMAIN_MODEL — financial disclosure/current-vs-historical projection boundaries;
-- TERMINOLOGY — stable term may be added as process/view semantics only, not entity;
-- REFERENCE_CANDIDATE_MATRIX — close REF-TRANS-001 / Stage 9.
+- ADR-005 — **без изменений**: existing locally owned rule/version model уже является нормативной основой disclosure rule composition;
+- ADR-006 — financial disclosure/projection source-of-truth boundary, aggregation/additivity, bank-movement/classified-finance distinction, target accumulation/pass-through limits;
+- ADR-009 — dynamic projection vs formal Publication, corrected-report traceability и Document-metadata visibility boundary;
+- ADR-010 — **без изменений**: existing Domain Power/access/admissibility semantics достаточны;
+- ADR-013 — **без изменений**: existing declared projection producer/owner and public-contract composition semantics достаточны;
+- DOMAIN_MODEL → **0.26**;
+- TERMINOLOGY → **0.23**;
+- REFERENCE_CANDIDATE_MATRIX — REF-TRANS-001 закрыт; Stage 9 завершён; Stage 10 следующий.
 
-VISION does not require change.
+VISION не требует изменения.
 
 ## 62. Review status
 
@@ -1017,14 +1017,13 @@ Result:
 - BLOCKER: none;
 - new top-level context: not required;
 - new universal Financial Disclosure/Transparency entity: not required;
-- singular universal Disclosure Rule: explicitly rejected in favor of ADR-005 locally owned rule composition;
-- accepted clarifications incorporated into this Draft;
+- singular universal Disclosure Rule: rejected in favor of ADR-005 locally owned rule composition;
+- accepted clarifications incorporated;
 - no unresolved fundamental project-owner decision remains;
 - full Round 2 is not required.
 
 ## 63. Следующий шаг
 
-1. perform normative synchronization against ADR-005/006/009/013, DOMAIN_MODEL/TERMINOLOGY and REFERENCE_CANDIDATE_MATRIX;
-2. final consistency check against current `main`;
-3. mark PR #69 ready and merge Stage 9 if clean;
-4. proceed to Stage 10 — informal poll.
+1. final consistency check against current `main`;
+2. mark PR #69 ready and merge Stage 9 if clean;
+3. proceed to Stage 10 — informal poll.

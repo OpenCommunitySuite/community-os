@@ -1,6 +1,6 @@
 # Stage 8 — Анализ операционной работы и архитектурного владения
 
-**Статус:** Draft / архитектурное предложение
+**Статус:** Draft / independent multi-review synthesized / architecture owner decision pending
 **Связанный процесс:** `BP-OPS-001 — Operational Work / Work Order`
 
 ## 1. Причина анализа
@@ -340,10 +340,12 @@ Document identity remains separate.
 - BP-OPS-001 использует термин `proposed Community Operations context`;
 - реализация не начинается.
 
-## 12. Требуемый уровень review
+## 12. Review status
 
-Добавление нового top-level bounded context является существенным архитектурным изменением.
+Один frozen independent multi-review round выполнен по `STAGE-8-OPERATIONAL-WORK-REVIEW-PACKAGE.md`.
 
-Согласно `INDEPENDENT_MULTI_REVIEW.md` перед нормативной синхронизацией рекомендуется один frozen multi-review round по текущему Stage 8 package.
+Синтез зафиксирован в `STAGE-8-OPERATIONAL-WORK-MULTI-REVIEW-CONSOLIDATION.md`.
 
-Повторный круг review нужен только при реальном неразрешённом архитектурном разногласии.
+Round 1 подтвердил самостоятельный Operational Work referent и предпочтительность proposed Community Operations context. Review findings, не требующие изменения Accepted ADR, внесены в Draft analysis/BP.
+
+Повторный review round не требуется, если project owner принимает proposed option A без материального изменения концепции. При выборе materially different ownership architecture потребуется отдельная целевая проверка.

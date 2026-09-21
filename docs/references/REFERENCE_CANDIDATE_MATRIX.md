@@ -410,9 +410,11 @@ Proposed normative sync в PR #71 минимально обновляет ADR-00
 - для ОСББ/собственников многоквартирного дома законодательство допускает дистанционное участие по видеоконференции и электронные листки письменного опроса с подписью на квалифицированном сертификате;
 - для пилотного СТ нельзя переносить ОСББ-процедуру универсально до проверки организационно-правовой формы и статута конкретного СТ.
 
-**Текущий архитектурный вопрос 11A:** достаточно ли существующего ADR-009 понятия `Signing` как исторически значимого действия, а внешнюю электронную подпись/сертификат/provider result следует считать evidence/integration information, или существует самостоятельная предметная потребность в identity-bearing `Signing Evidence`.
+**Результат stress-test 11A:** существующего ADR-009 понятия `Signing` достаточно как fundamental domain action. Отдельные fundamental `Electronic Signing`, `Signing Evidence` и `Signature Validation` сейчас не обоснованы. Для electronic Signing требуется явный evidence/provenance package, historical validation/revalidation context и distinction semantic target vs exact cryptographic target.
 
-**Следующий шаг 11A:** stress-test Signing semantics на failure/revalidation/representation/authority scenarios → решение по `Signing Evidence` → Draft специализированного BP электронного подписания.
+Подготовлен Draft `BP-SIGN-001 — Электронное подписание документа / Electronic Document Signing`.
+
+**Следующий шаг 11A:** independent multi-review Draft BP-SIGN-001 → adjudication → минимальная normative sync при подтверждении модели.
 
 Только после закрытия 11A отдельно описывается подэтап 11B — электронное/удалённое участие в управленческой процедуре и голосовании.
 

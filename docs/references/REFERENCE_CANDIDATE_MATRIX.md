@@ -2,7 +2,7 @@
 
 **Статус:** Working / рабочий документ анализа  
 **Область:** OSBBX, «Мій Дім Online» (МДО), DAH Online  
-**Актуально относительно:** нормативной модели после BP-LOSS-001; DOMAIN_MODEL 0.24, TERMINOLOGY 0.21  
+**Актуально относительно:** нормативной модели после BP-OPS-001; DOMAIN_MODEL 0.25, TERMINOLOGY 0.22  
 **Назначение:** единая точка учёта кандидатов, выявленных во внешних референсах, их текущего состояния в Community OS и последовательности дальнейшей проработки.
 
 > Этот документ не является источником продуктовых требований и не заменяет DOMAIN_MODEL, TERMINOLOGY или ADR. Наличие функции у референса не означает, что она должна быть реализована в Community OS.
@@ -74,7 +74,7 @@
 | REF-METER-001 | Замена прибора учёта | OSBBX, пилотный СТ | Зафиксирован `BP-METER-001`: replacement сохраняет Accounting Point при неизменной измерительной границе; old/new Meter Installations разделены по effective intervals; boundary Reading optional; gap/overlap, коэффициенты, late recording, duplicate/correction, relocation и topology boundary описаны без `Meter Replacement` entity | **Закрыт решением** | Не возвращаться к фундаментальной модели replacement без нового сценария; общий Reading recognition и эксплуатационные ресурсные процессы вести в Stage 7 |
 | REF-METER-002 | Автоматическое получение/импорт показаний | МДО, OSBBX, пилотный СТ | Зафиксирован `BP-READING-002`: batch/API/synchronization/streaming используют одну integration boundary и передают values в `BP-READING-001`; historical device/channel/unit mapping, partial success, redelivery/duplicate, correction/re-import/re-recognition, outage/backlog и unknown-device semantics разделены без отдельной Imported/Telemetry Reading entity | **Закрыт решением** | Конкретные MQTT/Modbus/Home Assistant/АСКОЕ/API/CSV contracts проектировать отдельно; следующий ресурсный процесс — контрольное снятие и затем Control Reconciliation |
 | REF-METER-003 | Контрольное снятие и сверка связанных точек учёта | OSBBX, МДО, пилотный СТ | `BP-READING-003` определяет Control Observation; `BP-RECON-001` — Control Reconciliation/Calculated Imbalance; `BP-LOSS-001` завершает resource chain отдельным Operational Loss recognition без автоматического приравнивания imbalance/supplier loss/owner debt | **Закрыт решением** | Не возвращаться к resource reconciliation/loss recognition без нового сценария; loss allocation анализировать отдельно только при конкретной policy |
-| REF-OPS-001 | Обращение → операционная заявка / Work Order | DAH, частично МДО | ADR-009 определяет Appeal и прямо не делает его универсальным workflow; самостоятельная семантика операционной работы не определена | **Следующий** | `BP-OPS-001`: отделить обращение от работы, результата, исполнителя, инфраструктурного объекта и затрат |
+| REF-OPS-001 | Обращение → операционная работа / Work Order | DAH, частично МДО, пилотный СТ | Зафиксирован `BP-OPS-001`; `Operational Work` имеет самостоятельную identity, Appeal↔Work поддерживает many-to-many, Work может существовать без Appeal; Work Assignment/Work Result, completion vs acceptance, reopen/follow-up, volunteer/contractor execution, target/evidence/materials и finance/resource/document boundaries определены; ADR-002 расширен 11-м context `Community Operations` после independent multi-review | **Закрыт решением** | Не возвращаться к fundamental Work ownership без нового сценария; конкретные operational policies, priority/SLA/status projections и implementation design определять отдельно |
 | REF-DOC-001 | Подписание предметно значимого документа | DAH | ADR-009 уже определяет Signing как действие над конкретной Revision/Representation и отличает его от approval/registration/publication | **Частично закрыт** | Исследовать электронное доказательство подписания, внешние подписи и правовые требования; не пересматривать базовую семантику без причины |
 | REF-DOC-002 | Публикация документа/отчёта | МДО, DAH | ADR-009 определяет Publication, Audience и историчность публикаций | **Закрыт решением** | Конкретные публикационные BP вводить по продуктовой необходимости |
 | REF-TRANS-001 | Финансовая прозрачность для собственников и контрольных органов | DAH | Финансовые факты и публикационная семантика существуют; конкретный состав раскрываемой информации, аудитория и правила раскрытия не определены | **Backlog** | Сначала определить предметные требования к раскрытию, аудиториям, спорным данным и provenance; затем отобразить их на Read Model / Projection |
@@ -305,32 +305,28 @@ Subject
 
 ### Этап 8. BP-OPS-001 — от обращения к операционной работе
 
-**Источники:** прежде всего DAH.
+**Состояние:** завершён.
 
-Нужно отделить:
+Зафиксировано:
 
-```text
-Appeal
-≠ Operational Work / Work Order
-≠ Assignment
-≠ Expense
-≠ Document
-≠ Management Decision
-```
+- самостоятельный `Operational Work` referent;
+- новый 11-й top-level context `Операционная деятельность (Community Operations)`;
+- `Appeal ≠ Operational Work`, many-to-many linkage и Work without Appeal;
+- `Work Assignment` как historical Subject↔Work contextual-role relation;
+- Employee / contractor / community-member-volunteer execution без смешения отношений;
+- `Work Result` как самостоятельный historical outcome;
+- Completion Assertion ≠ Acceptance;
+- Work Result ≠ Document / Expense / Financial Obligation / resource fact;
+- typed/contextual target relation без передачи ownership;
+- emergency Work без обязательного prior Management Decision under applicable authority;
+- materials usage as evidence without inventory/TMC accounting;
+- reopen vs linked new Work with preserved result/acceptance history;
+- current state as optional projection rather than universal status machine;
+- independent multi-review Round 1 completed; second round not required for accepted option A.
 
-Проверить:
+**Результат:** `REF-OPS-001` закрыт решением; Stage 8 нормативно синхронизирован.
 
-- может ли обращение породить операционную работу;
-- может ли работа возникнуть без обращения;
-- объект/инфраструктура, к которой относится работа;
-- инициатор, ответственный и исполнитель;
-- внутренний сотрудник и внешний подрядчик;
-- факт выполнения и результат;
-- связанные материалы/акты;
-- расходы и обязательства как отдельные финансовые факты;
-- повторное открытие/новая работа после результата.
-
-**Результат:** решение, требуется ли самостоятельное предметное понятие Work Order, и соответствующий BP.
+**Следующий основной этап:** Stage 9 — финансовая прозрачность и раскрытие финансовой информации.
 
 ### Этап 9. Финансовая прозрачность и раскрытие финансовой информации
 

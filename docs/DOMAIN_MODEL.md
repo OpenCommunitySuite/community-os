@@ -226,7 +226,7 @@ Cash Acceptance имеет собственную identity независимо 
 
 Cash Acceptance не является Payment, Payment Allocation, Financial Obligation, Expense, кассовым документом, Cashbox, CashBalance или универсальной CashOperation. Его существование само по себе не означает, что Community уже стало финансовой стороной движения средств.
 
-Для Cash Acceptance исторически объяснимы, где применимо, сумма и денежная единица, tendered amount, immediate returned change, время завершения физического приёма, acting acceptor, physical tenderer/origin evidence, authority и financial/custody interpretation.
+Для Cash Acceptance исторически объяснимы, где применимо, фактически принятая сумма и денежная единица, время завершения физического приёма, acting acceptor, physical tenderer/origin evidence, authority и financial/custody interpretation. Суммы наличных, не вошедшие в Community-side control до завершения приёма, не являются частью Cash Acceptance и отдельно в Community OS не моделируются.
 
 Связь Cash Acceptance с Cash Payments не имеет universal `1:1` ни в одном направлении.
 

@@ -240,22 +240,13 @@ sum(recognized outgoing Payments)
 
 Если часть physical release имеет иной допустимый смысл либо остаётся unresolved, она должна быть отдельно explainable и не становится Expense, Payment Allocation или write-off автоматически.
 
-## 10. Immediate refusal / return before completion
+## 10. Определение фактически выданной суммы
 
-Если cashier prepared 1000, но recipient принимает только 870 и 130 немедленно остаются/возвращаются Community до завершения disbursement:
+Cash Disbursement amount фиксируется непосредственно как сумма, фактически переданная из Community-side control и принятая physical receiver при завершении disbursement.
 
-```text
-prepared 1000
-released/accepted by receiver 870
-immediate return 130
-Cash Disbursement = 870
-```
+Средства, подготовленные, но не переданные до completion, не входят в Cash Disbursement и отдельно в Community OS не моделируются. Это не создаёт outgoing Payment и не требует incoming Refund.
 
-Это не outgoing Payment 1000 + incoming Refund 130.
-
-Immediate return до завершения Cash Disbursement является частью определения фактически выданной суммы.
-
-Если Payment уже recognized, later return средств — отдельное входящее движение и требует applicable incoming/refund/correction semantics; оно не называется immediate change задним числом.
+Если Payment уже recognized, последующая передача средств обратно является отдельным входящим движением и требует applicable incoming/refund/correction semantics.
 
 ## 11. Recognition outgoing Cash Payment
 
@@ -633,8 +624,6 @@ Long-lived unresolved Cash Disbursement требует последующего 
 
 - Cash Disbursement identity;
 - amount/currency;
-- prepared/requested amount where materially significant;
-- immediate returned/refused amount;
 - actual completion time;
 - later recording time;
 - physical receiver;
@@ -669,7 +658,6 @@ Cash Disbursement ↔ Payment linkage не имеет universal `1:1`. Если 
 Следует различать:
 
 - authorization/request time;
-- cash preparation time;
 - Cash Disbursement completion time;
 - authority/admissibility resolution or ratification time, if materially distinct;
 - custody-vs-external classification time, if resolved later;
@@ -687,7 +675,6 @@ Cash Disbursement ↔ Payment linkage не имеет universal `1:1`. Если 
 - actual disbursed amount/currency;
 - physical receiver;
 - acting disburser;
-- immediate returned/refused amount;
 - time;
 - authority/provenance.
 

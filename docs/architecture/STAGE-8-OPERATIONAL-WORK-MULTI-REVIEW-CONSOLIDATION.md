@@ -1,6 +1,6 @@
 # Stage 8 — Independent Multi-Review Consolidation
 
-**Статус:** Draft / synthesis complete, architecture decision pending  
+**Статус:** Complete / option A accepted / normative synchronization performed  
 **Review round:** Round 1  
 **Frozen package:** `STAGE-8-OPERATIONAL-WORK-REVIEW-PACKAGE.md`  
 **Base:** `main@6665005368125260cf60cf0b7dad8628d7c93114`  
@@ -35,7 +35,7 @@ Raw reviews являются рабочими материалами. Насто
 | ID | Находка | Claude | DeepSeek | Gemini | Проверка по source of truth | Статус |
 |---|---|---|---|---|---|---|
 | C-01 | Operational Work требует самостоятельного referent | FND-01/02/04 | F-02/03/04/05/33 | Architecture A–F | Подтверждается | accepted as analysis |
-| C-02 | Новый Community Operations — предпочтительный owner | FND-04 | F-05/33 | Architecture conclusion | Подтверждается, но меняет ADR-002 | **owner decision required** |
+| C-02 | Новый Community Operations — предпочтительный owner | FND-04 | F-05/33 | Architecture conclusion | Подтверждается; project owner accepted option A | **accepted** |
 | C-03 | Draft не рассмотрел явно contexts 2–5 | FND-03 | — | — | Подтверждается ADR-002 §6.2–6.5 | accepted |
 | C-04 | Граница нового context должна быть явно узкой | FND-05/06/12 | F-06 | — | Подтверждается ADR-002 pattern | accepted |
 | C-05 | Work Assignment relation/action сформулирован двусмысленно | — | F-10 | — | Подтверждается Draft §21 | accepted |
@@ -148,10 +148,12 @@ Second round потребуется только если принято materia
 - отказаться от standalone Operational Work;
 - существенно изменить ownership Work/Assignment/Result.
 
-## 7. Оставшееся решение проекта
+## 7. Решение проекта
 
-Требуется explicit decision:
+Project owner принял вариант A:
 
-> Принять ли новый 11-й top-level context **Операционная деятельность (Community Operations)** с ownership `Operational Work`, `Work Assignment`, `Work Result` и с явными границами относительно остальных contexts?
+> новый 11-й top-level context **Операционная деятельность (Community Operations)** с ownership `Operational Work`, `Work Assignment`, `Work Result` и явными границами относительно остальных contexts.
 
-До этого решения ADR-002 / DOMAIN_MODEL / TERMINOLOGY не синхронизируются нормативно.
+После решения выполнена нормативная синхронизация ADR-002, ADR-009, DOMAIN_MODEL, TERMINOLOGY и REFERENCE_CANDIDATE_MATRIX.
+
+Second review round не требуется, поскольку принято reviewed option A без материального redesign.

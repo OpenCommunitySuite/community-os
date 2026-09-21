@@ -1,7 +1,7 @@
 # Community OS — Domain Model
 
 **Статус:** Draft  
-**Версия:** 0.24  
+**Версия:** 0.25  
 **Язык документа:** русский
 
 > Документ описывает концептуальную предметную модель. Он не определяет структуру хранения, программные классы, API, интерфейсы, механизм исполнения правил или технический аудит.
@@ -12,7 +12,7 @@
 
 Community OS — универсальная платформа управления сообществами собственников. Модель описывает предметные понятия, их существенные связи, временную семантику, жизненные циклы, где они значимы, и инварианты.
 
-Документ опирается на нормативные `TERMINOLOGY.md` и действующие ADR. Он охватывает сообщество, субъектов, идентичность и доступ, объекты, финансы, ресурсы, инженерную инфраструктуру, документы, коммуникации, управление, собрания, голосования и интеграционные границы, сохраняя границу с принятыми platform concepts.
+Документ опирается на нормативные `TERMINOLOGY.md` и действующие ADR. Он охватывает сообщество, субъектов, идентичность и доступ, объекты, финансы, ресурсы, инженерную инфраструктуру, документы, коммуникации, операционную деятельность, управление, собрания, голосования и интеграционные границы, сохраняя границу с принятыми platform concepts.
 
 ## 2. Три уровня предметной модели
 
@@ -612,7 +612,66 @@ Expense может существовать до Payment и, при явно п�
 
 Профиль также использует участки, лицевые счета, учёт электроэнергии и воды, инженерные ветви, общие и промежуточные приборы, анализ небалансов и сметное финансирование общих расходов. Для участка, участвующего в финансовом учёте первого профиля, конфигурация предусматривает основной лицевой счёт; это специализация профиля, а не универсальная обязательность лицевого счёта для любого объекта собственности Community OS.
 
-## 21. Инварианты и расширяемость
+## 21. Операционная деятельность
+
+**Операционная работа** (Operational Work) — исторически значимый предметный referent конкретной работы, которую Community намерено выполнить, выполняет либо выполнило для достижения определённой operational purpose/result.
+
+Operational Work имеет собственную identity и не определяется Appeal, Document, исполнителем, Expense, Supplier contract или Management Decision.
+
+Work может иметь один или несколько sufficient bases, например Appeal, Management Decision, Operational Loss, Control Reconciliation result, scheduled maintenance rule, Contractual Relationship requirement, observation, emergency situation или другое применимое основание. Ни один такой basis не становится Work автоматически без recognition semantics.
+
+```text
+Appeal
+≠ Operational Work
+≠ Work Assignment
+≠ Work Result
+≠ Document
+≠ Expense
+≠ Financial Obligation
+```
+
+Appeal и Operational Work допускают many-to-many связь:
+
+```text
+one Appeal → 0..N Operational Works
+one Operational Work → 0..N Appeals
+```
+
+Operational Work может существовать без Appeal. Work completion/result не закрывает Appeal автоматически.
+
+**Work Assignment** — исторически значимое отношение конкретного Subject к конкретной Operational Work в contextual role и применимом temporal context. Establishment/change/end Assignment сохраняют provenance. Assignment не создаёт employment/service relation, Supplier role, Contractual Relationship, Representation или universal Domain Power автоматически.
+
+Исполнителем может быть Employee, external contractor, Community member/volunteer либо другой Subject, если applicable operational rules and authority допускают это. Реальное выполнение не требует создания фиктивного трудового или подрядного отношения.
+
+Operational Work может иметь typed/contextual target relation к Property/Object, common property, Engineering System, branch/topology element, Accounting Point/Meter, Community или другому supported domain referent. Target identity остаётся owned исходным context. Universal Work Target/Target Reference entity не вводится.
+
+Actual execution различается с planning and assignment:
+
+```text
+planned
+≠ assigned
+≠ started
+≠ performed
+≠ completed
+```
+
+**Work Result** — исторически значимый outcome исполнения конкретной Work. Он может фиксировать успешное, частичное, неуспешное либо иное process-specific завершение. Work Result не является Document и не создаёт Expense/Financial Obligation/Payment автоматически.
+
+Completion Assertion и Acceptance различаются. Где процесс требует verification/acceptance, выполненная Work может оставаться completed-but-not-accepted. Acceptance не создаёт финансовый факт автоматически.
+
+Reopen той же Work допустим при sufficient basis, когда прежнее completion было premature/incorrect/incomplete и сохраняется identity той же intervention. Reopen не удаляет прежние completion assertions, Work Results или acceptance history. New occurrence, materially new purpose/target или independent intervention обычно требуют linked new Work; universal automatic rule не вводится.
+
+Current operational state может быть projection над историческими actions/outcomes и не является universal status-machine entity.
+
+Emergency Work может начаться без prior Management Decision, если applicable authority/rule это допускает. Emergency Work или Work Result могут быть basis/evidence последующего financial recognition, но не создают Expense или Financial Obligation автоматически.
+
+Execution/Work Result evidence может включать фото, Document, telemetry/Reading, test result, комментарий, contractor evidence и сведения о фактически использованных материалах. Materials evidence не создаёт inventory/TMC accounting, warehouse balance, accounting write-off или Expense автоматически.
+
+Work может использовать Resource/engineering facts как basis и после выполнения предоставлять evidence для resource process, но Work Result не переписывает Reading, Consumption, Calculated Imbalance или Operational Loss напрямую.
+
+Контекст «Операционная деятельность» владеет Operational Work, Work Assignment и Work Result. Он не присваивает identity/ownership Subject, Object, Subject↔Community relations, Representation, Resource facts/targets, Governance decisions, Documents, financial facts, Appeals или technical access.
+
+## 22. Инварианты и расширяемость
 
 Существенные различия модели:
 
@@ -644,6 +703,12 @@ Expense может существовать до Payment и, при явно п�
 - документ ≠ редакция документа ≠ представление документа ≠ файл;
 - документ ≠ публикация; публикация ≠ аудитория ≠ техническая доставка ≠ технический доступ;
 - обращение ≠ документ; уведомление ≠ отправка ≠ доставка ≠ получение ≠ прочтение ≠ юридически значимое уведомление;
+- обращение ≠ операционная работа; операционная работа может существовать без обращения;
+- операционная работа ≠ назначение по работе ≠ результат работы;
+- Work Assignment ≠ employment/Supplier/Contractual Relationship/Representation automatically;
+- Completion Assertion ≠ Acceptance;
+- Work Result ≠ Document ≠ Expense ≠ Financial Obligation;
+- Operational Work/Work Result не переписывают resource facts автоматически;
 - ресурс ≠ инженерная система;
 - объект собственности ≠ место потребления ≠ точка учёта ≠ прибор ≠ лицевой счёт;
 - точка учёта ≠ прибор; показание ≠ потребление;

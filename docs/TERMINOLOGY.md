@@ -1,7 +1,7 @@
 # Community OS — Терминология проекта
 
 **Статус:** Draft  
-**Версия:** 0.22  
+**Версия:** 0.23  
 **Язык документа:** русский
 
 ---
@@ -2325,3 +2325,37 @@ Work Result
 Completion Assertion сообщает о заявленном завершении execution; Acceptance/Verification, если требуется process policy, является отдельным действием.
 
 Reopen, correction или follow-up не удаляют ранее признанный Work Result молча. Current Work state может быть projection над историческими actions/results и не является universal status-machine entity.
+
+
+# 160. Финансовое раскрытие / финансовая прозрачность
+
+**Финансовое раскрытие** (Financial Disclosure) / **финансовая прозрачность** — процесс и семантика формирования допустимого представления финансовой информации Community из authoritative financial facts согласно применимым правилам, visibility scope и temporal semantics.
+
+Это не самостоятельная финансовая сущность и не новый source of truth.
+
+Для динамического просмотра используется Read Model / Projection с declared producer/owner, scope, visibility, freshness и explicit temporal semantics.
+
+Для historically fixed official disclosure используются существующие Document / Revision / Representation / Publication semantics.
+
+Сохраняются различия:
+
+```text
+financial fact
+≠ financial disclosure
+≠ Read Model / Projection
+≠ Document
+≠ Publication
+≠ technical access
+```
+
+Не вводится universal `Disclosure Rule`. Применимые disclosure semantics складываются из locally owned rules/versions согласно ADR-005. Cross-cutting responsibility правил задаёт общие требования к identity/version/history, но не владеет всеми disclosure rules.
+
+Dynamic viewer/visibility scope не является `Audience` автоматически. `Audience` сохраняет семантику ADR-009 для Publication/communication contexts.
+
+Financial disclosure может различать personal view, Community participant transparency, governance/management view, oversight/revision view и public disclosure. Owner, member, resident/tenant, oversight subject и public viewer не становятся взаимозаменяемыми ролями.
+
+Historical/current projection должна явно определять temporal semantics; bare ambiguous `as-of` не является достаточным контрактом.
+
+Aggregation disclosure должна определять additivity semantics. Bank movement, Payment, Expense и Budget execution metrics не становятся одним показателем автоматически. Funding Source не становится reserve, а derived target accumulation не означает blocked funds без отдельной finance semantics.
+
+Identifiable debtor information не становится автоматически доступной public/member/resident scope только из существования Debt.

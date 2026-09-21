@@ -1,6 +1,6 @@
 # BP-OPS-001 — Операционная работа / Work Order
 
-**Статус:** Draft
+**Статус:** Draft / independent multi-review synthesized
 **Предлагаемый контекст:** Операционная деятельность (Community Operations) — не принят нормативно
 **Тип документа:** Бизнес-процесс
 
@@ -897,31 +897,39 @@ Where materially relevant, should be determinable:
 
 **Not performed yet.**
 
-Reason: proposed 11th top-level context is a material architectural change.
+Frozen independent multi-review Round 1 завершён и consolidated findings обработаны в Draft.
 
-Before normative sync, the project should accept or reject the architecture proposal in `STAGE-8-OPERATIONAL-WORK-ANALYSIS.md`.
+Нормативная синхронизация всё ещё отложена по одной причине: proposed 11th top-level context меняет Accepted ADR-002 и требует explicit project-owner decision.
 
-If accepted, expected sync:
+Если Community Operations принимается, ожидаемая нормативная синхронизация:
 
-- ADR-002 — add Community Operations context;
-- ADR-009 — Appeal → Operational Work boundary note;
-- DOMAIN_MODEL — Operational Work / Work Assignment / Work Result;
-- TERMINOLOGY;
-- VISION, if operational work capability should be made explicit;
-- REFERENCE_CANDIDATE_MATRIX — close REF-OPS-001.
+- ADR-002 — add 11th Community Operations context with explicit boundary/dependencies/results;
+- ADR-009 — Appeal ↔ Operational Work boundary note where needed;
+- DOMAIN_MODEL — Operational Work / Work Assignment / Work Result and cross-context boundaries;
+- TERMINOLOGY — canonical Operational Work, Work Assignment, Work Result; Work Order only secondary UX alias;
+- VISION — only if operational-work capability needs explicit product-level statement;
+- REFERENCE_CANDIDATE_MATRIX — close REF-OPS-001 and complete Stage 8.
 
 ## 68. Review
 
-One frozen independent multi-review round is appropriate because the proposal changes the top-level domain context map.
+Frozen Round 1 completed with Claude Chat, DeepSeek and Gemini against the same package.
 
-Second review round only if substantial unresolved disagreement remains.
+Consolidated result:
+
+- standalone Operational Work referent — supported;
+- no existing context provides clean ownership without boundary distortion;
+- proposed Community Operations context — preferred architecture option;
+- non-normative Draft findings — resolved;
+- no second round required if option A is accepted unchanged in substance.
+
+See `STAGE-8-OPERATIONAL-WORK-MULTI-REVIEW-CONSOLIDATION.md`.
 
 ## 69. Следующий шаг
 
-1. freeze current Stage 8 package;
-2. perform one independent multi-review round;
-3. consolidate review against GitHub;
-4. user/project accepts or rejects proposed Community Operations context;
-5. only then perform normative synchronization;
-6. merge Stage 8;
-7. proceed to Stage 9.
+1. project owner explicitly accepts or rejects proposed 11th top-level context `Операционная деятельность (Community Operations)`;
+2. if accepted — perform normative synchronization;
+3. final consistency check against current `main`;
+4. mark PR ready and merge Stage 8;
+5. proceed to Stage 9.
+
+Implementation does not start before normative architecture decision and documentation sync.

@@ -78,7 +78,7 @@
 | REF-DOC-001 | Подписание предметно значимого документа | DAH | ADR-009 уже определяет Signing как действие над конкретной Revision/Representation и отличает его от approval/registration/publication | **Частично закрыт** | Исследовать электронное доказательство подписания, внешние подписи и правовые требования; не пересматривать базовую семантику без причины |
 | REF-DOC-002 | Публикация документа/отчёта | МДО, DAH | ADR-009 определяет Publication, Audience и историчность публикаций | **Закрыт решением** | Конкретные публикационные BP вводить по продуктовой необходимости |
 | REF-TRANS-001 | Финансовая прозрачность для участников, органов управления/контроля и публичного раскрытия | DAH, пилотный СТ/ОСББ/ЖСК | Зафиксирован `BP-TRANS-001`: personal/community/governance/oversight/public scopes разделены; dynamic view = Read Model/Projection, formal historical disclosure = Document/Revision/Representation/Publication; universal Disclosure entity/rule не вводятся; locally owned rules ADR-005, explicit temporal/additivity semantics, debtor/privacy, bank movement/classification, sub-community scope, resident/tenant, target accumulation и pass-through boundaries определены | **Закрыт решением** | Конкретные disclosure policies, privacy/legal rules, viewer scopes и report metrics задавать локально; не создавать второй financial source of truth |
-| REF-GOV-001 | Неформальный опрос ≠ формальное голосование | МДО, DAH | Подготовлен Draft `BP-SURVEY-001`: Survey и Survey Response рассматриваются как самостоятельные понятия контекста «Коммуникации и обращения»; Survey Item имеет stable local identity; Survey ≠ Voting, Survey Response ≠ Vote; Survey Result/Right/Participant/Snapshot/Version не вводятся без дополнительного основания | **В работе (Draft Stage 10)** | Провести independent multi-review; проверить identity/ownership, response-unit/admissibility, anonymity/history, replacement-vs-versioning, external-channel recognition и границу с Governance; затем выполнить минимальную нормативную синхронизацию |
+| REF-GOV-001 | Неформальный опрос ≠ формальное голосование | МДО, DAH | Draft `BP-SURVEY-001` прошёл independent multi-review Claude/Gemini/DeepSeek без BLOCKER; point fixes применены; Survey и Survey Response имеют самостоятельную identity в Communications; Survey Item имеет stable local identity + historical definition/applicability; Survey ≠ Voting, Response ≠ Vote; admissibility provenance, anonymity/multiplicity, correction, external recognition и fixed/reproducible Governance summary уточнены; proposed sync ADR-002/DOMAIN_MODEL/TERMINOLOGY подготовлена в PR #71 | **В работе (Round 1 consolidated / PR #71)** | Владелец проекта принимает/отклоняет модель; при принятии — final consistency check и merge PR #71. Full Round 2 не требуется без новой identity/ownership/model semantics |
 | REF-GOV-002 | Электронное участие в собрании и доказательство волеизъявления | DAH, МДО | Канал подачи не меняет природу голоса; управление и подписание разделены; техническое/правовое доказательство удалённого участия не определено | **Отложен** | После исследования электронной подписи описать специализированный процесс удалённого участия |
 | REF-INT-001 | Экспорт канонических операций в BAS/BAF с устойчивыми идентификаторами | МДО | ADR-006/011 фиксируют границу внешней бухгалтерии и semantic contract; конкретный контракт отсутствует | **Backlog** | Проектировать отдельный integration semantic contract, не копируя модель BAS/BAF |
 | REF-INT-002 | API-first режим Community OS поверх внешней учётной системы | DAH | Архитектурно совместим с ADR-011; не является требованием первого внедрения | **Отложен** | Вернуться после стабилизации пилота и основных интеграционных контрактов |
@@ -86,8 +86,8 @@
 | REF-AUD-001 | Контрольный доступ ревизора/контрольного органа | OSBBX, DAH | ADR-010 не требует специальной фундаментальной роли; BP-ACCESS-001 подтверждает общую модель grants, scopes и независимых предметных оснований | **Частично закрыт** | Конкретные Rights, Scope и policy ревизора определить при появлении продуктового сценария; отдельная фундаментальная роль не требуется |
 | REF-PROP-001 | Склад, ТМЦ и основные средства | OSBBX | Community OS не является системой складского/регламентированного учёта; инженерное оборудование может существовать в своей предметной роли независимо | **Закрыт решением** | Не вводить складской bounded context без новой собственной предметной потребности |
 | REF-DOC-003 | Генерируемые счета, квитанции, отчёты как источник финансовой истины | OSBBX | ADR-009 и ADR-006 разделяют документ и финансовый факт | **Не вводить отдельно** | Документ считать представлением/оформлением соответствующих фактов |
-| REF-DOC-004 | Формирование, печать и выдача кассового документа / ПКО | пилотный СТ, BP-CASH-001, реальная форма КО-1 | PR #59 `BP-DOC-CASH-001`: Document/Revision/Representation отделены от cash/Payment facts; для пилота проверяется один ПКО как Document с composite Representation «ордер + квитанция», быстрый сценарий Reading → obligations → cash → Allocation → print и downstream export в BAF/BAS без передачи ему domain ownership | **В работе (PR #59)** | Завершить independent multi-review, point fixes и normative sync; не вводить отдельные Receipt/Document Part/Cash Operation без доказанной необходимости |
-| REF-DOC-005 | Правовые и фискальные требования к кассовому документу украинского пилота | пилотный СТ | Архитектурная модель документа отделена от финансовых фактов; Community OS receipt/ПКО не считается автоматически фискальным/RRO/PRRO документом; обязательность формы, реквизитов, подписей, регистрации и кассовой дисциплины ещё требует актуальной проверки | **Backlog после REF-DOC-004** | После принятия BP-DOC-CASH-001 провести отдельный current-law legal/formalization analysis для Украины; не смешивать его с предметной моделью BAF/BAS |
+| REF-DOC-004 | Формирование, печать и выдача кассового документа / ПКО | пилотный СТ, BP-CASH-001, реальная форма КО-1 | Принят и merged PR #59 `BP-DOC-CASH-001`: Document/Revision/Representation отделены от cash/Payment facts; для пилота один ПКО = один Document, ордер + квитанция = composite Representation с addressable semantic roles/segments; быстрый сценарий Reading → obligations → cash → Allocation → print и downstream BAF/BAS не передаёт domain ownership внешней бухгалтерии | **Закрыт решением** | Не возвращаться к fundamental Receipt/Document Part/Cash Operation без нового сценария; current-law требования Украины прорабатывать отдельно в REF-DOC-005 |
+| REF-DOC-005 | Правовые и фискальные требования к кассовому документу украинского пилота | пилотный СТ | Архитектурная модель документа и BP-DOC-CASH-001 приняты; Community OS receipt/ПКО не считается автоматически фискальным/RRO/PRRO документом; обязательность формы, реквизитов, подписей, регистрации и кассовой дисциплины ещё требует актуальной проверки | **Backlog** | Провести отдельный current-law legal/formalization analysis для Украины; не смешивать его с предметной моделью BAF/BAS |
 | REF-PRIV-001 | Публичный список должников / поиск людей по внешним признакам | DAH | Автоматическая публичность не следует из финансовых фактов; аудитория и доступ требуют собственных правил | **Не переносить автоматически** | Только отдельный privacy/legal сценарий при реальной потребности |
 
 ## 4. Что уже можно считать закрытым по результатам трёх референсов
@@ -361,23 +361,29 @@ Subject
 
 ### Этап 10. Неформальный опрос
 
-**Состояние:** в работе; подготовлен Draft `BP-SURVEY-001 — Неформальный опрос / Informal Survey`.
+**Состояние:** Round 1 consolidated; point fixes applied; proposed normative synchronization подготовлена в Draft PR #71. Решение владельца проекта о принятии/merge ещё не зафиксировано.
 
 **Источники:** МДО + DAH.
 
-Stress-test текущей модели дал рабочее направление:
+Independent multi-review Claude/Gemini/DeepSeek подтвердил рабочую модель без BLOCKER и без conceptual redesign:
 
 - Survey является самостоятельным identity-bearing понятием контекста «Коммуникации и обращения»;
 - Survey Response является самостоятельным исторически различимым фактом;
-- Survey Item имеет stable local identity within Survey, но не объявляется fundamental top-level entity;
+- Survey Item имеет stable local identity within Survey и historical response-relevant definition/applicability, но не объявляется fundamental top-level entity;
+- accepted Response сохраняет historically explainable admissibility/multiplicity provenance без Survey Eligibility Snapshot;
 - response unit, acting Subject/User и technical access различаются;
+- anonymous/private/pseudonymous modes различаются; полностью unlinked anonymous Survey не получает identity/unit multiplicity guarantee автоматически;
+- respondent modification/withdrawal отличаются от correction erroneous recognition;
 - Survey audience ≠ response eligibility ≠ technical access;
 - Survey ≠ Voting, Survey Response ≠ Vote;
-- Survey aggregation ≠ Established Result ≠ Management Decision;
-- universal Survey Result / Survey Right / Survey Participant / Survey Eligibility Snapshot / Survey Version пока не вводятся;
-- materially significant Survey definition не должна silent-rewrite уже принятые Responses; baseline Draft предпочитает replacement Survey вместо преждевременного universal versioning.
+- survey aggregation остаётся derived Projection; fixed/reproducible summary требуется для significant Governance use;
+- universal Survey Result / Survey Right / Survey Participant / Survey Eligibility Snapshot / Survey Version не вводятся;
+- materially significant definition changes не silent-rewrite Responses; local history не требует universal Survey Version, а material changes baseline ведут к explicit replacement Survey;
+- external submissions используют ADR-011 recognition/rejection/duplicate/redelivery semantics.
 
-**Следующий шаг:** independent multi-review Draft, затем adjudication и минимальная нормативная синхронизация. До review эти положения не считаются окончательно принятыми.
+Proposed normative sync в PR #71 минимально обновляет ADR-002, DOMAIN_MODEL и TERMINOLOGY без нового bounded context и без изменения Voting model.
+
+**Следующий шаг:** решение владельца проекта по модели; при принятии — final consistency check и merge PR #71. Полный Round 2 не требуется, если не появляется новая identity/ownership/model semantics.
 
 ### Этап 11. Электронное подписание и удалённое участие
 

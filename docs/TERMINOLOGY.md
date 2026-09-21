@@ -764,6 +764,7 @@ Refund не требует универсальной связи 1:1 с конк
 - показания приборов учёта;
 - документы;
 - уведомления;
+- опросы;
 - голосования;
 - обращения.
 
@@ -856,6 +857,39 @@ Refund не требует универсальной связи 1:1 с конк
 Вложение не тождественно документу, редакции, представлению или файлу и не получает обязательную универсальную идентичность.
 
 ---
+
+# 42.11. Неформальный опрос (Survey)
+
+**Неформальный опрос (Survey)** — самостоятельный предметно идентифицируемый коммуникационный referent структурированного сбора мнений, предпочтений или иной обратной связи от определимой либо policy-допустимой аудитории Community.
+
+Survey имеет стабильную identity и принадлежит контексту «Коммуникации и обращения». Он может использоваться как basis/input управленческой процедуры, но не является автоматически Governance Question, Voting, Established Result или Management Decision.
+
+Повторное проведение похожего по содержанию опроса является новым Survey, если это новый предметный акт сбора мнений. Replacement relation между Surveys существует только при явной предметной замене.
+
+---
+
+# 42.12. Пункт опроса (Survey Item)
+
+**Пункт опроса (Survey Item)** — локально адресуемая часть конкретного Survey, по которой ожидается structured input.
+
+Survey Item имеет стабильную локальную identity внутри Survey, но не является самостоятельной fundamental top-level entity. Survey Item не тождествен Governance Question.
+
+Для accepted Survey Responses должно быть исторически объяснимо response-relevant значение Item — применимая формулировка, допустимые варианты/validation и применимость в необходимом объёме. Это не требует universal Survey Item Revision или Survey Definition Version.
+
+---
+
+# 42.13. Ответ на опрос (Survey Response)
+
+**Ответ на опрос (Survey Response)** — самостоятельный исторически различимый факт принятого ответа в рамках конкретного Survey со stable identity.
+
+Survey Response может содержать значения по одному или нескольким Survey Items и не является простым отношением Subject↔Survey. Acting Subject, User Account, response unit, admissibility basis и technical access различаются; persistent Subject link не является универсально обязательным.
+
+Survey Response не является Vote, Appeal или Document автоматически. Accepted Response должен сохранять достаточную историческую объяснимость применённой admissibility/multiplicity semantics там, где это существенно. Для этого не вводятся universal Survey Right, Survey Participant или Survey Eligibility Snapshot.
+
+Derived aggregation Survey Responses является Read Model / Projection и не становится universal Survey Result, Established Result или Management Decision.
+
+---
+
 
 # 43. Модуль
 

@@ -476,6 +476,21 @@ Expense может существовать до Payment и, при явно п�
 
 **Новость** и **объявление** являются самостоятельными коммуникационными материалами, а не обязательными видами документа или публикации. Они могут иметь явные связи с документом, редакцией, представлением или публикацией.
 
+**Неформальный опрос (Survey)** — самостоятельный identity-bearing коммуникационный referent структурированного сбора мнений/ответов. Survey относится к контексту «Коммуникации и обращения» и может использоваться управленческим контекстом как basis/input, но не становится Governance Question или Voting автоматически.
+
+**Survey Item** — локально адресуемая часть конкретного Survey со стабильной локальной identity. Для уже принятых Survey Responses должно быть исторически объяснимо response-relevant значение Item — его применимая формулировка, допустимые варианты/validation и применимость в необходимом объёме. Отдельная universal Survey Item Revision или Survey Definition Version не вводится.
+
+**Survey Response** — самостоятельный исторически различимый факт принятого ответа в рамках конкретного Survey со stable identity. Он не является простым отношением Subject↔Survey и может существовать без persistent Subject link, если это допускает declared survey policy. Acting Subject/User, response unit, admissibility basis и technical access различаются. Для accepted Response, где это существенно, сохраняется достаточный historical context применённой admissibility/multiplicity semantics без введения Survey Right или Survey Eligibility Snapshot.
+
+```text
+Survey ≠ Voting
+Survey Item ≠ Governance Question
+Survey Response ≠ Vote
+survey aggregation ≠ Established Result ≠ Management Decision
+```
+
+Derived aggregation Survey Responses является Read Model / Projection, а не новым source of truth или universal Survey Result. Если summary используется как предметно значимый basis Governance, его aggregation context должен быть фиксированным либо исторически воспроизводимым. Формализованный исторический отчёт может использовать Document/Revision/Representation, не передавая документному контексту ownership Survey Responses.
+
 **Вложение / приложение** — контекстная роль или предметно значимое отношение коммуникационного материала с документом, редакцией либо представлением. Универсальная идентичность вложения не вводится.
 
 Если действие по своей предметной семантике совершает субъект, должны быть определимы фактически действовавший субъект и, где применимо, основание его действия. Автоматизированный механизм не становится субъектом и не подменяет требуемую атрибуцию.

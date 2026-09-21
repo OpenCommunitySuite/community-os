@@ -1,6 +1,6 @@
 # Stage 8 — Анализ операционной работы и архитектурного владения
 
-**Статус:** Draft / independent multi-review synthesized / architecture owner decision pending
+**Статус:** Accepted architecture outcome / normative synchronization performed
 **Связанный процесс:** `BP-OPS-001 — Operational Work / Work Order`
 
 ## 1. Причина анализа
@@ -331,14 +331,15 @@ Document identity remains separate.
 
 ## 11. Статус решения
 
-**Предложение, не принятое нормативно.**
+**Принято проектом.**
 
-До принятия:
+Принят вариант A:
 
-- ADR-002 не изменяется;
-- новый context не считается существующим;
-- BP-OPS-001 использует термин `proposed Community Operations context`;
-- реализация не начинается.
+> новый 11-й top-level context **Операционная деятельность (Community Operations)** владеет Operational Work, Work Assignment и Work Result в пределах зафиксированных границ.
+
+Нормативная синхронизация выполнена в ADR-002, ADR-009, DOMAIN_MODEL, TERMINOLOGY и REFERENCE_CANDIDATE_MATRIX.
+
+Решение не означает отдельный микросервис, модуль кода, PostgreSQL schema или иной implementation boundary автоматически.
 
 ## 12. Review status
 

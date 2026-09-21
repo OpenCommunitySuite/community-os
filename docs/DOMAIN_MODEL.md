@@ -1,7 +1,7 @@
 # Community OS — Domain Model
 
 **Статус:** Draft  
-**Версия:** 0.25  
+**Версия:** 0.26  
 **Язык документа:** русский
 
 > Документ описывает концептуальную предметную модель. Он не определяет структуру хранения, программные классы, API, интерфейсы, механизм исполнения правил или технический аудит.
@@ -301,6 +301,45 @@ Refund должен иметь возвратное происхождение, 
 Financial Obligation to return остаётся обычным Financial Obligation; отдельный тип обязательства, Refund Entity, Refund Status или Refund Reservation не вводятся. Если obligation явно связано с конкретной source financial amount/state, соответствующая committed refundable amount участвует в current effective financial use этой суммы и предотвращает несовместимое повторное использование, но не является Payment Allocation или техническим резервированием.
 
 **Статья начисления** классифицирует назначение начисления и не обязана совпадать со статьёй бухгалтерского учёта.
+
+### Финансовая прозрачность и раскрытие
+
+Financial disclosure / transparency не является новым financial fact или отдельным source of truth.
+
+Динамическое представление строится как Read Model / Projection из authoritative facts owning contexts. Каждая конкретная projection имеет declared producer/owner, scope, visibility, freshness и explicit temporal semantics. Если она использует данные нескольких modules, composition идёт через public query/read contracts без присвоения ownership исходных фактов или правил.
+
+Formal historically fixed disclosure использует существующие Document / Revision / Representation / Publication semantics. Dynamic view не становится Publication автоматически.
+
+Не вводится universal `Disclosure Rule`. Применимые disclosure semantics являются композицией locally owned rules/versions согласно ADR-005:
+
+- Finance владеет financial selection/classification/aggregation/metric semantics;
+- Documents — formal publication semantics;
+- contexts, владеющие отношениями/действиями, — их subject-matter admissibility;
+- technical access остаётся cross-cutting responsibility.
+
+Для formal historical disclosure фактически использованные rule versions и существенные параметры сохраняются или однозначно восстанавливаются, если materially влияют на content.
+
+Основные visibility scenarios различаются:
+
+- personal financial view;
+- Community participant transparency;
+- governance/management view;
+- oversight/revision view;
+- public disclosure.
+
+Owner/member/resident/tenant/public viewer не являются взаимозаменяемыми ролями. Resident/tenant может получить disclosure scope только через поддерживаемое Subject↔Object/Community relation и applicable rule. Member/owner relation не создаёт автоматического права видеть identifiable debtor information.
+
+Personal Account относится к объекту/группе объектов, а не к конкретному owner. Поэтому current account/object financial state и person-identifiable historical data прежнего owner являются различными visibility scopes. Смена owner не переносит obligations/history автоматически.
+
+Projection/report может иметь sub-Community scope только если соответствующий domain scope уже существует в owning context. Reporting не создаёт новую hierarchy объектов/домов/подъездов/ветвей.
+
+Financial aggregation должна декларировать additivity semantics. Bank movement, Payment, Expense, Budget execution и Funding Source analytics остаются различными metrics. Unclassified Bank Transactions допустимы и могут быть показаны в bank-movement view.
+
+Funding Source не является reserve. Derived target-accumulation metric допускается только из existing financial facts/classifications и explicit formula; она не означает blocked/reserved funds автоматически.
+
+Owner-side resource Accrual/Payment, Community Expense и supplier-side Obligation/Payment не сливаются в один flow. Любая `pass-through/transit` группировка является derived classification/metric, а не новым видом Payment/Expense.
+
+Disputed financial fact не исчезает из source-of-truth. Если disputed correction уже имеет current effective status по owning Finance process, projection отражает effective result и отдельно сохраняет dispute semantics; Stage 9 не определяет, какая correction effective.
 
 ## 11. Ресурсы, точки учёта и инженерная структура
 
@@ -705,6 +744,12 @@ Work может использовать Resource/engineering facts как basis
 - обращение ≠ документ; уведомление ≠ отправка ≠ доставка ≠ получение ≠ прочтение ≠ юридически значимое уведомление;
 - обращение ≠ операционная работа; операционная работа может существовать без обращения;
 - операционная работа ≠ назначение по работе ≠ результат работы;
+- финансовое раскрытие/проекция ≠ financial source of truth;
+- dynamic financial view ≠ formal Publication;
+- universal Disclosure Rule не вводится; rule ownership остаётся локальным согласно ADR-005;
+- bank movement ≠ Payment ≠ Expense ≠ Budget execution metric;
+- Funding Source/target metric ≠ reserve automatically;
+- member/resident relation ≠ identifiable debtor visibility automatically;
 - Work Assignment ≠ employment/Supplier/Contractual Relationship/Representation automatically;
 - Completion Assertion ≠ Acceptance;
 - Work Result ≠ Document ≠ Expense ≠ Financial Obligation;

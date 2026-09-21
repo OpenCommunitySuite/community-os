@@ -1,6 +1,6 @@
 # BP-SURVEY-001 — Неформальный опрос / Informal Survey
 
-**Статус:** Draft / Stage 10 stress-test completed  
+**Статус:** Draft / independent multi-review Round 1 completed / point fixes applied  
 **Контекст:** Коммуникации и обращения  
 **Связанные контексты:** Управление и коллективные процедуры; Субъекты; Объекты и отношения с ними; Полномочия и представительство; Документы и формализация; сквозные Access/Rules/History  
 **Тип документа:** Бизнес-процесс
@@ -87,6 +87,12 @@ Survey
 
 Управленческий контекст может использовать Survey или derived summary как basis/input, не получая ownership Survey Response.
 
+Создание, публикация или иное предметно значимое действие с Survey требует собственной subject-matter admissibility в Communications context согласно ADR-010. Она может опираться на Domain Power, отношения Subject↔Community, representation, применимые правила или другое достаточное основание и не следует автоматически из technical access.
+
+Response admissibility также принадлежит Communications context. Использование ownership/membership/use и других первичных фактов как входов не делает survey admissibility разновидностью Governance `Право участия` или `Право голоса`.
+
+Принятие модели Survey потребует минимальной нормативной синхронизации ADR-002, DOMAIN_MODEL и TERMINOLOGY: добавить Survey/Survey Response и локальную роль Survey Item в существующий контекст «Коммуникации и обращения», не создавая новый bounded context и не меняя ownership Governance.
+
 ## 4. Что входит
 
 BP охватывает:
@@ -147,11 +153,14 @@ Survey имеет собственную stable identity.
 - заголовком;
 - текстом первого вопроса;
 - датой публикации;
-- User Account создателя;
+- acting Subject / инициатором;
+- технической User Account, через которую выполнено действие;
 - Governance Question;
 - Announcement;
 - URL/Telegram message id;
 - набором текущих ответов.
+
+Атрибуция инициирования/создания Survey и использованная User Account могут быть исторически значимы согласно ADR-004/010, но они не определяют identity Survey.
 
 Повторное проведение похожего или идентичного по тексту опроса является новым Survey, если это новый предметный акт сбора мнений.
 
@@ -167,6 +176,10 @@ Survey Item имеет **стабильную локальную identity вну
 - сохранить смысл ранее принятых Responses при изменении порядка отображения;
 - отличить удаление/замену item от изменения текста;
 - объяснить historical response content.
+
+Stable local identity сама по себе недостаточна для исторической объяснимости. Для принятого Survey Response должно быть восстановимо response-relevant значение соответствующего Item в применимом историческом контексте: формулировка, допустимые варианты/validation и применимость в объёме, необходимом для объяснения ответа и aggregation.
+
+Это не вводит обязательную fundamental `Survey Item Revision` или `Survey Definition Version`. Достаточна локальная история/provenance определения и применимости Item согласно ADR-004/005.
 
 Сохраняется граница:
 
@@ -264,6 +277,8 @@ Response unit может быть, где это предметно оправд
 - Community membership/relationship referent;
 - другой already-modeled scope.
 
+Response unit не является скрытым Subject и не создаёт отдельного правоносителя. Связь Response с response unit может при этом косвенно позволять идентифицировать связанного Subject; обещаемый уровень anonymity/privacy поэтому должен быть определён отдельно и не выводится только из отсутствия прямой ссылки Response→Subject.
+
 Новый universal `Survey Participant` или `Survey Respondent Unit` entity не вводится.
 
 ## 12. Audience ≠ eligibility ≠ technical access
@@ -305,6 +320,20 @@ survey admissibility
 ```
 
 Отсутствие Survey Right как сущности не означает отсутствия проверяемых правил admissibility.
+
+Для accepted Survey Response, где это предметно существенно, должен быть исторически определим достаточный контекст принятого admissibility decision:
+
+- применимая survey policy/rule и её использованная версия, если правила версионируются;
+- response unit;
+- использованные отношения/основания;
+- использованные значения изменяемых входов;
+- effective/response time, если он влияет на применимость;
+- решение о multiplicity;
+- recognition/provenance, достаточные для объяснения принятия Response.
+
+Ссылка только на текущее состояние ownership/membership либо только на идентификатор правила недостаточна, если admissibility зависела от исторически изменяемых значений.
+
+Такой исторический контекст является provenance принятой Response и **не вводит** отдельную fundamental entity `Survey Eligibility Snapshot`.
 
 ## 14. Правила кратности
 
@@ -358,6 +387,7 @@ Survey response policy задаётся отдельно.
 ```text
 author hidden from ordinary viewers
 ≠ author known to Community but access-restricted
+≠ pseudonymous / unlinkable-for-viewers binding
 ≠ author intentionally not linked / not knowable by Community OS
 ```
 
@@ -368,7 +398,13 @@ Survey Response
 ≠ identifiable Subject required
 ```
 
-Если policy требует одновременно anonymity и ограничение «один ответ на response unit», способ доказательства admissibility может использовать специальный технический механизм, но настоящий BP не вводит универсальную domain entity Anonymous Token.
+Anonymous/private/pseudonymous modes являются declared survey policy semantics. Они не создают fake Subject и не вводят universal `Anonymous Token` как domain entity.
+
+Анонимность относительно Subject **не означает автоматически** отсутствие response unit. Если policy требует ограничение кратности по response unit, предметно значимая связь с response unit может сохраняться без прямой связи Response→Subject. При этом такая связь может допускать косвенную re-identification; уровень обещаемой anonymity/privacy должен описываться честно и отдельно.
+
+Если Survey является полностью анонимным в том смысле, что Community OS не сохраняет ни Subject binding, ни response-unit/pseudonymous binding, Community OS не может на domain-уровне гарантировать identity/unit-based multiplicity. Такая гарантия либо отсутствует, либо опирается на отдельно определённый trusted technical/integration mechanism. Сам технический token/device fingerprint/cookie не становится domain identity автоматически.
+
+Attribution requirements ADR-010 применяются в том объёме, который требует предметная семантика конкретного Survey; отсутствие требуемой идентификации не должно компенсироваться вымышленным Subject.
 
 ## 17. Response period
 
@@ -387,11 +423,11 @@ Survey может определять период, в течение кото�
 
 До первого accepted Survey Response изменяемый draft Survey может корректироваться согласно локальной policy.
 
-После появления первого accepted Survey Response нельзя молча менять response-relevant semantics, если это изменило бы смысл уже данных ответов.
+После появления первого accepted Survey Response нельзя молча менять response-relevant semantics, если это изменило бы смысл, допустимость или сопоставимость уже данных ответов.
 
 К materially significant могут относиться:
 
-- wording Survey Item;
+- wording Survey Item, если меняется смысл;
 - варианты выбора;
 - обязательность item;
 - interpretation/validation;
@@ -399,8 +435,18 @@ Survey может определять период, в течение кото�
 - multiplicity;
 - response unit semantics;
 - anonymity/identification semantics;
-- период, если изменение влияет на допустимость;
+- период, если изменение влияет на допустимость или interpretation;
+- добавление/удаление Item, если это меняет semantics/comparability;
+- разделение/объединение Item;
 - другие сведения, влияющие на смысл Response.
+
+Материальность определяется **эффектом изменения**, а не названием поля или типом операции.
+
+Не каждое редактирование после первого Response требует replacement Survey. Например, исправление опечатки без изменения смысла, изменение presentation-only сведений или иное non-material изменение может выполняться in-place, если исторически значимое прежнее представление не переписывается молча там, где оно требуется для explainability.
+
+Изменение response period также не является автоматически ни material, ни non-material. Продление/сокращение может выполняться in-place только если applicable survey policy допускает такое изменение и его история/применимость остаются объяснимыми; изменение, меняющее уже возникшую допустимость или интерпретацию Responses, требует более строгой семантики.
+
+Prospective добавление нового независимого optional Item после Responses может быть допустимо без replacement только если policy явно это допускает, Item получает исторически определимую применимость, а aggregation различает «Item ещё не применялся» и «респондент не ответил». В противном случае structural change считается material.
 
 ```text
 accepted Response exists
@@ -412,20 +458,24 @@ accepted Response exists
 
 Настоящий BP не вводит fundamental `Survey Version` / `Survey Definition Version`.
 
-Для первого применения используется более простой default:
+Для первого применения используется baseline:
 
 ```text
-material error/change after Responses exist
+material response-relevant change after Responses exist
 → close/cancel current Survey where applicable
 → create replacement Survey
-→ preserve relation/reason
+→ preserve explicit relation/reason
 ```
 
-Если будущий реальный процесс потребует продолжать тот же Survey после materially significant definition changes и сопоставлять Responses между версиями, необходимость versioned Survey Definition должна быть исследована отдельно.
+При этом локальная история определения Survey/Item, их применимости и non-material changes сохраняется в объёме, необходимом ADR-004/005. Такая историчность сама по себе не требует отдельной universal version entity.
+
+Если будущий реальный процесс потребует продолжать один и тот же Survey через materially different definition states и сопоставлять Responses между ними как Responses одного Survey, необходимость versioned Survey Definition должна быть исследована отдельно.
 
 ## 20. Замена Survey
 
 Replacement Survey является новым Survey с новой identity.
+
+Связь replacement фиксируется **только тогда**, когда новый Survey предметно заменяет предыдущий по определимой причине. Новый самостоятельный Survey с похожей темой, формулировкой или вариантами не считается replacement автоматически.
 
 Связь с предыдущим Survey должна быть объяснима там, где замена вызвана:
 
@@ -437,6 +487,8 @@ Replacement Survey является новым Survey с новой identity.
 - иной значимой причиной.
 
 Предыдущие Responses не переносятся автоматически в новый Survey.
+
+Replacement relation не переписывает и не отменяет историческую identity предыдущего Survey/Responses.
 
 ## 21. Modification Survey Response
 
@@ -471,6 +523,27 @@ withdraw Response
 Отзыв должен сохранять достаточную historical explainability, если Response уже был предметно значим.
 
 Policy определяет, учитывается ли withdrawn Response в текущей aggregation и как отражается его история.
+
+## 22.1. Correction ошибочно признанной Survey Response
+
+Respondent-initiated modification/withdrawal следует отличать от исправления ошибочного domain recognition.
+
+Если Survey Response была признана ошибочно — например, из-за ошибочного mapping/validation, неверно применённой multiplicity/admissibility policy или другого установленного дефекта recognition — применимый Communications process может признать такую Response недействительной/исправленной согласно локальной correction semantics.
+
+```text
+respondent withdrawal
+≠ respondent modification
+≠ correction of erroneous recognition
+```
+
+Correction:
+
+- не переписывает исходный historical fact молча;
+- сохраняет причину, момент и атрибуцию исправления;
+- не создаёт новую fundamental `Survey Correction` entity автоматически;
+- определяет последствия для current aggregation согласно applicable survey policy.
+
+Если внешняя submission была **ошибочно отклонена до domain recognition**, Survey Response ещё не существует. Последующая переоценка/re-recognition такой received information выполняется согласно ADR-011 и applicable survey recognition semantics; это не correction уже существующей Response.
 
 ## 23. New submission ≠ modification automatically
 
@@ -510,6 +583,8 @@ external information
 → Survey Response
 ```
 
+External submission, не прошедшая validation/admissibility/domain recognition, **не создаёт Survey Response**. Если отказ/rejection исторически значим, его provenance сохраняется в объёме, требуемом ADR-011 и применимой privacy policy, без введения новой universal domain entity.
+
 Применяется ADR-011.
 
 ## 25. Duplicate / redelivery
@@ -517,6 +592,15 @@ external information
 Повторная техническая доставка одной внешней submission не создаёт новый Survey Response автоматически.
 
 Но совпадение answer values также не доказывает duplicate, потому что конкретный Survey может допускать несколько Responses.
+
+Конкретный integration semantic contract определяет, какие внешние identifiers/content/version semantics позволяют признать сообщение duplicate/redelivery. Само совпадение external id или текста не является universal rule Community OS.
+
+Изменённая external information также не становится modification Survey Response автоматически. После mapping/validation/re-recognition applicable survey policy определяет, является ли она:
+
+- modification существующей Response;
+- новой submission/новой Response;
+- correction/re-recognition;
+- rejected information.
 
 Duplicate/redelivery semantics должны опираться на конкретный integration semantic contract и survey policy.
 
@@ -530,6 +614,7 @@ Survey Responses могут использоваться для derived aggregat
 - ranking;
 - averages where semantically valid;
 - text grouping/classification;
+- parameterized/weighted analytics where explicitly defined and semantically justified;
 - другой defined summary.
 
 Aggregation является производным представлением.
@@ -540,7 +625,18 @@ Survey Responses
 → counts / percentages / summary
 ```
 
-Согласно ADR-013 конкретная projection должна иметь declared producer/owner, Community scope, visibility semantics и freshness expectation.
+Согласно ADR-013 конкретная projection должна иметь declared producer/owner, Community scope, visibility semantics и freshness/consistency expectation.
+
+Пока Survey открыт либо допускает modification/withdrawal/correction Responses, current aggregation должна быть явно трактована как **изменяемый срез as-of/freshness**, а не как Established Result или неизменяемый итог.
+
+Если aggregation использует площади, доли или иные weights/parameters, они:
+
+- не создают `Survey Right` или `Voting Right`;
+- не превращают Survey в Voting;
+- должны иметь объявленную aggregation semantics;
+- при исторически значимом использовании должны позволять определить применимую rule/parameter semantics и использованные значения согласно ADR-004/005.
+
+Weighted/parameterized aggregation является аналитикой Responses, а не скрытым голосованием.
 
 ## 27. Survey Result как fundamental entity не вводится
 
@@ -552,17 +648,20 @@ Survey Responses
 - free-text Survey может вообще не иметь meaningful numeric aggregation;
 - разные aggregation могут одновременно быть валидными представлениями одних Responses;
 - current aggregation может изменяться до закрытия Survey;
+- закрытие Survey само по себе не создаёт отдельный Established/Survey Result;
 - итоговые показатели являются derived view, если отдельно не формализованы.
 
-Если требуется исторически фиксированный отчёт/итог опроса:
+Если требуется исторически фиксированный официальный/формализованный отчёт:
 
 ```text
 Survey + Responses
-→ defined aggregation
-→ Document / Revision / Representation
+→ defined reproducible aggregation context
+→ Document / Revision / Representation where document semantics are intended
 ```
 
-Такой Document не становится source of truth Survey Responses.
+Не каждое исторически воспроизводимое summary обязано становиться Document; однако его параметры/as-of/source semantics должны быть определимы, если summary используется как significant basis.
+
+Такой Document/summary не становится source of truth Survey Responses.
 
 ## 28. Survey и Governance
 
@@ -586,6 +685,10 @@ Survey
 ```
 
 Каждый переход является самостоятельным предметным действием или использованием результата.
+
+Если survey summary используется как предметно значимый basis/input Governance, ссылка должна вести на **фиксированное либо исторически воспроизводимое aggregation context/representation** с определимыми source facts, параметрами и as-of semantics. Mutable live projection сама по себе не является достаточным историческим основанием значимого Governance action.
+
+Document может фиксировать такую representation по ADR-009, но не становится source of truth Survey Responses.
 
 ## 29. Survey Response никогда не становится Vote автоматически
 
@@ -638,9 +741,19 @@ Management Decision
 - ранее признанный Response не исчезает;
 - admissibility должна оцениваться согласно historical semantics применимого момента/policy;
 - новый owner/user не получает автоматически identity старого Response;
-- право нового Subject дать собственный Response определяется survey policy.
+- возможность нового Subject дать собственный Response и влияние такого Response на current aggregation определяются survey policy.
 
-Текущее состояние ownership не переписывает прошлую admissibility.
+Если multiplicity задана через response unit (например, один Response на Property Object), policy должна заранее и объяснимо определить последствия изменения связанного ownership/use/membership в активном Survey.
+
+Допустимые предметные варианты могут включать, например:
+
+- ранее accepted Response продолжает занимать response unit до окончания Survey;
+- новый eligible Response допускается и становится effective contribution для current aggregation, при сохранении старого Response как historical fact;
+- иной явно определённый способ, если multiplicity semantics основана не на статическом unit limit.
+
+Настоящий BP не вводит universal статус вроде `superseded_by_transfer` и не объявляет один вариант обязательным для всех Surveys.
+
+Текущее состояние ownership не переписывает прошлую admissibility, а смена отношения не должна молча менять historical Response или его исходное основание.
 
 ## 32. Multiple users одного Subject или response unit
 
@@ -670,6 +783,8 @@ Public access не означает автоматически:
 
 Публичность отображения Survey и допустимость Response различаются.
 
+Полностью публичный и полностью анонимный Survey без Subject/response-unit/pseudonymous binding не может на domain-уровне гарантировать identity/unit-based multiplicity. Если такая кратность требуется, необходима явно определённая binding/admissibility semantics либо trusted external/technical mechanism; device fingerprint/IP/cookie не становятся предметной identity автоматически.
+
 ## 35. Связь с Announcement / Notification
 
 Survey может быть доведён до аудитории через Announcement или Notification.
@@ -687,6 +802,8 @@ Notification delivery/read state не определяет, дал ли Subject 
 ## 36. Связь с Appeal / discussion
 
 Survey Response не является Appeal автоматически.
+
+Структурная причина различия: Survey задаёт item-level структуру и собственную response/multiplicity/admissibility policy для сбора множества ответов, тогда как Appeal по ADR-009 является направленным предметным обращением от определимого инициатора к адресату и не владеет survey item/multiplicity semantics.
 
 Free-text answer внутри Survey остаётся частью Survey Response, если процесс не определяет отдельное создание Appeal.
 
@@ -708,6 +825,10 @@ Survey Response
 survey report
 → Document where document semantics are explicitly intended
 ```
+
+Признание конкретного survey report документом и его Document/Revision/Representation semantics принадлежат контексту «Документы и формализация», а не определяются настоящим BP автоматически.
+
+Если Document фиксирует aggregation/as-of snapshot для протокола или другого значимого использования, последующие modification/withdrawal/correction Responses не переписывают историческое содержание уже созданной Revision молча. Document остаётся representation/formalization, а не source of truth Responses.
 
 ## 38. Связь с access/privacy
 
@@ -777,7 +898,7 @@ Survey допускает Response без persistent Subject link.
 
 Response сохраняет собственную identity.
 
-Анонимность не превращает его в технически недоказуемый факт автоматически; уровень provenance зависит от policy.
+Анонимность не превращает его в технически недоказуемый факт автоматически; уровень provenance и допустимая multiplicity зависят от declared policy/binding semantics.
 
 ### 39.7. Ownership changed
 
@@ -785,7 +906,7 @@ Owner A дал Response по Property Object.
 
 Позже owner B получает ownership.
 
-Response A остаётся историческим фактом; B не наследует его identity. Возможность B дать новый Response определяется policy.
+Response A остаётся историческим фактом; B не наследует его identity. Возможность B дать новый Response и его влияние на current aggregation заранее определяет survey policy; прошлый Response не переписывается.
 
 ### 39.8. Material edit after responses
 
@@ -799,7 +920,7 @@ Default — replacement Survey.
 
 Один Telegram callback доставлен дважды.
 
-Вторая delivery не создаёт второй Survey Response автоматически.
+Вторая delivery не создаёт второй Survey Response автоматически. Конкретный integration semantic contract определяет duplicate/redelivery recognition.
 
 ### 39.10. Survey → formal Voting
 
@@ -808,6 +929,8 @@ Default — replacement Survey.
 Позднее создаётся Governance Question и Voting.
 
 Survey Responses не становятся Votes, 74% не становятся Established Result.
+
+Если summary используется как Governance basis, применяется fixed/reproducible aggregation context, а не mutable live projection.
 
 ### 39.11. Free-text Survey
 
@@ -822,6 +945,36 @@ Aggregation может быть qualitative/read-model classification либо �
 Правление формирует PDF summary Survey для заседания.
 
 PDF/Document не становится Survey и не меняет Responses.
+
+Document фиксирует исторически определённое представление/as-of согласно ADR-009.
+
+### 39.13. Добавление Item в открытый Survey
+
+После части accepted Responses организатор хочет добавить новый Item.
+
+Если новый Item materially меняет смысл/comparability анкеты, default — replacement Survey.
+
+Prospective independent optional Item может быть добавлен in-place только если policy это допускает, Item имеет исторически определимую применимость и aggregation отличает «не применялся» от «не ответил».
+
+### 39.14. Correction ошибочно признанной Response
+
+Из-за ошибки mapping/admissibility была признана лишняя Response.
+
+Authorized correction не изображается как withdrawal respondent и не стирает Response молча; сохраняются причина/атрибуция, а current aggregation учитывает correction согласно policy.
+
+### 39.15. Public + fully anonymous Survey
+
+Survey открыт всем и не хранит Subject/response-unit/pseudonymous binding.
+
+Domain не может гарантировать «один Response на человека/объект». Неограниченная multiplicity принимается как semantics либо используется отдельно определённый trusted mechanism без превращения технического surrogate в domain identity.
+
+### 39.16. Weighted analytical aggregation
+
+Survey остаётся неформальным, но Community хочет показать распределение мнений также по площади объектов.
+
+Projection может вычислить parameterized/weighted analytics по явно определённой semantics и historically explainable source values.
+
+Это не создаёт Voting Right, Survey Right или Established Result.
 
 ## 40. Инварианты
 
@@ -865,24 +1018,39 @@ PDF/Document не становится Survey и не меняет Responses.
 38. Announcement/Notification ≠ Survey.
 39. Survey Response ≠ Appeal automatically.
 40. Technical access does not create domain admissibility.
+41. Accepted Survey Response имеет historically explainable admissibility context where applicable; отдельный Survey Eligibility Snapshot для этого не требуется.
+42. Response-relevant Survey Item definition/applicability used by accepted Response исторически объяснима; stable local identity не заменяет эту гарантию.
+43. Respondent withdrawal/modification ≠ correction erroneous recognition.
+44. Rejected/unrecognized external submission не создаёт Survey Response.
+45. Полностью anonymous Response без Subject/response-unit/pseudonymous binding не получает domain-guaranteed identity/unit multiplicity автоматически.
+46. Significant Governance use of survey summary опирается на fixed/historically reproducible aggregation context, а не на mutable live projection.
+47. Replacement relation не выводится из похожести двух Surveys и существует только при explicit предметной замене.
+48. Weighted/parameterized survey aggregation ≠ Voting weight ≠ Survey/Voting Right.
 
 ## 41. Нормативные последствия Draft
 
-Предварительный архитектурный вывод Stage 10:
+Independent multi-review Round 1 (Claude + Gemini + DeepSeek) не выявил BLOCKER и не потребовал conceptual redesign. Все три review независимо подтвердили базовую модель `Survey → Survey Item → Survey Response`, ownership в Communications и отказ от преждевременных `Survey Right`, `Survey Participant`, `Survey Eligibility Snapshot`, universal `Survey Result` и universal `Survey Version`.
+
+После adjudication point fixes рабочий архитектурный вывод Stage 10:
 
 - требуется самостоятельное понятие `Survey`;
 - требуется самостоятельное понятие `Survey Response`;
 - `Survey Item` требуется как stable locally addressable part of Survey, но не как fundamental top-level entity;
+- response-relevant historical Item definition/applicability должна быть объяснима без обязательной Survey Definition Version;
+- accepted Response сохраняет достаточный historical admissibility provenance без отдельного Survey Eligibility Snapshot;
+- respondent modification/withdrawal и correction erroneous recognition различаются;
 - universal `Survey Result` не требуется;
 - universal `Survey Right` не требуется;
 - universal `Survey Participant` не требуется;
 - universal `Survey Eligibility Snapshot` не требуется;
 - `Survey Version` пока не требуется;
 - Survey owner — Communications & Appeals;
-- Governance использует Survey/summary как basis/input через explicit relation;
-- Voting semantics ADR-001/008 не переиспользуются механически для Survey.
+- Governance использует только explicit fixed/reproducible Survey summary as basis/input там, где нужна историческая значимость;
+- Voting semantics ADR-001/008 не переиспользуются механически для Survey;
+- anonymous/private/pseudonymous modes требуют explicit policy semantics и не создают fake Subject/Anonymous Token;
+- external channels используют ADR-011 recognition/rejection/duplicate/redelivery semantics.
 
-Эти выводы являются Draft до independent review/принятия.
+Следующая нормативная синхронизация должна минимально добавить Survey/Survey Response/Survey Item semantics в ADR-002, DOMAIN_MODEL и TERMINOLOGY без изменения границы bounded contexts.
 
 ## 42. Вопросы для review
 
@@ -938,9 +1106,11 @@ PDF/Document не становится Survey и не меняет Responses.
 
 ## 45. Следующий шаг
 
-1. провести independent multi-review Draft;
-2. adjudicate reviewer findings against current normative source of truth;
-3. при подтверждении модели синхронизировать DOMAIN_MODEL / TERMINOLOGY / ADR-002 только в минимально необходимом объёме;
-4. обновить REF-GOV-001;
-5. решить, нужен ли второй review round;
-6. только после архитектурного принятия переходить к техническому проектированию/реализации.
+1. independent multi-review Round 1 — завершён;
+2. reviewer findings adjudicated; point fixes applied;
+3. выполнить минимальную нормативную синхронизацию DOMAIN_MODEL / TERMINOLOGY / ADR-002;
+4. обновить REF-GOV-001 и Stage 10 status;
+5. зафиксировать multi-review consolidation;
+6. полный Round 2 не требуется, если нормативная синхронизация не вводит новую identity/ownership/model semantics;
+7. после принятия Stage 10 переходить к следующему Documentation First этапу, не начиная реализацию без отдельного технического проектирования.
+

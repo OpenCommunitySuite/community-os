@@ -674,22 +674,44 @@ Where materially relevant, should be determinable:
 
 Блокирующих предметных вопросов после internal review не осталось.
 
-## 59. Предварительные нормативные последствия
+## 59. Нормативная синхронизация
 
-Expected point synchronization:
+Новый ADR и новые fundamental entities не требуются.
 
-- ADR-007 — explicit loss recognition basis, unquantified loss, correction and financial/allocation boundaries;
-- DOMAIN_MODEL — Operational Loss identity + quantified/unquantified semantics;
-- TERMINOLOGY — refine Operational Loss and resource-loss definitions;
-- REFERENCE_CANDIDATE_MATRIX — mark Stage 7 resource fact chain complete and move to Stage 8, while leaving loss allocation/financial consequences as separate follow-on analysis if needed.
+В текущей Draft-ветке выполнена точечная синхронизация:
 
-New ADR and new fundamental entities are not expected.
+- ADR-007 — explicit Operational Loss recognition basis, quantified/unquantified semantics, cause/quantity separation, correction and allocation/financial boundaries;
+- DOMAIN_MODEL → 0.24 — Operational Loss закреплена как самостоятельный resource-domain fact с отдельными recognition/quantification semantics;
+- TERMINOLOGY → 0.21 — уточнены `Потери ресурса` и `Operational Loss`; распределение потерь остаётся отдельным процессом;
+- REFERENCE_CANDIDATE_MATRIX — Stage 7 resource fact chain отмечен завершённым; следующим основным этапом становится Stage 8 / BP-OPS-001.
 
-## 60. Следующий шаг
+Новые universal Loss Incident, cause taxonomy, confidence score, loss-allocation entity или financial-loss entity не введены.
 
-1. final consistency check;
-2. normative synchronization;
-3. open Draft PR;
-4. after acceptance/merge mark Stage 7 complete;
-5. proceed to Stage 8 BP-OPS-001;
-6. return to loss allocation only when a concrete pilot/business rule requires it.
+## 60. Текущее состояние и следующий шаг
+
+BP прошёл internal consistency review against ADR-007, BP-RECON-001, BP-EXPENSE-001 и current DOMAIN_MODEL/TERMINOLOGY.
+
+Проверены:
+
+- transformer technical losses;
+- 0.4 kV line losses;
+- pump/common consumption boundary;
+- missing plot Reading;
+- unauthorized-consumption suspicion;
+- water leak with unknown quantity;
+- later estimated leak quantity;
+- negative Calculated Imbalance;
+- zero imbalance with independently known loss;
+- supplier loss quantity later corroborated;
+- common Meter error;
+- correction/re-estimation and double-counting risk.
+
+Блокирующих предметных вопросов после internal review не осталось.
+
+После принятия/merge BP-LOSS-001 Stage 7 считается завершённым на уровне resource-domain facts.
+
+Следующий основной этап — **Stage 8 / BP-OPS-001: Appeal → Operational Work / Work Order**.
+
+`Распределение небаланса или потерь` и финансовые последствия не включаются автоматически в Stage 8 и должны вернуться в работу только при конкретной pilot/business policy.
+
+Дополнительный внешний review BP-LOSS-001 сейчас не инициируется.

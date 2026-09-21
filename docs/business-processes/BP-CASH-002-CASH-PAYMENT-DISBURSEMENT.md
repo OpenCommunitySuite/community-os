@@ -624,8 +624,6 @@ Long-lived unresolved Cash Disbursement требует последующего 
 
 - Cash Disbursement identity;
 - amount/currency;
-- prepared/requested amount where materially significant;
-- immediate returned/refused amount;
 - actual completion time;
 - later recording time;
 - physical receiver;
@@ -660,7 +658,6 @@ Cash Disbursement ↔ Payment linkage не имеет universal `1:1`. Если 
 Следует различать:
 
 - authorization/request time;
-- cash preparation time;
 - Cash Disbursement completion time;
 - authority/admissibility resolution or ratification time, if materially distinct;
 - custody-vs-external classification time, if resolved later;
@@ -678,7 +675,6 @@ Cash Disbursement ↔ Payment linkage не имеет universal `1:1`. Если 
 - actual disbursed amount/currency;
 - physical receiver;
 - acting disburser;
-- immediate returned/refused amount;
 - time;
 - authority/provenance.
 

@@ -1,7 +1,7 @@
 # Community OS — Терминология проекта
 
 **Статус:** Draft  
-**Версия:** 0.21  
+**Версия:** 0.22  
 **Язык документа:** русский
 
 ---
@@ -2266,3 +2266,62 @@ Environment-specific configuration, Secret References/material, endpoints и cre
 **Capacity Envelope** — измеримый operating range конкретной runtime, storage, Workload Class, Placement или provider boundary с определимыми saturation signals, headroom и response options.
 
 Capacity Envelope не является fixed universal limit Community/users/objects, commercial Quota или обещанием absolute tenant isolation; exact values и scaling rules принадлежат Implementation Baseline/operations policy.
+
+
+# 157. Операционная работа
+
+**Операционная работа** (Operational Work) — исторически значимый предметный referent конкретной работы, которую сообщество намерено выполнить, выполняет либо выполнило для достижения определённой operational purpose/result.
+
+Operational Work имеет собственную identity и не является Appeal, Management Decision, Document, Expense, Financial Obligation, Payment либо Resource fact.
+
+Работа может возникнуть из одного или нескольких sufficient bases, включая Appeal, Management Decision, resource/engineering result, planned maintenance rule, Contractual Relationship requirement, observation, emergency situation либо иное применимое основание. Наличие basis не создаёт Work автоматически без applicable recognition semantics.
+
+Appeal и Operational Work допускают many-to-many связь. Operational Work может существовать без Appeal, а completion/result Work не закрывает Appeal автоматически.
+
+Target Work может относиться к предметам других contexts, но typed/contextual target relation не передаёт ownership target в Community Operations.
+
+**Work Order** допускается только как secondary UX/localization label для Operational Work. Формальный наряд, приказ, наряд-допуск, акт либо иной юридически/технически значимый письменный документ остаётся отдельным Document.
+
+---
+
+# 158. Назначение по операционной работе
+
+**Назначение по операционной работе** (Work Assignment) — исторически значимое отношение конкретного Subject к конкретной Operational Work в contextual role на применимом временном интервале или ином достаточном temporal context.
+
+Роль может быть executor, responsible, coordinator, verifier или иной process-specific role. Закрытый универсальный список ролей не вводится.
+
+Установление, изменение и прекращение Assignment являются исторически значимыми действиями/provenance отношения.
+
+Work Assignment не создаёт автоматически:
+
+- employment/service relation;
+- Supplier role;
+- Contractual Relationship;
+- Representation;
+- universal Domain Power;
+- remuneration Accrual.
+
+Исполнителем может быть Employee, external contractor, Community member/volunteer либо иной Subject, если applicable operational semantics это допускает.
+
+---
+
+# 159. Результат операционной работы
+
+**Результат операционной работы** (Work Result) — исторически значимый outcome фактического исполнения конкретной Operational Work.
+
+Work Result может отражать, например, успешное выполнение, частичный результат, неудачную попытку, невозможность выполнения либо иной process-specific outcome. Закрытый универсальный taxonomy результатов не вводится.
+
+```text
+Work Result
+≠ Completion Assertion automatically
+≠ Acceptance automatically
+≠ Document
+≠ Expense
+≠ Financial Obligation
+≠ Payment
+≠ Resource fact
+```
+
+Completion Assertion сообщает о заявленном завершении execution; Acceptance/Verification, если требуется process policy, является отдельным действием.
+
+Reopen, correction или follow-up не удаляют ранее признанный Work Result молча. Current Work state может быть projection над историческими actions/results и не является universal status-machine entity.

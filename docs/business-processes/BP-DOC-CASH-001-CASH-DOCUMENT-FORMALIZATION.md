@@ -120,6 +120,8 @@ receipt printed
 
 Документ исходящего наличного процесса может оформлять или подтверждать один или несколько Cash Disbursement source facts.
 
+В настоящем BP исходящее направление фиксируется прежде всего как граница общей document-formalization semantics. Основной pilot-ST operational scenario раздела 34 является входящим; специализированная cash-channel semantics исходящего направления берётся из текущего `BP-CASH-002` и не переопределяется здесь.
+
 Предварительно созданный расходный документ не создаёт Cash Disbursement.
 
 Если cash физически не выдан:
@@ -172,6 +174,8 @@ Cash Acceptance может существовать до recognized Payment, н�
 - не создаёт fake Obligation;
 - не превращает unresolved cash в Payment;
 - должен явно отражать только фактически установленные сведения.
+
+Обязательность отражения physical tenderer определяется конкретным document-kind policy / applicable legal requirement. Если tenderer не установлен достоверно, Community OS не изобретает его ради печати; если для данного вида документа tenderer является обязательным реквизитом, документ не может быть финализирован в обход этого требования.
 
 Если конкретный document kind допускается только после Payment recognition, это ограничение задаётся его policy.
 
@@ -256,6 +260,8 @@ physical sheet / PDF
 
 Части составного Representation могут иметь разные правила обращения: хранения, подписания, выдачи, повторной печати и маркировки. Различие этих правил не превращает их автоматически в самостоятельные документы.
 
+Если document-kind policy различает действия над ордерной и квитанционной частью, эти части рассматриваются как **предметно адресуемые семантические роли/сегменты конкретного Representation**, а не как самостоятельные `Document Part` с собственной identity или универсальной status machine. Part-specific действие должно быть исторически объяснимо через target role/segment и provenance соответствующего действия.
+
 ## 13. Печать
 
 **Печать** — получение физического экземпляра применимого Document Representation.
@@ -329,7 +335,11 @@ cosmetic rendering change
 
 Изменение шрифта, переноса строки или технического layout не создаёт новую Revision автоматически. Но изменение состава обязательных реквизитов, структуры регулируемой формы, нормативно значимой маркировки либо иной semantic form requirement не должно молча переоформлять исторически выданное Representation как будто оно всегда выглядело по новой форме.
 
-Для пилотной КО-1 version/provenance применимой формы должен быть восстановим в достаточном объёме. Это не требует копирования нормативного документа в Domain Model и не делает template самостоятельным financial fact.
+Для пилотной КО-1 version/provenance применимой формы должен быть восстановим в достаточном объёме. Для historically significant Representation должно быть определимо, **какая именно версия template/form specification фактически использовалась при его формировании/выдаче**, в развитие provenance semantics ADR-009.
+
+Повторная печать того же исторически значимого Representation должна воспроизводить его применимую template/form provenance, если document-kind policy не требует отдельного distinguishable reissue/duplicate Representation. Позднейшее появление новой версии формы не должно молча перерисовывать старое historically issued Representation как будто новая версия применялась изначально.
+
+Это не требует копирования нормативного документа в Domain Model, не делает template самостоятельным financial fact и не означает, что каждое косметическое изменение шаблона создаёт новую Revision.
 
 ## 17. Язык Representation
 
@@ -509,7 +519,7 @@ Community OS Document identity
 ≠ exported file name
 ```
 
-Например, внутренний номер объекта ПКО в BAF не становится регистрационным номером ПКО Community OS и не определяет его identity. После экспорта Community OS может сохранять внешний reference/id как integration provenance для идемпотентности, сверки и последующих исправлений.
+Например, внутренний номер объекта ПКО в BAF не становится регистрационным номером ПКО Community OS и не определяет его identity. После экспорта Community OS может сохранять **квалифицированный внешний идентификатор** в области конкретной интеграции — с достаточным namespace / external side / object-kind context согласно ADR-011 — как integration provenance для сопоставления, сверки и последующих исправлений.
 
 ## 23. Подписание
 
@@ -554,7 +564,9 @@ Document created
 
 Настоящий BP не вводит universal Document Delivery state machine. Непосредственная выдача печатного экземпляра в рамках кассового interaction описывается настоящим BP только в необходимом объёме; техническая/удалённая доставка электронного Representation относится к коммуникационным/integration semantics.
 
-Для составного Representation выдача одной части не означает выдачу всех частей. В пилотной КО-1 квитанционная часть может быть передана плательщику, тогда как ордерная часть остаётся у Community. Этот operational disposition должен быть объясним согласно document-kind policy без создания второго Payment или Cash Acceptance.
+Для составного Representation выдача одной части не означает выдачу всех частей. В пилотной КО-1 квитанционная часть может быть передана плательщику, тогда как ордерная часть остаётся у Community.
+
+Такое различие фиксирует **действия использования/выдачи/retention относительно семантической роли части Representation**, а не самостоятельный lifecycle этой части. Где это materially significant, provenance должен позволять установить, какая именно роль/часть была выдана, сохранена, подписана или повторно воспроизведена. Это не создаёт второй Document, Payment или Cash Acceptance.
 
 ## 25. Электронное предоставление
 
@@ -710,7 +722,7 @@ Duplicate import/re-entry не должен создавать duplicate Documen
 
 Для пользователя эти действия могут быть представлены одним быстрым interaction, например «принять показания и оплату», но координация не стирает границы bounded contexts и identity участвующих фактов.
 
-### 34.1. Округление суммы вверх и аванс вместо сдачи
+### 34.1. Сумма выше текущих обязательств: сдача не возвращается, остаток получает финансовый смысл
 
 Если после расчёта текущие обязательства составляют 980,67 грн, владелец передаёт 1000 грн и явно просит не выдавать 19,33 грн сдачи, а оставить их для будущей электроэнергии:
 
@@ -720,13 +732,18 @@ immediate returned change = 0
 Cash Acceptance amount = 1000,00
 recognized Payment = 1000,00
 
-980,67 → applicable current obligations
- 19,33 → Advance with established purpose: future electricity
+980,67 → Initial Allocation to applicable current obligations
+ 19,33 → Initial Allocation to permitted Advance purpose
+       → recognized Advance state according to owning financial semantics
 ```
 
-Это не «оплата 980,67 + техническая сдача 19,33». Community фактически удержало 1000 грн.
+Это не «округление задолженности до 1000» и не «оплата 980,67 + техническая сдача 19,33». Community фактически удержало 1000 грн, а financial context отдельно определил смысл доступной части Payment согласно `BP-FIN-ALLOCATION-001`.
 
-Если владелец не определил допустимое назначение остатка и applicable rule также его не определяет, отсутствие сдачи само по себе не создаёт Advance. Остаток должен получить иной допустимый и объяснимый financial disposition либо не приниматься в таком виде.
+Отсутствие сдачи само по себе не создаёт Advance.
+
+Если вся принятая сумма уже признана как Payment = 1000,00, но для 19,33 нет достаточного основания признать Advance или иное конкретное назначение, эта часть может оставаться **Unallocated Remainder** признанного Payment согласно `BP-FIN-ALLOCATION-001`. Последующее первое распределение этой части не меняет identity Payment.
+
+Если же financial meaning части Cash Acceptance ещё недостаточен для Payment recognition, она не превращается в Unallocated Remainder преждевременно: применяются unresolved/custody semantics `BP-CASH-001` до достаточного resolution.
 
 Термин «аванс на статью» не используется нормативно, чтобы не смешивать назначение аванса со `Budget Item` (статьёй сметы).
 
@@ -963,13 +980,13 @@ BAF export failed
 ≠ Document invalidated automatically
 ```
 
-Integration flow должен допускать безопасный retry/reconciliation без дублирования внешнего бухгалтерского объекта.
+Integration flow должен допускать retry/reconciliation без автоматического создания нового предметного факта Community OS. При unknown outcome повтор **может** создать внешний duplicate; такой внешний результат должен выявляться и разрешаться согласно reconciliation semantics ADR-011, а не скрываться предположением об идеальной идемпотентности внешней стороны.
 
 ### 35.32. Внешний BAF ID отличается от номера ПКО
 
 Community OS передаёт ПКО с регистрационным номером, а BAF создаёт собственный внутренний record/object id.
 
-Оба значения сохраняются раздельно вместе с integration provenance. Внешний id не заменяет Document identity и не меняет напечатанный номер.
+Оба значения сохраняются раздельно вместе с integration provenance. Внешний идентификатор сохраняется как квалифицированное значение конкретной BAF/BAS integration scope и не заменяет Document identity или напечатанный регистрационный номер.
 
 ### 35.33. Внешняя display-строка контрагента не совпадает с предметной моделью Community OS
 
@@ -1007,14 +1024,14 @@ Community OS может передать/сохранить требуемое �
 26. Document policy may impose stronger legal/formalization prerequisites without changing financial identities.
 27. No universal cash-document lifecycle/state machine is introduced.
 28. Reprinting the same rendering does not create a new Document Representation automatically.
-29. First issuance of a finalized receipt Representation is historically significant use unless applicable document semantics explicitly establish otherwise.
+29. Historical significance of issuance is document-kind-specific; for the pilot KO-1, first actual issuance of the finalized receipt part is treated as historically significant use unless later REF-DOC-005/policy establishes a different mandatory semantics.
 30. Derived balance/debt printed in a Revision is historical document content, not a live financial truth.
 31. Community OS Cash Document ≠ fiscal/RRO/PRRO receipt automatically.
 32. Numbering gaps/reuse/cancellation are document-kind registration semantics, not universal finance rules.
 33. Composite Representation parts do not become separate Documents automatically.
 34. Issuing one part of a composite Representation does not imply issuing all parts.
 35. Physical sheet/PDF/file boundaries do not define Document cardinality.
-36. Community OS Document identity ≠ registration number ≠ external BAF/BAS record id ≠ file name.
+36. Community OS Document identity ≠ registration number ≠ qualified external BAF/BAS record identifier ≠ file name.
 37. External/accounting form fields do not create corresponding Community OS domain concepts automatically.
 38. Export to BAF/BAS ≠ Cash Acceptance/Payment/Document creation or validity.
 39. BAF/BAS export failure does not cancel already valid Community OS financial/document facts.
@@ -1056,11 +1073,13 @@ Community OS financial fact
 ≠ BAF/BAS accounting representation
 ```
 
-Community OS остаётся владельцем своих Cash Acceptance, Payment, Payment Allocation, Advance, Financial Obligation и Document semantics. BAF/BAS может получить бухгалтерское представление этих данных и создать собственный объект с собственным external id.
+Community OS остаётся владельцем своих Cash Acceptance, Payment, Payment Allocation, Advance, Financial Obligation и Document semantics. BAF/BAS может получить бухгалтерское представление этих данных и создать собственный объект со своим **квалифицированным внешним идентификатором в области конкретной интеграции** согласно ADR-011.
 
 Конкретный mapping контрагента, договора/аналитики, бухгалтерских счетов, субсчетов, кодов и иных BAF/BAS реквизитов относится к отдельному integration semantic contract (REF-INT-001), а не к фундаментальной модели настоящего BP.
 
-Экспорт должен в перспективе поддерживать sufficient provenance, idempotent retry и reconciliation. Настоящий BP фиксирует только границу и не проектирует протокол интеграции.
+Экспорт должен в перспективе поддерживать sufficient provenance, безопасный retry и reconciliation. Community OS не должна создавать новый собственный финансовый/document fact только из-за повторной попытки; при этом ADR-011 допускает, что external retry после unknown outcome способен породить внешний duplicate, который должен быть выявлен/разрешён через reconciliation.
+
+Настоящий BP фиксирует только границу и не проектирует протокол интеграции.
 
 ## 37. Что намеренно не решается
 

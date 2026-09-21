@@ -1,6 +1,6 @@
 # BP-SURVEY-001 — Неформальный опрос / Informal Survey
 
-**Статус:** Draft / independent multi-review Round 1 completed / point fixes applied  
+**Статус:** Draft / Round 1 consolidated / point fixes applied / proposed normative synchronization performed  
 **Контекст:** Коммуникации и обращения  
 **Связанные контексты:** Управление и коллективные процедуры; Субъекты; Объекты и отношения с ними; Полномочия и представительство; Документы и формализация; сквозные Access/Rules/History  
 **Тип документа:** Бизнес-процесс
@@ -1108,9 +1108,10 @@ Independent multi-review Round 1 (Claude + Gemini + DeepSeek) не выявил 
 
 1. independent multi-review Round 1 — завершён;
 2. reviewer findings adjudicated; point fixes applied;
-3. выполнить минимальную нормативную синхронизацию DOMAIN_MODEL / TERMINOLOGY / ADR-002;
-4. обновить REF-GOV-001 и Stage 10 status;
-5. зафиксировать multi-review consolidation;
-6. полный Round 2 не требуется, если нормативная синхронизация не вводит новую identity/ownership/model semantics;
-7. после принятия Stage 10 переходить к следующему Documentation First этапу, не начиная реализацию без отдельного технического проектирования.
+3. proposed normative synchronization DOMAIN_MODEL / TERMINOLOGY / ADR-002 — выполнена в Draft PR #71;
+4. REF-GOV-001 и Stage 10 status — обновлены;
+5. multi-review consolidation — зафиксирована;
+6. полный Round 2 не требуется, поскольку synchronization не вводит новую identity/ownership/model semantics;
+7. следующий шаг — final consistency/readiness check и решение владельца проекта о принятии/merge PR #71;
+8. после принятия Stage 10 переходить к следующему Documentation First этапу, не начиная реализацию без отдельного технического проектирования.
 

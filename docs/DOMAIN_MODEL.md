@@ -1,7 +1,7 @@
 # Community OS — Domain Model
 
 **Статус:** Draft  
-**Версия:** 0.23  
+**Версия:** 0.24  
 **Язык документа:** русский
 
 > Документ описывает концептуальную предметную модель. Он не определяет структуру хранения, программные классы, API, интерфейсы, механизм исполнения правил или технический аудит.
@@ -358,7 +358,13 @@ Control Reconciliation может завершиться без Calculated Imbal
 
 **Расчётный небаланс** (Calculated Imbalance) — самостоятельный количественный результат Control Reconciliation where applicable. Он может быть positive, negative или zero; sign и percentage interpretation зависят от explicit rule/convention. Zero imbalance не доказывает отсутствие physical loss, negative imbalance не доказывает fraud/error, а сам Calculated Imbalance не является Operational Loss автоматически.
 
-**Эксплуатационная потеря** (Operational Loss) — отдельно признанное явление утраты ресурса на допустимом для процесса основании. Небаланс не доказывает потерю, хищение, неисправность, долг или неучтённое потребление.
+**Эксплуатационная потеря** (Operational Loss) — самостоятельный resource-domain fact признанной утраты ресурса в инженерной системе, установленный на допустимом для процесса основании. Operational Loss не выводится автоматически из Calculated Imbalance, supplier-calculated transformation-loss quantity, missing data, Meter/Reading error, topology mismatch, unauthorized consumption или theft suspicion.
+
+Operational Loss может быть признана по direct physical/technical evidence, engineering calculation, Calculated Imbalance в сочетании с дополнительным sufficient basis либо иному applicable rule. Cause может быть известна, частично известна или оставаться неизвестной.
+
+Факт существования loss и quantification могут быть установлены не одновременно. Recognized loss может временно не иметь определённого quantity; fictitious quantity для такого случая не создаётся. Когда quantity установлена, сохраняются sufficient unit/method/scope/period/quality semantics. Quantity Operational Loss не может быть отрицательной; zero assessment сам по себе не создаёт loss phenomenon.
+
+Recognition, quantification, re-estimation и correction Operational Loss историчны. Overlapping loss facts не должны silently double-count одну physical loss. Operational Loss не создаёт автоматически Expense, loss allocation, owner Accrual, Financial Obligation или Payment.
 
 Correction Reading, topology или reconciliation rule не переписывает прежний result молча; при необходимости выполняется отдельная revalidation/recalculation.
 

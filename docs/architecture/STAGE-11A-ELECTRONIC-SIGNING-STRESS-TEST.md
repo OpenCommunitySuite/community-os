@@ -1,6 +1,6 @@
 # Stage 11A — Electronic Signing stress-test
 
-**Статус:** Working analysis / not normative  
+**Статус:** Working analysis / stress-test completed / reviewed in BP-SIGN-001 Round 1 / not normative  
 **Основание:** ADR-004/005/009/010/011/013 + `UKRAINE_ELECTRONIC_SIGNING_LEGAL_ANALYSIS.md`  
 **Цель:** проверить, достаточно ли существующего понятия `Signing` ADR-009 и требуется ли самостоятельная identity-bearing `Signing Evidence`.
 
@@ -402,9 +402,9 @@ recognized Signing
 
 ## 7. Результат stress-test
 
-Текущей фундаментальной модели ADR-009/010/011 достаточно.
+Текущей фундаментальной модели ADR-009/010/011 достаточно для **document-scoped Signing**.
 
-Не требуется:
+Independent multi-review BP-SIGN-001 подтвердил, что не требуется:
 
 - новый bounded context;
 - `Electronic Signing` как новый fundamental subtype;
@@ -413,19 +413,32 @@ recognized Signing
 - provider-specific `Diia.Signature` domain entity;
 - изменение Governance Voting model.
 
-Требуется специализированный Draft BP, который сделает явными:
+После review уточнено:
 
-- semantic vs cryptographic target;
-- recognition chain;
-- signer/authority mapping;
-- evidence/provenance;
-- validation/revalidation;
-- external failure/duplicate/unknown-outcome;
-- correction/review;
-- exact boundary with Governance Stage 11B.
+- semantic target Revision/Representation и exact cryptographic target electronic data различаются;
+- exact cryptographic target не обязан быть отдельной domain Representation;
+- applicable signing rule/policy versions и material validation/trust context должны быть historically determinable;
+- same Subject может иметь несколько distinct Signings по одному semantic target, если policy признаёт разные signing acts;
+- later revalidation не overwrites initial validation context;
+- document-scoped Signing **не считается автоматически reusable** для documentless signed Governance action.
+
+Последний вопрос остаётся входом Stage 11B:
+
+```text
+documentless signed Governance action
+→ generalized Signing target?
+or
+→ Governance-owned action/evidence concept?
+```
+
+Stage 11A не решает это преждевременно и не создаёт fake Document.
 
 ## 8. Следующий шаг
 
-Подготовить Draft `BP-SIGN-001 — Electronic Document Signing` на этой основе.
+Draft `BP-SIGN-001 — Electronic Document Signing` подготовлен, прошёл independent multi-review Round 1 и point-fix adjudication.
 
-Stage 11B remote participation не фиксировать нормативно до принятия Stage 11A.
+Дальше:
+
+1. final consistency/readiness check Stage 11A;
+2. решение владельца проекта о принятии/merge;
+3. затем Stage 11B remote participation/electronic voting, начиная с unresolved documentless signed-action boundary и pilot legal/governance profile.

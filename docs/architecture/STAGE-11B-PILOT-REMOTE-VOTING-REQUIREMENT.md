@@ -198,18 +198,28 @@ two independent Votes automatically
 
 ### 5.5. Open vs secret voting
 
-Signed identifiable paper ballot подходит не для каждой формы голосования.
+Signed identifiable ballot подходит не для каждой формы голосования.
 
-Для **открытого** голосования ballot может связывать Subject/Voting Right, позицию и собственноручную подпись.
+Для **открытого** голосования ballot может связывать Subject/Voting Right, позицию и собственноручную/электронную подпись.
 
-Для **тайного** голосования нельзя автоматически использовать ту же схему, потому что прямая связь подписи/Subject с ballot position может уничтожить secrecy.
+Для **тайного** голосования подпись голосующего на самом ballot не является default requirement: такая подпись связывает identity с ballot position и уничтожает secrecy.
+
+Правильная граница:
 
 ```text
-proof of eligibility / ballot issuance
+proof of eligibility / Voting Right
+≠ proof of ballot issuance
+≠ proof of ballot authenticity
 ≠ secret ballot content
 ```
 
-Если legal/profile требует secret voting, Stage 11B должен отдельно спроектировать separation identity/eligibility evidence from anonymous ballot content. Настоящий requirement не объявляет signed identifiable ballot универсальным для тайного голосования.
+Для paper secret voting Stage 11B должен поддерживать модель, где голосующий подтверждает получение/реализацию права в отдельном register/receipt, а сам ballot остаётся anonymous, но authenticated через approved form/commission marks/controlled issuance.
+
+Для remote paper secret voting требуется separated-identity process (например outer identified package + inner anonymous ballot), а простой upload photo от известного Subject не считается secrecy-preserving.
+
+Для electronic secret voting direct КЕП/Дія.Підпис на сохраняемом ballot payload с choice также несовместим с настоящей тайной; eligibility/authentication и anonymous ballot submission должны проектироваться раздельно.
+
+Подробная модель — в `STAGE-11B-MIXED-PAPER-ELECTRONIC-VOTING-STRESS-TEST.md`.
 
 ## 6. Электронная подпись не создаёт право голоса
 

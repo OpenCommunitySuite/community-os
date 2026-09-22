@@ -319,25 +319,177 @@ Mixed channel здесь концептуально прост: identities ос�
 
 ## 18. Secret voting
 
-Для secret voting direct signed identifiable ballot создаёт конфликт:
+Для secret voting **отсутствие подписи самого голосующего на бюллетене не означает автоматически отсутствие доказательства легитимности Vote**.
+
+Ключевая модель должна разделять две разные задачи:
 
 ~~~text
-identity proof
-+ signature
-+ ballot position
-→ destroys secrecy if kept together
+A. доказать, что конкретный eligible Subject получил/реализовал ровно одно Voting Right
+
+B. не сохранять связь:
+   Subject ↔ ballot position
 ~~~
 
-Поэтому secret mixed voting требует отдельной модели:
+Поэтому direct voter-signed identifiable ballot для настоящего secret voting является неправильной default-моделью:
 
 ~~~text
-eligibility / ballot issuance evidence
-≠ anonymous ballot content
+voter identity + personal signature + ballot position
+→ voter can be linked to choice
+→ secrecy is broken
 ~~~
 
-Возможные mechanics не проектируются здесь.
+### 18.1. Paper secret ballot — preferred structure
 
-Stage 11B обязан отдельно решить secret-voting identity separation до реализации такого mode.
+Для очного бумажного тайного голосования рабочая схема:
+
+~~~text
+Voting Right / Subject
+→ identity + eligibility check
+→ voter signs ballot-issuance register / receipt
+→ authorized counting body issues authentic ballot
+→ voter marks choice privately
+→ anonymous ballot goes to sealed box
+→ count after closure
+~~~
+
+То есть **подпись голосующего ставится не на бюллетене, а в отдельном реестре получения/реализации права**, если procedure/legal profile требует подписи как evidence выдачи.
+
+Сам бюллетень должен иметь признаки подлинности, которые не идентифицируют голосующего, например where applicable:
+
+- approved ballot form/version;
+- election/Voting identifier;
+- signatures/mark/stamp of counting commission or other authorized body;
+- controlled issued quantity;
+- cancellation of unused/spoiled ballots;
+- ballot-box/custody controls;
+- count reconciliation:
+  `issued = used + unused/cancelled` with allowed procedural distinctions.
+
+Это позволяет одновременно доказать:
+
+~~~text
+eligible participant received one authentic ballot
+AND
+counted ballot is authentic
+AND
+choice cannot be attributed back to participant
+~~~
+
+### 18.2. Official Ukrainian procedural pattern
+
+Украинские официальные процедуры тайного голосования используют именно такое разделение.
+
+Например, Регламент Верховной Рады предусматривает:
+
+- выдачу одного бюллетеня после предъявления удостоверения;
+- личную подпись депутата **в реестре получения бюллетеня**;
+- сам бюллетень содержит штамп и подписи членов счётной комиссии, а не подпись голосующего;
+- заполненный бюллетень опускается в ящик для тайного голосования.
+
+Аналогичный принцип используется в типовом положении о собраниях судей: получение бюллетеня подтверждается подписью голосующего в отдельном списке, а подлинность бюллетеня удостоверяется подписями членов счётной комиссии/печатью.
+
+Эти процедуры не являются прямым legal rule для пилотного СТ, но подтверждают архитектурный принцип:
+
+~~~text
+proof of ballot entitlement/issuance
+≠ proof of ballot authenticity
+≠ ballot content
+~~~
+
+Official references:
+
+- https://zakon.rada.gov.ua/laws/show/1861-17
+- https://zakon.rada.gov.ua/rada/show/v0045414-15
+
+### 18.3. Remote paper secret ballot
+
+Для удалённого бумажного secret voting простой сценарий:
+
+~~~text
+voter
+→ signs ballot
+→ sends photo
+~~~
+
+**не сохраняет тайну**, потому что sender identity оказывается связана с ballot position.
+
+Рабочий кандидат для отдельного Stage 11B design — two-envelope / separated-identity process:
+
+~~~text
+outer package/envelope
+→ identifies voter / Voting Right
+→ may be signed
+→ eligibility checked and right marked as used
+
+inner sealed anonymous envelope
+→ contains authentic ballot
+→ separated from outer identity data
+→ mixed with other anonymous ballots
+→ only then opened/count
+~~~
+
+Критический invariant:
+
+> после допустимого separation step система/комиссия не должна сохранять link, позволяющий восстановить `Subject → ballot content`, кроме случаев, когда applicable law explicitly defines a different secrecy model.
+
+Фото/скан remote secret ballot **до separation** не должен попадать в ordinary Vote evidence вместе с identity отправителя, иначе secrecy фактически утрачивается.
+
+### 18.4. Electronic secret voting
+
+КЕП/Дія.Підпис непосредственно на payload с ballot position также делает волеизъявление идентифицируемым.
+
+Поэтому для genuine electronic secret voting подпись может подтверждать:
+
+- eligibility;
+- request/issuance of anonymous voting credential;
+- participation authorization;
+
+но не должна автоматически подписывать сохраняемый вместе с identity ballot content.
+
+Потенциальная схема:
+
+~~~text
+Subject
+→ authenticated / signed eligibility step
+→ one-time anonymous voting credential
+→ anonymous ballot submission
+→ credential consumed
+→ no retained Subject↔choice link
+~~~
+
+Точная cryptographic/protocol model является отдельной Stage 11B design task; premature `Anonymous Vote Token` domain entity сейчас не вводится.
+
+### 18.5. Challenge/auditability
+
+Для оспаривания тайного голосования доказательство должно строиться не на подписи voter на ballot, а на совокупности независимых evidentiary facts:
+
+- кто имел Voting Rights;
+- кому/сколько бюллетеней выдано;
+- receipt/issuance register;
+- сколько authentic ballots изготовлено;
+- сколько выдано;
+- сколько погашено/неиспользовано;
+- integrity/custody ballot box или anonymous electronic pool;
+- сколько ballots извлечено/принято;
+- invalid-ballot decisions;
+- Calculation/protocol;
+- signatures counting commission;
+- absence of retained voter↔choice linkage where secrecy required.
+
+Таким образом:
+
+~~~text
+secret vote legitimacy
+≠ voter signature on ballot
+
+secret vote legitimacy
+= eligibility/issuance controls
++ authentic ballot controls
++ custody/integrity
++ count reconciliation
++ result protocol
++ preserved secrecy
+~~~
 
 ## 19. Counting and result
 

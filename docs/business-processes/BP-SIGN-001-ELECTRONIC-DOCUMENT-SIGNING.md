@@ -128,7 +128,7 @@ not a new ownership boundary
 
 ## 7. Identity Signing
 
-Каждое предметно значимое Signing имеет собственную historical identity.
+Каждое предметно значимое Signing имеет собственную historical identity, возникающую при domain recognition конкретного действия подписания.
 
 Identity Signing не определяется:
 
@@ -138,9 +138,14 @@ Identity Signing не определяется:
 - provider transaction ID;
 - file name;
 - timestamp;
+- парой `signer + target`;
 - Document status `signed`.
 
 Одна Revision/Representation может иметь несколько independent Signing facts.
+
+Один и тот же Subject также может иметь несколько distinct Signings по одному semantic target, если applicable signing policy признаёт их разными историческими действиями, например при повторном подписании после correction либо при новом требуемом signature class. Это вопрос policy и истории действий, а не deduplication identity.
+
+Redelivery/duplicate external result не становится новым Signing автоматически и рассматривается отдельно по ADR-011.
 
 ## 8. Multiple signers
 
@@ -153,29 +158,35 @@ target
 └─ Signing S3 by Subject C
 ```
 
-Не вводится universal aggregate status `signed=true`, который скрывает individual Signing identities.
+Не вводится universal source-of-truth aggregate status `signed=true`, который скрывает individual Signing identities.
 
-Document-kind policy может определять required signer composition, но это не меняет identity отдельных Signing facts.
+Document-kind/signing policy может определять required signer composition, порядок и условия достаточности подписей, но это не меняет identity отдельных Signing facts.
+
+Производное представление вида `Partially Signed` / `Fully Signed` допустимо как Read Model / Projection по ADR-013, если оно вычисляется из текущих применимых Signing facts и applicable policy. Такая projection не является source of truth и не заменяет individual Signings.
 
 ## 9. Semantic target и cryptographic target
 
 Для электронного подписания следует различать:
 
-- **semantic target** — Revision/Representation, которую Subject намерен подписать в предметном смысле;
-- **cryptographic target** — точные electronic data, с которыми связан external electronic signature.
+- **semantic target** — Document Revision либо specific Document Representation, которую Subject подписывает в предметном смысле;
+- **exact cryptographic target** — точные electronic data, криптографически покрытые external electronic signature.
 
 Например:
 
 ```text
 semantic target = Document Revision R1
-cryptographic target = PDF Representation P1
+exact cryptographic target = electronic data of PDF Representation P1
 ```
 
-Document/signing policy определяет, считается ли valid signing конкретной Representation достаточным Signing Revision.
+Exact cryptographic target может совпадать с domain Representation либо быть конкретным technical artifact/data binding, который сам по себе не становится Document Representation.
+
+Document/signing policy определяет, когда valid electronic signature над конкретными data/Representation является достаточным Signing semantic target Revision/Representation.
+
+Связь с Revision не означает, что все настоящие или будущие Representations этой Revision автоматически считаются подписанными.
 
 ## 10. Exact signed content
 
-Для recognized electronic Signing должно быть исторически определимо, какие именно electronic data были подписаны.
+Для recognized electronic Signing должно быть исторически определимо, какие именно electronic data были криптографически подписаны и как они связаны с semantic target.
 
 Недостаточно хранить только:
 
@@ -185,20 +196,24 @@ Document/signing policy определяет, считается ли valid sign
 - Revision ID;
 - provider transaction ID.
 
-Нужно сохранять/иметь возможность восстановить exact signed Representation/data и проверяемую связь evidence с ним.
+Нужно сохранять/иметь возможность восстановить exact cryptographic target и проверяемую связь evidence с ним и с semantic target.
 
-Технический способ — hash, immutable artifact, signed container, detached signature binding или иной механизм — относится к implementation/integration design, не к настоящему BP.
+Если exact signed data представлены техническим file/artifact, такой file/artifact не становится автоматически Document Representation или Document.
+
+Конкретная граница подписанных байтов/данных определяется semantics применимого signature format/container. Поэтому нельзя универсально считать cryptographic target «хешем итогового файла целиком».
+
+Технический способ — hash, immutable artifact, signed container, detached signature binding или иной mechanism — относится к implementation/integration design, не к настоящему BP.
 
 ## 11. Representation change
 
+Если semantic target связан с Revision R1, а exact cryptographic target — данные Representation P1, создание новой Representation P2 не переносит на неё cryptographic coverage или Signing автоматически.
+
 ```text
-Signing(P1)
-≠ Signing(P2) automatically
+Signing over exact data of P1
+≠ P2 signed automatically
 ```
 
-Если после подписания создаётся новая Representation P2 той же Revision, прежнее Signing не переносится автоматически.
-
-Последствия определяются signing/document-kind policy.
+Applicable document/signing policy может определять предметные последствия Signing для Revision, но не может задним числом сделать новые electronic data частью прежнего cryptographic target.
 
 ## 12. New Revision
 
@@ -252,6 +267,10 @@ Technical account не заменяет Subject attribution.
 
 External certificate сам по себе не доказывает Community OS Domain Power.
 
+Domain admissibility полномочия/представительства оценивается относительно исторического момента или периода, который applicable policy считает значимым для данного Signing. Это может быть trustworthy signature time, иной доказанный action/effective time либо другой policy-defined reference time, если trusted timestamp отсутствует.
+
+Последующее прекращение полномочия не переписывает признанное историческое Signing молча. Если более поздний факт или решение имеет ретроспективные последствия, они применяются через явный review/correction согласно ADR-004/005/010, а не через оценку прошлого по текущему состоянию полномочий.
+
 ## 16. Provider result не является Signing
 
 ```text
@@ -259,17 +278,18 @@ provider callback / signed artifact
 ≠ recognized Signing
 ```
 
-External result проходит ADR-011:
+Для Signing используется специализация общей последовательности ADR-011:
 
 ```text
 external information
 → received information
-→ validation
-→ mapping
-→ subject/target recognition
+→ validation / mapping
+→ signer + target interpretation
 → domain admissibility
-→ Signing recognition
+→ Signing recognition or rejection
 ```
+
+Разделение validation, mapping, signer/target interpretation и domain admissibility является specialization для electronic Signing и не заменяет общую ADR-011 semantics.
 
 ## 17. Cryptographic validation ≠ domain admissibility
 
@@ -286,17 +306,22 @@ external information
 
 ## 18. Applicable signing policy
 
-Signing policy может определять, где применимо:
+Applicable signing policy является context-specific rule либо композицией правил в смысле ADR-005, а не universal `Signing Policy` entity.
+
+Она может определять, где применимо:
 
 - какие Subjects/roles/bases допускаются;
 - какие signatures/method classes приемлемы;
-- должен ли signing target быть Revision или specific Representation;
+- должен ли semantic signing target быть Revision или specific Representation;
+- какие exact cryptographic target/data bindings приемлемы;
 - сколько подписантов требуется;
 - порядок signing;
 - необходимость timestamp/trust evidence;
 - допустимость remote provider;
 - consequences invalid/expired/revoked evidence;
 - document-kind/legal requirements.
+
+Для recognized Signing фактически применённая версия правила/композиции правил должна быть исторически определима, если её изменение могло повлиять на validation, admissibility, recognition или последствия Signing.
 
 Universal one-size-fits-all signing policy не вводится.
 
@@ -333,9 +358,13 @@ Provider-specific identifiers относятся к integration scope.
 
 Для recognized Signing должен сохраняться достаточный evidence/provenance context.
 
+Этот перечень специализирует ADR-011 provenance requirements для electronic Signing и не заменяет их.
+
 Он может включать, где применимо:
 
-- exact signed data / Representation reference;
+- semantic target Revision/Representation;
+- exact cryptographic target / exact signed data binding;
+- reference to Document Representation where applicable;
 - external signature artifact/container;
 - signature class/method;
 - signer identity established by validation;
@@ -345,11 +374,17 @@ Provider-specific identifiers относятся к integration scope.
 - trusted timestamp evidence where applicable;
 - validation time/result;
 - trust/certificate status relevant to validation;
+- trust-list / validation policy identifier/version used for validation, where applicable;
+- applicable signing policy/rule version(s) used for recognition;
 - mapping to Subject;
-- authority/admissibility basis;
+- authority/admissibility basis and historically used values/time context where applicable;
 - source/integration provenance.
 
 Перечень не является universal storage schema.
+
+Если какой-либо technical file/artifact включён в evidence, это не превращает его автоматически в Document Representation.
+
+Изменение текущей trust list, signing policy или иных правил не переписывает молча provenance первоначального recognition.
 
 ## 22. Fundamental Signing Evidence entity не вводится
 
@@ -387,7 +422,9 @@ Signing S1
 
 Universal fundamental `Signature Validation` entity не вводится.
 
-Если validation является historically significant для конкретного process/legal policy, её result/context сохраняется как provenance/evidence согласно ADR-004/011.
+Если validation является historically significant для конкретного process/legal policy, её result/context сохраняется как distinguishable historical observation/provenance согласно ADR-004/011. Более поздняя revalidation не переписывает первоначальную validation context молча.
+
+Это семантическое требование к истории, а не предписание конкретного append-only storage implementation.
 
 ## 24. Revalidation
 
@@ -401,6 +438,8 @@ Revalidation может понадобиться:
 - при споре;
 - при migration/archive;
 - при verification by another system.
+
+Для объяснимости должны быть различимы первоначальный validation/trust context и последующий revalidation context, включая применимые policy/trust-list versions where relevant.
 
 Новый результат revalidation не переписывает исходный historical recognition молча.
 
@@ -441,7 +480,9 @@ Current certificate state не используется для silent rewrite п
 
 она не создаёт recognized Signing.
 
-Полученная информация может сохраняться как rejected/unrecognized integration evidence согласно ADR-011.
+Семантическое решение о rejection относительно Signing принадлежит контексту **«Документы и формализация»** как owner Signing semantics. Достаточная received-information/evidence provenance сохраняется согласно ADR-011, если rejection исторически значим.
+
+Transport/runtime record внешнего взаимодействия может принадлежать integration/runtime mechanism, но не становится отдельным domain Signing или universal `Integration Evidence` entity.
 
 ## 28. Correction recognized Signing
 
@@ -458,10 +499,13 @@ Current certificate state не используется для silent rewrite п
 Signing recognition
 → later discovered error
 → explicit correction/review
+→ current applicability/effect adjusted where required
 → historical trace preserved
 ```
 
-Не вводится universal `Signing Correction` entity автоматически.
+Для correction должны быть исторически объяснимы причина, момент, acting Subject/authority и последствия.
+
+Не вводятся universal `Signing Correction` entity или обязательная universal `Recognition State` state machine. Конкретный owning process может иметь локальные correction/status semantics, если они предметно необходимы.
 
 ## 29. Duplicate / redelivery
 
@@ -487,6 +531,8 @@ signing requested
 ```
 
 Retry/reconciliation выполняются по ADR-011. External duplicate может возникнуть; Community OS не создаёт новый собственный Signing без recognition.
+
+Для асинхронного provider flow integration/runtime layer может иметь собственную identity и durable state операции/сессии, необходимую для correlation, timeout, retry и reconciliation. Такая external operation/session не является Signing и не создаёт нового fundamental domain concept Stage 11A.
 
 ## 31. Signing time
 
@@ -585,13 +631,22 @@ Vote
 - technically valid signature but inadmissible Vote;
 - corrected Document without automatic Vote correction.
 
+Если несколько Subjects реализуют разные Voting Rights, applicable Stage 11B/legal profile может потребовать несколько independent Signings даже при общем document/ballot target. Это не меняет identity Voting Rights или Signings.
+
 Точные relations определяет Stage 11B/legal profile.
 
 ## 38. Vote без Document
 
-Stage 11A не создаёт artificial Document только для того, чтобы воспользоваться Signing model.
+Stage 11A не создаёт artificial Document только для того, чтобы воспользоваться document-scoped Signing model ADR-009.
 
-Если future Governance profile допускает electronic Vote без independent Document semantics, доказательство такого action должно проектироваться в Stage 11B в ownership Governance/integration, а не через фиктивный Document.
+Настоящий BP регулирует **только Signing Document Revision / Representation**.
+
+Если future Governance profile допускает electronic Vote или иное signed Governance action без independent Document semantics, Stage 11B должен отдельно решить:
+
+- требуется ли обобщение target semantics существующего `Signing` с соответствующим нормативным изменением;
+- либо Governance владеет отдельным action/evidence concept, использующим общие validation/provenance/recognition patterns без identity reuse.
+
+Этот вопрос **не решён Stage 11A**. Нельзя ни создавать фиктивный Document, ни заранее считать document-scoped Signing универсально reusable для non-document actions.
 
 ## 39. ОСББ — confirmed profile signal
 
@@ -632,7 +687,8 @@ Current Ukrainian law подтверждает для ОСББ/совладел�
 
 Если применимое право пилотного СТ содержит императивное правило, противоречащее текущей конфигурации `1 участок = 1 голос`, legal rule имеет приоритет для юридически значимой процедуры, а Community OS должна позволить profile-specific Voting Rule вместо сокрытия конфликта.
 
-Universal Signing model при этом остаётся reusable.
+Stage 11A сохраняет только document-scoped Signing semantics. Способ доказательства documentless signed Vote, если такой mode будет допустим профилем, является отдельным открытым вопросом Stage 11B.
+
 ## 41. Проверочные сценарии
 
 ### 41.1. One signer / one Representation
@@ -693,49 +749,66 @@ If legal/profile semantics do not create Document, Stage 11B must model action e
 
 ## 42. Инварианты
 
-1. Signing has own historical identity.
-2. Electronic signature artifact ≠ Signing.
-3. Authentication ≠ Signing.
-4. Electronic identification ≠ Signing.
-5. Cryptographic validity ≠ Domain Power.
-6. User Account ≠ signer Subject automatically.
-7. Certificate/provider identity ≠ Community OS Subject automatically.
-8. Semantic target and exact cryptographic target remain distinguishable.
-9. Electronic Signing keeps historically explainable exact signed content.
-10. Signing one Representation does not sign another automatically.
-11. New Revision does not inherit prior Signing.
-12. Multiple signers create distinct Signings.
-13. External provider result requires ADR-011 recognition.
-14. Redelivery ≠ new Signing automatically.
-15. Unknown outcome ≠ successful Signing.
-16. Revalidation ≠ new Signing.
-17. Current expiry/revocation does not silently rewrite historical Signing.
-18. Invalid evidence does not create recognized Signing.
-19. Correction does not silently delete historical recognition.
-20. Signing method/provider does not create Domain Power.
-21. Signing ≠ Approval ≠ Registration ≠ Publication.
-22. Signing ≠ Vote ≠ Voting Right.
-23. Signed Vote-related Document ≠ Vote.
-24. Signature format/container ≠ domain identity.
-25. Universal fundamental Signing Evidence entity is not introduced.
-26. Universal fundamental Signature Validation entity is not introduced.
-27. Legal/profile-specific required signature class is not universalized.
-28. ОСББ remote/electronic rules are not transferred automatically to pilot ST.
+1. Signing has own historical identity, assigned by domain recognition of a concrete signing act.
+2. Signing identity is not derived from `signer + target` uniqueness.
+3. Electronic signature artifact ≠ Signing.
+4. Authentication ≠ Signing.
+5. Electronic identification ≠ Signing.
+6. Cryptographic validity ≠ Domain Power.
+7. User Account ≠ signer Subject automatically.
+8. Certificate/provider identity ≠ Community OS Subject automatically.
+9. Semantic target and exact cryptographic target remain distinguishable.
+10. Exact cryptographic target/data binding may be technical evidence and does not become Document Representation automatically.
+11. Electronic Signing keeps historically explainable exact signed content.
+12. Signing one exact cryptographic target does not sign another Representation/data automatically.
+13. New Revision does not inherit prior Signing.
+14. Multiple signers create distinct Signings.
+15. The same Subject may have multiple distinct Signings over the same semantic target when policy recognizes distinct acts.
+16. External provider result requires ADR-011 recognition.
+17. Redelivery ≠ new Signing automatically.
+18. Unknown outcome ≠ successful Signing.
+19. Revalidation ≠ new Signing.
+20. Later validation does not silently overwrite original validation context.
+21. Current expiry/revocation/trust state does not silently rewrite historical Signing.
+22. Current Domain Power state does not silently replace the historical authority/admissibility context used for Signing.
+23. Invalid evidence does not create recognized Signing.
+24. Correction does not silently delete historical recognition.
+25. Signing method/provider does not create Domain Power.
+26. Signing ≠ Approval ≠ Registration ≠ Publication.
+27. Signing ≠ Vote ≠ Voting Right.
+28. Signed Vote-related Document ≠ Vote.
+29. Document-scoped Signing ADR-009 is not assumed to cover documentless Governance actions.
+30. Signature format/container ≠ domain identity.
+31. Applicable signing rule/policy version(s) used for recognition must be historically determinable per ADR-005 where material.
+32. Relevant validation/trust policy/list context must be historically determinable where material.
+33. A derived document signing-completeness status may exist only as Read Model / Projection and does not replace individual Signings.
+34. Universal fundamental Signing Evidence entity is not introduced.
+35. Universal fundamental Signature Validation entity is not introduced.
+36. Legal/profile-specific required signature class is not universalized.
+37. ОСББ remote/electronic rules are not transferred automatically to pilot ST.
 
 ## 43. Нормативные последствия Draft
 
-Рабочий вывод Stage 11A:
+Independent multi-review Round 1 (Claude + Gemini + DeepSeek) подтвердил базовую Stage 11A модель: отдельные fundamental `Electronic Signing`, `Signing Evidence` и `Signature Validation` не требуются, а conceptual redesign document-signing model не нужен.
 
-- ADR-009 Signing concept достаточен как fundamental domain action;
-- отдельная fundamental `Electronic Signing` entity не требуется;
-- separate `Signing Evidence` fundamental entity пока не требуется;
-- separate universal `Signature Validation` entity пока не требуется;
-- evidence/provenance/revalidation history должны быть явно описаны;
-- electronic Signing специализирует Document context;
-- external signature mechanisms/providers остаются integration/technical layer;
-- remote participation/Vote остаются Stage 11B.
+После adjudication уточнено:
 
-Это Draft до independent review/принятия.
+- ADR-009 Signing остаётся **document-scoped** fundamental historical action;
+- claim о universal reuse Signing для documentless Vote снят; это open Stage 11B question;
+- Signing имеет positive identity semantics и не определяется `signer + target` uniqueness;
+- semantic target и exact cryptographic target строго различаются;
+- technical artifact/file не становится Representation автоматически;
+- applicable signing rule/policy versions и validation/trust context должны быть historically determinable where material;
+- historical Domain Power/admissibility оценивается по applicable historical time semantics, а не текущему состоянию;
+- validation/revalidation history не переписывается молча;
+- semantic ownership rejection относительно Signing принадлежит Documents/Formalization; transport/runtime state остаётся integration/runtime concern;
+- asynchronous external operation/session may exist technically for reconciliation, but is not Signing;
+- Signing correction сохраняет historical trace без universal Correction entity/state machine;
+- derived `Fully Signed`/similar status допустим только как ADR-013 Projection;
+- direct signed non-document action/Vote остаётся Stage 11B design question;
+- Membership/Plot/Voting Right pilot finding не требует новых fundamental membership entities.
+
+Это остаётся Draft до нормативной синхронизации и решения владельца проекта.
 
 ## 44. Вопросы для independent review
 
@@ -756,8 +829,10 @@ If legal/profile semantics do not create Document, Stage 11B must model action e
 
 ## 45. Следующий шаг
 
-1. провести independent multi-review Draft BP-SIGN-001;
-2. adjudicate findings;
-3. при подтверждении выполнить минимальную normative sync;
-4. закрыть Stage 11A;
-5. затем перейти к Stage 11B — remote participation and electronic voting.
+1. independent multi-review Round 1 — завершён;
+2. reviewer findings adjudicated; point fixes применены;
+3. выполнить минимальную normative sync DOMAIN_MODEL / TERMINOLOGY для Signing semantics и Membership admission/basis clarification;
+4. зафиксировать multi-review consolidation и обновить Stage 11 status;
+5. full Round 2 не требуется, если sync не вводит новую identity/ownership/model semantics;
+6. после принятия Stage 11A перейти к Stage 11B — remote participation and electronic voting, начиная с unresolved documentless signed-action boundary и pilot legal/governance profile.
+

@@ -90,7 +90,7 @@ cash physically presented
 ≠ Cash Payment
 ```
 
-Cash Acceptance возникает после того, как наличные фактически удержаны в Community-side control в рамках завершённого physical acceptance scope; деньги, предъявленные и полностью возвращённые до этого момента, Cash Acceptance не создают.
+Cash Acceptance возникает после того, как наличные фактически приняты в Community-side control в рамках завершённого physical acceptance scope. Наличные, не вошедшие в Community-side control до completion, Cash Acceptance не создают и отдельно в Community OS не фиксируются.
 
 Если наличные приняты только во временную custody/хранение, Cash Acceptance как source fact может существовать, но его предметная интерпретация не создаёт Payment автоматически.
 
@@ -141,24 +141,15 @@ Community остаётся получателем входящего Payment.
 
 Technical access role не создаёт финансовое полномочие.
 
-## 9. Tendered amount ≠ Cash Acceptance amount ≠ Payment amount
+## 9. Cash Acceptance amount ≠ Payment amount
+
+Community OS фиксирует Cash Acceptance amount непосредственно как сумму наличных, фактически принятую в Community-side control при завершении physical acceptance scope.
 
 Следует различать:
 
-- сумму, предъявленную для расчёта/пересчёта;
-- сумму немедленно возвращённой сдачи;
-- сумму Cash Acceptance — фактически удержанную в Community-side control после immediate change;
+- Cash Acceptance amount;
 - сумму/суммы recognized Payment;
 - часть Cash Acceptance, для которой Payment recognition ещё unresolved либо не допускается.
-
-Для одного currency-specific Cash Acceptance:
-
-```text
-Cash Acceptance amount
-= tendered amount - immediate returned change
-```
-
-если всё, что не возвращено немедленно, действительно вошло в этот coherent acceptance scope.
 
 Universal `1 Cash Acceptance = 1 Payment` не вводится.
 
@@ -180,24 +171,15 @@ sum(recognized Payments)
 
 Cash Acceptance amount, для которого Payment ещё не recognized, не является Unallocated Remainder: нераспределённый остаток существует только внутри уже признанного Payment.
 
-## 10. Сдача
+## 10. Суммы вне Cash Acceptance
 
-Если плательщик передал 1000 грн для оплаты 870 грн, а 130 грн немедленно возвращены как сдача в рамках того же акта приёма:
+Наличные, которые не были приняты в Community-side control до завершения physical acceptance scope, не являются частью Cash Acceptance, Payment, Refund или outgoing Payment. Community OS не хранит использованные сторонами при расчёте номиналы купюр или иные суммы, не вошедшие в фактически принятые средства.
 
-```text
-tendered 1000
-returned immediately 130
-accepted by Community 870
-→ Cash Payment = 870
-```
+Если Cash Acceptance уже завершён, а часть наличных передаётся обратно до Payment recognition, такое движение относится к resolution/custody/correction Cash Acceptance. Если Payment уже признан, последующая передача средств обратно использует outgoing Payment / Refund semantics where applicable.
 
-Это не Payment 1000, не Refund 130 и не outgoing Cash Payment 130. Immediate change является частью определения суммы Cash Acceptance до его завершения.
+## 11. Advance из части принятой суммы
 
-Если Cash Acceptance уже завершён, а часть наличных возвращается позже до Payment recognition, такой возврат уже не является immediate change: он относится к resolution/custody/correction Cash Acceptance. Если Payment уже признан, последующий возврат использует outgoing Payment / Refund semantics where applicable.
-
-## 11. Advance вместо сдачи
-
-Если плательщик передал 1000 грн, Community приняло все 1000 грн, а 130 грн должны остаться на будущую электроэнергию:
+Если Community приняло 1000 грн, 870 грн относятся к текущему обязательству, а 130 грн должны остаться на будущую электроэнергию:
 
 ```text
 Cash Payment = 1000
@@ -205,7 +187,7 @@ Cash Payment = 1000
 130 → possible Advance according to applicable semantics
 ```
 
-Отсутствие сдачи не создаёт Advance автоматически.
+Само превышение принятой суммы над текущими обязательствами не создаёт Advance автоматически.
 
 ## 12. Cash Payment ≠ Payment Allocation
 
@@ -362,7 +344,7 @@ Cash Payment remains historical
 → new outgoing Payment
 ```
 
-Immediate change до завершения acceptance не является Refund.
+Наличные, не вошедшие в завершённый Cash Acceptance, не являются Refund.
 
 ## 24. Cash Payment ≠ Expense / income entity
 
@@ -493,7 +475,7 @@ Cash Payment может быть принят до возникновения к
 
 - Cash Acceptance identity/referent;
 - accepted amount/currency;
-- tendered amount and immediate returned change;
+- accepted amount basis/evidence where applicable;
 - Cash Acceptance completion time and later recording time;
 - physical tenderer / declared origin information;
 - acting cashier/acceptor;
@@ -546,11 +528,11 @@ Automation may assist calculation, document generation, matching, Allocation Pro
 ### 40.1. Exact amount
 Obligation 870; accepted 870; Cash Payment 870.
 
-### 40.2. Tendered 1000, immediate change 130
-Accepted 870; Payment 870; no Refund and no outgoing Payment.
+### 40.2. Amount outside Cash Acceptance scope
+Cash Acceptance records 870 actually accepted; other cash not accepted into Community-side control is outside this operation and is not stored as a separate financial fact.
 
-### 40.3. Tendered 1000, all accepted
-Payment 1000; 130 does not become Advance/Overpayment automatically.
+### 40.3. Accepted 1000 for current obligations of 870
+Payment 1000; the remaining 130 does not become Advance/Overpayment automatically.
 
 ### 40.4. One Payment, two obligations
 Payment 1500; 1000 membership + 500 electricity via two Allocations.
@@ -742,9 +724,9 @@ It remains visible for decision/reconciliation and is not auto-converted into in
 13. Cashier/acceptor ≠ Payment recipient.
 14. Physical tenderer ≠ payer automatically.
 15. Personal Account ≠ payer.
-16. Tendered amount ≠ Cash Acceptance amount.
-17. Immediate returned change before Cash Acceptance completion is not Refund.
-18. Immediate returned change before Cash Acceptance completion is not outgoing Payment.
+16. Cash Acceptance amount is the amount actually accepted into Community-side control.
+17. Cash not accepted before Cash Acceptance completion does not create a separate cash-channel fact.
+18. A transfer of funds back after Cash Acceptance completion uses applicable correction, outgoing Payment or Refund semantics.
 19. Sum of recognized Payments linked to one Cash Acceptance cannot exceed Cash Acceptance amount.
 20. If the whole Cash Acceptance is resolved specifically as Payments, the sum of linked Payment amounts equals Cash Acceptance amount.
 21. Any Cash Acceptance amount not recognized as Payment must remain separately explainable as unresolved/custody/other permitted disposition.
@@ -859,7 +841,7 @@ Post-merge independent review DeepSeek выявил чрезмерно жёст�
 7. Unknown payer blocks Payment recognition until materially meaningful party information is sufficient; fake Subject не создаётся.
 8. Cash document ≠ Cash Acceptance ≠ Payment; local legal/formalization policy может быть строже.
 9. Unauthorized physical receipt сохраняется как Cash Acceptance source fact, но не создаёт Payment автоматически.
-10. Immediate returned change before Cash Acceptance completion не является Refund/outgoing Payment; later return after Payment recognition uses outgoing/Refund semantics where applicable.
+10. Cash Acceptance фиксирует только фактически принятую сумму; средства, передаваемые обратно после completion, используют applicable correction/outgoing/Refund semantics.
 11. Temporary custody may have Cash Acceptance source fact but no Payment; full custody workflow remains separate.
 12. Cash→bank deposit remains Bank Transaction and does not recreate underlying Payments.
 13. Mirror notes added to BP-FIN-ALLOCATION-001 and BP-FIN-BANK-001.

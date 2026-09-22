@@ -79,10 +79,137 @@ Legal/governance profile конкретного Community должен позв�
 ```text
 A. очное участие;
 B. удалённое синхронное участие;
-C. подписанное асинхронное волеизъявление / ballot;
-D. смешанная процедура A+B;
-E. смешанная процедура A+B+C where legally allowed.
+C. подписанное асинхронное электронное волеизъявление / ballot;
+D. бумажный бюллетень с собственноручной подписью, если это допускает procedure/legal profile;
+E. смешанная процедура A+B;
+F. смешанная процедура A+B+C;
+G. смешанная процедура A+B+C+D where legally allowed.
 ```
+
+**Mixed voting является обязательной возможностью первого пилота.** Одна Voting не должна искусственно разбиваться на «бумажное» и «электронное» голосования только из-за разных каналов подачи позиции.
+
+```text
+one Voting
+→ one Voting Rule / snapshot / set of Voting Rights
+→ several permitted submission/formalization channels
+→ Votes
+→ one Calculation / Established Result
+```
+
+Канал/форма подачи не создаёт отдельную identity Vote автоматически.
+
+### 5.1. Paper-origin Vote
+
+Для участника, который не использует электронную подпись, procedure profile может разрешить бумажный бюллетень с собственноручной подписью.
+
+Предметная цепочка:
+
+```text
+Voting Right
+→ paper ballot Document / Representation
+→ handwritten Signing
+→ receipt / validation / admissibility check
+→ recognized Vote
+→ optional scan/photo/digital Representation
+→ electronic accounting/counting in Community OS
+```
+
+После ввода в Community OS такой Vote **не становится «электронным голосом» по происхождению**. Это тот же domain Vote, полученный из paper-origin evidence и отражённый в системе.
+
+### 5.2. Scan/photo does not replace the physical original
+
+Фотография или скан бумажного бюллетеня:
+
+- может быть digital Representation/evidence, связанной с исходным бумажным документом;
+- обеспечивает оперативный просмотр, проверку и удалённый аудит;
+- не становится новой Vote;
+- не является electronic signature;
+- не превращает собственноручную подпись в КЕП;
+- не заменяет physical original автоматически.
+
+Для принятого paper-origin Vote физический оригинал бюллетеня должен сохраняться согласно applicable retention/archive policy.
+
+Для пилота действует безопасный baseline:
+
+```text
+accepted paper-origin Vote
+→ physical original retention required
+→ destruction prohibited
+   until an explicit applicable retention rule
+   and authorized archive/disposal action allow it
+```
+
+Community OS должна позволять исторически определить, где применимо:
+
+- наличие physical original;
+- ответственного хранителя/custodian;
+- физическое место хранения или архивную ссылку;
+- дату получения;
+- связь с Voting / Voting Right / Vote;
+- связь с scan/photo Representation;
+- применимую retention policy;
+- факт и основание последующего перемещения/передачи/уничтожения, если оно когда-либо допустимо.
+
+Это не вводит universal `Physical Archive Item` entity автоматически; конкретная document/archive model уточняется отдельно.
+
+### 5.3. Data entry does not make the operator the voter
+
+Если бумажный бюллетень вводит в Community OS член счётной комиссии/оператор:
+
+```text
+voter / right implementer
+≠ data-entry operator
+```
+
+Должны быть различимы:
+
+- Subject, реализовавший Voting Right;
+- собственноручно подписанный source ballot;
+- лицо, принявшее/проверившее бюллетень;
+- User Account/Subject, выполнивший data entry;
+- момент фактической подачи/получения бюллетеня;
+- момент digitization/recognition в Community OS.
+
+Ввод данных оператором не является новым волеизъявлением от имени оператора.
+
+### 5.4. One Voting Right across several channels
+
+Если один и тот же Voting Right может быть реализован через электронный и бумажный каналы, applicable Voting Rule обязана определить conflict/change semantics.
+
+Нельзя считать:
+
+```text
+paper submission
++
+electronic submission
+=
+two independent Votes automatically
+```
+
+Нужно определить, где применимо:
+
+- разрешено ли изменение ранее поданной позиции;
+- до какого момента;
+- какая submission является effective;
+- как определяется duplicate;
+- что считается correction;
+- что происходит при бумажном и электронном волеизъявлении с разными позициями;
+- как сохраняется история предыдущей позиции согласно ADR-001/004/008.
+
+### 5.5. Open vs secret voting
+
+Signed identifiable paper ballot подходит не для каждой формы голосования.
+
+Для **открытого** голосования ballot может связывать Subject/Voting Right, позицию и собственноручную подпись.
+
+Для **тайного** голосования нельзя автоматически использовать ту же схему, потому что прямая связь подписи/Subject с ballot position может уничтожить secrecy.
+
+```text
+proof of eligibility / ballot issuance
+≠ secret ballot content
+```
+
+Если legal/profile требует secret voting, Stage 11B должен отдельно спроектировать separation identity/eligibility evidence from anonymous ballot content. Настоящий requirement не объявляет signed identifiable ballot универсальным для тайного голосования.
 
 ## 6. Электронная подпись не создаёт право голоса
 

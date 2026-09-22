@@ -327,18 +327,15 @@ Universal one-size-fits-all signing policy не вводится.
 
 ## 19. Electronic signature classes
 
-Community OS не предполагает, что любое electronic Signing обязательно требует КЕП.
+Community OS не предполагает один universal required class электронной подписи для всех Communities, document kinds и procedures.
 
-Applicable policy может требовать конкретный legal/technical class согласно применимому закону.
+Applicable signing/legal profile определяет требуемый signature class/method согласно применимому праву и конкретной procedure/document semantics.
 
-Для Украины правовые термины различают, среди прочего:
+Конкретные юридические категории и их соотношение в Украине вынесены в:
 
-- electronic signature;
-- advanced electronic signature;
-- advanced electronic signature based on qualified certificate;
-- qualified electronic signature (КЕП).
+- `docs/references/UKRAINE_ELECTRONIC_SIGNING_LEGAL_ANALYSIS.md`.
 
-Формулировку закона «electronic signature based on a qualified certificate» нельзя автоматически интерпретировать как «только КЕП».
+BP-SIGN-001 не превращает юрисдикционную терминологию в universal domain taxonomy.
 
 ## 20. Дія.Підпис
 
@@ -398,12 +395,13 @@ Signing
 → 0..N validation observations/history
 ```
 
-Evidence может существовать как:
+Evidence может быть связано с:
 
-- Document Representation/File/external artifact;
+- Document Representation, если signed data сами имеют такую domain semantics;
+- technical file/artifact/container, который не становится Representation автоматически;
 - received integration information;
 - confirming information;
-- provenance attached to Signing.
+- provenance конкретного Signing.
 
 Новый universal Evidence bounded context/entity не создаётся.
 

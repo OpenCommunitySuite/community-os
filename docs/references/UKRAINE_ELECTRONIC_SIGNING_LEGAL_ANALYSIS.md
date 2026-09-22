@@ -338,55 +338,58 @@ Signing
 
 Конкретные cryptographic formats, libraries, certificate stores и API — не предмет этого reference analysis.
 
-## 11. Ключевой открытый вопрос для предметной модели
+## 11. Результат предметного stress-test и independent review
 
-Нужно решить, является ли существующего понятия ADR-009 **Signing** достаточно как identity-bearing historical action, или требуется отдельное понятие **Electronic Signature Evidence / Signing Evidence**.
+Stage 11A stress-test и independent multi-review BP-SIGN-001 закрыли первоначальный вопрос:
 
-Рабочая гипотеза:
+- существующего ADR-009 `Signing` достаточно как identity-bearing historical action **для Document Revision / Representation scope**;
+- новый вид `Electronic Signing` как fundamental domain entity не нужен;
+- внешний cryptographic signature/provider result является evidence/integration information, а не Signing автоматически;
+- fundamental `Signing Evidence` сейчас не обоснован;
+- fundamental `Signature Validation` сейчас не обоснован;
+- evidence/provenance и validation history должны сохранять достаточную историческую объяснимость;
+- exact cryptographic target electronic data не тождествен semantic target и не обязан быть отдельной domain Representation;
+- applicable signing rule/policy и material validation/trust context должны быть historically determinable.
 
-- новый вид `Electronic Signing` как fundamental domain entity, вероятно, не нужен;
-- `Signing` остаётся предметным действием ADR-009;
-- внешний cryptographic signature/provider result является evidence/integration information;
-- отдельная identity-bearing `Signing Evidence` оправдана только если у evidence есть самостоятельный lifecycle, независимые corrections/revalidation/retention и ссылки нескольких domain facts.
+Отдельный вопрос остаётся **не в Stage 11A, а для Stage 11B**:
 
-Этот вопрос нужно stress-test до создания нормативного BP.
+> если legal/governance profile допускает signed electronic Vote/action без самостоятельной Document semantics, переиспользуется ли generalized Signing после отдельного normative решения либо Governance владеет самостоятельным action/evidence concept?
 
-## 12. Вопросы для следующего шага Stage 11
+Настоящий reference analysis не решает этот вопрос заранее.
 
-1. Что является identity `Signing` и может ли одна Revision иметь несколько Signing facts?
-2. Может ли одно Signing относиться к Representation, а другое — к Revision?
-3. Как определить «exact signed content», если Representation пересоздано/конвертировано?
-4. Является ли validation новым domain fact или производным состоянием/evidence?
-5. Что происходит при:
-   - просроченном сертификате после успешного подписания;
-   - отозванном сертификате;
-   - неизвестном/недоверенном provider;
-   - broken signature;
-   - re-validation через несколько лет;
-   - change in trust list;
-   - external service unknown outcome;
-   - повторной доставке signature result;
-   - нескольких подписях одной Revision;
-   - подписи представителем;
-   - подписи неуполномоченным Subject;
-   - подписании другой Representation той же Revision?
-6. Может ли electronic Signing подтверждать Vote без создания отдельного Document?
-7. Когда legal profile требует именно signed electronic document, а когда достаточно доказательства предметного action?
-8. Какие requirements принадлежат universal model, а какие — Community/document/governance profile.
+## 12. Вопросы, перенесённые в Stage 11B / legal profile
 
-## 13. Предварительный вывод
+После Stage 11A остаются открытыми:
 
-Текущая архитектура ADR-009/010/011 уже содержит правильные фундаментальные границы.
+1. требуется ли для конкретной governance procedure самостоятельный signed electronic Document/ballot;
+2. допустим ли documentless signed Vote/action;
+3. если допустим — какая ownership/identity model подтверждающего action/evidence применяется;
+4. какой signature class требуется конкретным законом/document/procedure profile;
+5. какие quorum/presence/remote-participation rules применимы;
+6. допустима ли pilot practice `1 участок = 1 голос` и reported «множественное членство»;
+7. какие правила representation применимы к конкретному Community;
+8. какие retention/archive/legal-proof requirements обязательны для конкретного вида документа/процедуры.
 
-На этом этапе **нет основания вводить новый bounded context или считать КЭП/Дія.Підпис отдельной предметной сущностью Community OS**.
+Эти вопросы не должны превращаться в universal Community OS invariants без отдельного основания.
 
-Следующий шаг Documentation First:
+## 13. Вывод после Stage 11A Round 1
+
+Текущая архитектура ADR-009/010/011 содержит достаточные фундаментальные границы electronic **document** signing.
+
+На этом этапе нет основания вводить:
+
+- новый bounded context;
+- `Electronic Signing` fundamental entity;
+- `Signing Evidence` fundamental entity;
+- `Signature Validation` fundamental entity;
+- provider-specific domain entity для КЕП/Дія.Підпис.
+
+Documentation First sequence после Round 1:
 
 ```text
-stress-test Signing semantics
-→ решить вопрос Signing Evidence
-→ Draft BP electronic signing
-→ independent review
-→ normative sync if needed
-→ только затем remote participation / electronic voting profile
+BP-SIGN-001 point fixes
+→ minimal DOMAIN_MODEL / TERMINOLOGY sync
+→ Stage 11A acceptance
+→ Stage 11B remote participation / electronic voting
+→ focused pilot legal/governance profile
 ```

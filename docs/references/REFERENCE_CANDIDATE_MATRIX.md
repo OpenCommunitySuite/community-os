@@ -387,54 +387,62 @@ Proposed normative sync в PR #71 минимально обновляет ADR-00
 
 ### Этап 11. Электронное подписание и удалённое участие
 
-**Состояние:** в работе; начат подэтап 11A «электронное подписание». Подготовлен current-law/reference анализ `UKRAINE_ELECTRONIC_SIGNING_LEGAL_ANALYSIS.md` по состоянию на 2026-09-21.
+**Состояние:** Stage 11A Round 1 consolidated; point fixes applied; proposed normative synchronization выполнена в Draft PR #73. Решение владельца проекта о принятии/merge Stage 11A ещё не зафиксировано.
 
-Сначала исследуется электронное подписание, при этом базовая предметная семантика ADR-009 не пересматривается без необходимости:
+Подэтап 11A — электронное подписание документа — исследуется без преждевременного обобщения ADR-009 за пределы Document context.
 
-- что именно подписывается;
-- какой Revision/Representation;
-- кто подписант;
-- от собственного или чужого имени;
-- основание полномочия;
-- какой внешний результат является evidence;
-- как выполняются validation и domain recognition внешней подписи;
-- что хранится для последующей проверяемости;
-- актуальные правовые требования.
+Current-law/reference анализ Украины зафиксирован в `UKRAINE_ELECTRONIC_SIGNING_LEGAL_ANALYSIS.md`.
 
-Первичный legal/reference анализ подтверждает:
+Independent multi-review Claude/Gemini/DeepSeek подтвердил:
 
-- КЭП является одной из правовых категорий электронной подписи и имеет силу собственноручной подписи согласно Закону № 2155-VIII;
-- электронный документ и его оригинал регулируются отдельно Законом № 851-IV;
-- `Дія.Підпис` является provider/technical mechanism КЭП, а не источником Domain Power/Voting Right;
-- формулировка «электронний підпис, що базується на кваліфікованому сертифікаті» не должна автоматически сужаться до «только КЭП»;
-- для ОСББ/собственников многоквартирного дома законодательство допускает дистанционное участие по видеоконференции и электронные листки письменного опроса с подписью на квалифицированном сертификате;
-- для пилотного СТ нельзя переносить ОСББ-процедуру универсально до проверки организационно-правовой формы и статута конкретного СТ.
+- existing ADR-009 `Signing` достаточен для **document-signing scope**;
+- отдельные fundamental `Electronic Signing`, `Signing Evidence`, `Signature Validation` не требуются;
+- conceptual redesign Stage 11A не нужен;
+- semantic target и exact cryptographic target должны быть различены;
+- technical file/artifact не становится Document Representation автоматически;
+- signer/certificate/provider identity, Subject, User Account, Domain Power и Representation различаются;
+- cryptographic validity ≠ domain admissibility;
+- applicable signing rule/policy version и material validation/trust context должны быть historically determinable;
+- revalidation ≠ new Signing и не переписывает initial validation context;
+- external provider/session state может существовать для integration/runtime correlation/reconciliation, но не является Signing;
+- correction ошибочно recognized Signing требует explicit historical correction semantics без universal state machine/entity;
+- signing completeness может быть derived Read Model / Projection;
+- ADR rewrite не требуется.
 
-**Результат stress-test 11A:** существующего ADR-009 понятия `Signing` достаточно как fundamental domain action. Отдельные fundamental `Electronic Signing`, `Signing Evidence` и `Signature Validation` сейчас не обоснованы. Для electronic Signing требуется явный evidence/provenance package, historical validation/revalidation context и distinction semantic target vs exact cryptographic target.
+Один Claude finding был severity BLOCKER из-за внутреннего противоречия Draft: ADR-009 Signing является document-scoped, а Draft называл модель универсально reusable для documentless Vote. Contradiction устранён point fix:
 
-Подготовлен Draft `BP-SIGN-001 — Электронное подписание документа / Electronic Document Signing`.
+```text
+Stage 11A Signing
+→ only Document Revision / Representation
 
-**Принятое продуктовое требование Stage 11B для первого пилота СТ:** Community OS должна поддерживать дистанционное участие и юридически пригодное подписанное электронное волеизъявление/голосование (включая КЕП и provider mechanisms вроде Дія.Підпис) для владельцев/допустимых реализаторов права, которые физически отсутствуют, в том числе находятся за границей. Это не означает автоматического переноса ОСББ procedure или автоматической legal validity любого signed Vote: конкретный legal/governance profile должен определить quorum/presence, eligibility, permissible remote/asynchronous modes, signature class и formalization.
+documentless signed Governance action
+→ open Stage 11B design question
+```
 
-Отдельно выявлен потенциально критичный legal-profile check: если пилотное СТ является кооперативом, необходимо сопоставить текущий project rule `1 участок = 1 голос` с императивными нормами Закона «Про кооперацію», где базово закреплён принцип `1 член кооператива = 1 голос`.
+Stage 11B должен отдельно решить, требует ли такой action normative generalization Signing target либо Governance-owned action/evidence concept. Fake Document для переиспользования Signing запрещён.
 
-После анализа устава СТ «ЕКСПРЕС» и уточнения фактической практики выполнен отдельный stress-test `Membership ↔ Plot ↔ Voting Right`.
+В Draft branch выполнена минимальная normative sync:
 
-Зафиксировано:
+- DOMAIN_MODEL — electronic Signing semantics, exact cryptographic target/evidence/provenance/revalidation, multiple Signings и signing-completeness Projection;
+- TERMINOLOGY — расширен термин `Подписание документа`;
+- DOMAIN_MODEL / TERMINOLOGY — уточнено Membership: несколько historical application/admission/basis records одного Subject не создают автоматически несколько simultaneous Memberships или Voting Rights;
+- новые fundamental Membership Admission / Membership Slot / Membership Unit не вводятся.
 
-- устав требует письменного заявления, решения о приёме и последующего утверждения, но прямо не определяет «множественное членство» одного физического лица;
-- сообщённая практика СТ трактует отдельное заявление по каждому участку как отдельное членство/голос;
-- Community OS не должна создавать несколько Subjects/User Accounts или считать несколько заявлений автоматическим доказательством нескольких юридически самостоятельных Membership;
-- существующая ADR-001 модель уже позволяет одному Subject реализовывать несколько Voting Rights;
-- текущую практику `1 участок = 1 голос` следует выражать через applicable Voting Rule и qualifying Plot/Membership bases;
-- новый fundamental `Membership Admission`, `Membership Slot` или `Membership Unit` по stress-test не требуется;
-- несколько исторических application/admission/basis records должны сохраняться без потери provenance;
-- возможность нескольких simultaneous Membership одного Subject остаётся profile-specific и требует самостоятельной legal semantics, а не выводится из количества заявлений;
-- legal validity текущей практики «множественного членства» остаётся focused pilot legal question.
+**Обязательное продуктовое требование Stage 11B для первого пилота СТ:** Community OS должна поддерживать дистанционное участие и юридически пригодное signed electronic expression/Vote для отсутствующих владельцев/допустимых реализаторов права, включая находящихся за границей.
 
-**Следующий шаг 11A:** independent multi-review Draft BP-SIGN-001 → adjudication → минимальная normative sync при подтверждении модели.
+После анализа устава СТ «ЕКСПРЕС» и уточнения фактической практики сохраняется pilot finding:
 
-После закрытия 11A Stage 11B не откладывается: он является обязательным пилотным процессом remote participation/electronic voting и должен быть спроектирован как profile-driven Governance process. При проектировании Stage 11B Voting Rights формируются из applicable versioned Voting Rule, а не из количества заявлений или User Accounts.
+- сообщённая практика трактует отдельное заявление по каждому участку как «множественное членство» и фактически использует `1 участок = 1 голос`;
+- Community OS не создаёт copies of Subject/User Account и не считает несколько заявлений автоматическим доказательством нескольких legally independent Membership;
+- ADR-001 уже допускает `one Subject → multiple Voting Rights`;
+- фактический pilot rule следует выражать через applicable versioned Voting Rule и qualifying Membership/Plot bases;
+- legal validity `1 участок = 1 голос` vs `1 член = 1 голос` остаётся focused legal-profile question;
+- Voting Rule/legal profile определяет member-based/object-based/mixed semantics; архитектура не скрывает legal conflict.
+
+**Следующий шаг:** final consistency/readiness check Stage 11A и решение владельца проекта о принятии/merge PR #73. Full Round 2 не требуется, если не появляется generalized non-document Signing, новая fundamental evidence/validation/correction entity, новая Membership identity semantics или изменение Governance ownership.
+
+После принятия Stage 11A начинается Stage 11B — отдельный BP remote participation / electronic voting с profile-driven quorum/presence, Voting Rule, signed ballot/document semantics и обязательным разрешением documentless signed-action boundary.
+
 ### Этап 12. Интеграция с BAS/BAF
 
 Начинать после стабилизации соответствующих финансовых BP.

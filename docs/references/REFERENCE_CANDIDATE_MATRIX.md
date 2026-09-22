@@ -418,9 +418,23 @@ Proposed normative sync в PR #71 минимально обновляет ADR-00
 
 Отдельно выявлен потенциально критичный legal-profile check: если пилотное СТ является кооперативом, необходимо сопоставить текущий project rule `1 участок = 1 голос` с императивными нормами Закона «Про кооперацію», где базово закреплён принцип `1 член кооператива = 1 голос`.
 
+После анализа устава СТ «ЕКСПРЕС» и уточнения фактической практики выполнен отдельный stress-test `Membership ↔ Plot ↔ Voting Right`.
+
+Зафиксировано:
+
+- устав требует письменного заявления, решения о приёме и последующего утверждения, но прямо не определяет «множественное членство» одного физического лица;
+- сообщённая практика СТ трактует отдельное заявление по каждому участку как отдельное членство/голос;
+- Community OS не должна создавать несколько Subjects/User Accounts или считать несколько заявлений автоматическим доказательством нескольких юридически самостоятельных Membership;
+- существующая ADR-001 модель уже позволяет одному Subject реализовывать несколько Voting Rights;
+- текущую практику `1 участок = 1 голос` следует выражать через applicable Voting Rule и qualifying Plot/Membership bases;
+- новый fundamental `Membership Admission`, `Membership Slot` или `Membership Unit` по stress-test не требуется;
+- несколько исторических application/admission/basis records должны сохраняться без потери provenance;
+- возможность нескольких simultaneous Membership одного Subject остаётся profile-specific и требует самостоятельной legal semantics, а не выводится из количества заявлений;
+- legal validity текущей практики «множественного членства» остаётся focused pilot legal question.
+
 **Следующий шаг 11A:** independent multi-review Draft BP-SIGN-001 → adjudication → минимальная normative sync при подтверждении модели.
 
-После закрытия 11A Stage 11B не откладывается: он является обязательным пилотным процессом remote participation/electronic voting и должен быть спроектирован как profile-driven Governance process.
+После закрытия 11A Stage 11B не откладывается: он является обязательным пилотным процессом remote participation/electronic voting и должен быть спроектирован как profile-driven Governance process. При проектировании Stage 11B Voting Rights формируются из applicable versioned Voting Rule, а не из количества заявлений или User Accounts.
 ### Этап 12. Интеграция с BAS/BAF
 
 Начинать после стабилизации соответствующих финансовых BP.

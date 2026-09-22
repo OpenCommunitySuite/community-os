@@ -1,6 +1,6 @@
 # BP-SIGN-001 — Электронное подписание документа / Electronic Document Signing
 
-**Статус:** Draft / Stage 11A stress-test completed  
+**Статус:** Draft / independent multi-review Round 1 consolidated / point fixes applied / proposed normative synchronization performed  
 **Контекст:** Документы и формализация  
 **Связанные контексты:** Субъекты; Полномочия и представительство; Управление и коллективные процедуры; Интеграции; сквозные History/Rules/Access  
 **Тип документа:** Бизнес-процесс
@@ -829,8 +829,10 @@ Independent multi-review Round 1 (Claude + Gemini + DeepSeek) подтверди
 
 1. independent multi-review Round 1 — завершён;
 2. reviewer findings adjudicated; point fixes применены;
-3. выполнить минимальную normative sync DOMAIN_MODEL / TERMINOLOGY для Signing semantics и Membership admission/basis clarification;
-4. зафиксировать multi-review consolidation и обновить Stage 11 status;
-5. full Round 2 не требуется, если sync не вводит новую identity/ownership/model semantics;
-6. после принятия Stage 11A перейти к Stage 11B — remote participation and electronic voting, начиная с unresolved documentless signed-action boundary и pilot legal/governance profile.
+3. proposed normative sync DOMAIN_MODEL / TERMINOLOGY — выполнена в Draft PR #73;
+4. multi-review consolidation — зафиксирована;
+5. Stage 11 status — синхронизировать в REFERENCE_CANDIDATE_MATRIX;
+6. full Round 2 не требуется, поскольку sync не вводит новую identity/ownership/model semantics;
+7. следующий шаг — final consistency/readiness check и решение владельца проекта о принятии Stage 11A / merge PR #73;
+8. после принятия Stage 11A перейти к Stage 11B — remote participation and electronic voting, начиная с unresolved documentless signed-action boundary и pilot legal/governance profile.
 

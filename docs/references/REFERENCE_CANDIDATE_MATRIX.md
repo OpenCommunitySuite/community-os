@@ -430,6 +430,10 @@ Stage 11B должен отдельно решить, требует ли так
 
 **Обязательное продуктовое требование Stage 11B для первого пилота СТ:** Community OS должна поддерживать дистанционное участие и юридически пригодное signed electronic expression/Vote для отсутствующих владельцев/допустимых реализаторов права, включая находящихся за границей.
 
+Дополнительно принято требование **mixed voting**: одна Voting может принимать позиции через несколько допустимых каналов, включая электронно подписанное волеизъявление и бумажный бюллетень с собственноручной подписью. Канал не создаёт отдельную identity Vote. Бумажный бюллетень остаётся source Document/evidence; scan/photo не превращает его в electronic signature и не создаёт новый Vote. Для accepted paper-origin Vote pilot baseline требует сохранения physical original до explicit разрешённого disposal по applicable retention policy. Data-entry operator ≠ voter. Paper+electronic submissions одного Voting Right требуют explicit conflict/change semantics. Для secret voting identity/eligibility evidence должна отделяться от ballot content.
+
+Stress-test: `STAGE-11B-MIXED-PAPER-ELECTRONIC-VOTING-STRESS-TEST.md`.
+
 После анализа устава СТ «ЕКСПРЕС» и уточнения фактической практики сохраняется pilot finding:
 
 - сообщённая практика трактует отдельное заявление по каждому участку как «множественное членство» и фактически использует `1 участок = 1 голос`;

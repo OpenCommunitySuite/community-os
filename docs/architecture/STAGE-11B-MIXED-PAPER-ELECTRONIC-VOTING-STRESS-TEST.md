@@ -299,11 +299,11 @@ Paper channel не решает этот вопрос и не меняет ADR-0
 
 Если разные Subjects имеют разные Voting Rights, их signatures/ballots должны позволять отличить, кто реализовал какое право.
 
-## 14. Invalid or incomplete paper ballot
+## 14. Invalid or incomplete paper input
 
-Бумажный ballot может быть rejected/invalid, например из-за:
+Для **open offline Vote** бумажный ballot может быть rejected/invalid, например из-за:
 
-- отсутствия required signature;
+- отсутствия required voter signature, если она обязательна profile;
 - невозможности идентифицировать Voting/Voting Right;
 - неоднозначной позиции;
 - submission after deadline;
@@ -312,36 +312,46 @@ Paper channel не решает этот вопрос и не меняет ADR-0
 - повреждения/неполноты;
 - иных profile-specific причин.
 
-Rejected ballot:
+Для **anonymous offline Voting** отсутствие подписи голосующего на самом ballot не является дефектом автоматически. Проверяются отдельно admissibility participation/issuance evidence и корректность aggregate tally/source documents according to applicable profile.
+
+Rejected open ballot:
 
 ~~~text
 ≠ recognized Vote
 ~~~
 
-Но если rejection предметно значим, source/evidence и reason должны быть traceable according to ADR-004/008/009.
+Rejected anonymous offline input:
+
+~~~text
+≠ recognized participation evidence / tally input
+~~~
+
+Если rejection предметно значим, source/evidence и reason должны быть traceable according to ADR-004/008/009.
 
 ## 15. Lost physical original after recognition
 
-Если scan/photo существует, но physical original после recognition утрачен:
+Если digital copy существует, но relevant physical original после recognition утрачен:
 
-- Vote не должен автоматически исчезать;
+- ранее recognized open Vote или anonymous offline tally/input не должны автоматически исчезать;
 - loss является отдельным material evidence/custody incident;
 - applicable legal/profile policy определяет последствия для evidentiary strength/validity;
 - history loss/correction/review должна сохраняться.
 
-Community OS не должна silent-rewrite Vote только потому, что archive state ухудшился позднее.
+Community OS не должна silent-rewrite historical voting facts/results только потому, что archive state ухудшился позднее.
 
 ## 16. Physical original received after preliminary scan
 
-Возможен remote paper flow:
+Для **open remote paper Vote** возможен flow:
 
 ~~~text
-participant signs paper
-→ sends photo for preliminary receipt
+participant signs ballot
+→ sends photo/scan for preliminary receipt
 → original arrives later by mail/person
 ~~~
 
-Нужно различать:
+Для anonymous offline procedure аналогичная доставка конкретного ballot с identifiable sender может противоречить требуемой анонимности и не моделируется Community OS как default flow.
+
+Для open remote paper case нужно различать:
 
 - preliminary copy/evidence;
 - required original;
@@ -566,7 +576,8 @@ Working model:
 Voting
 + Voting Rule
 + Voting Rights
-+ Vote
++ individual Vote where applicable
++ recognized offline tally/input where applicable
 + Documents/Representations/Signings
 + provenance
 + channel-specific recognition semantics
@@ -621,5 +632,6 @@ Before implementation, Stage 11B still needs:
 2. exact rule for paper/electronic conflict/change;
 3. ballot document semantics;
 4. retention period/legal destruction rule;
-5. anonymous-voting decision;
-6. remote paper original receipt rules, if supported.
+5. native online Anonymous Voting identity-separation design;
+6. exact semantics/identity of recognized anonymous offline tally as Calculation input;
+7. remote open-paper original receipt rules, if supported.

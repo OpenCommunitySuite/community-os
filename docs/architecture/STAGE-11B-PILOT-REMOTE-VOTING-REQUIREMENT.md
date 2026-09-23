@@ -228,7 +228,25 @@ offline counting by commission
 
 Для **native online Anonymous Voting** техническая невозможность восстановления `Subject/Voting Right → Position` является уже ответственностью Community OS и требует отдельного Stage 11B design.
 
-Подробная модель — в `STAGE-11B-MIXED-PAPER-ELECTRONIC-VOTING-STRESS-TEST.md`.
+Для Anonymous Voting принят отдельный исторически значимый факт **«Реализация права голоса / Voting Right Exercise»**:
+
+```text
+Voting Right
+→ Voting Right Exercise
+
+Voting Right Exercise
+≠ Vote
+≠ Position
+```
+
+Он фиксирует, что конкретное Voting Right было использовано допустимым реализатором, не сохраняя выбор. Это позволяет доказывать участие, учитывать представительство и обнаруживать попытку двойной реализации права между online/offline каналами без раскрытия Position.
+
+Для Open Voting отдельная запись Voting Right Exercise не является обязательным дублированием каждого Vote: recognized Vote уже может подтверждать реализацию права.
+
+Подробные stress-tests:
+
+- `STAGE-11B-MIXED-PAPER-ELECTRONIC-VOTING-STRESS-TEST.md`;
+- `STAGE-11B-ANONYMOUS-VOTING-RIGHT-EXERCISE-STRESS-TEST.md`.
 
 ### 5.6. Informal Survey рядом с Voting
 

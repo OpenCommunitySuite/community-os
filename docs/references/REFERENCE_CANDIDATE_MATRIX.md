@@ -432,16 +432,17 @@ Stage 11B должен отдельно решить, требует ли так
 
 Дополнительно принято требование **mixed voting**:
 
-- Voting имеет два основных режима прозрачности выбора: **Open** и **Secret**; «анонимное» может использоваться как UI-пояснение, но предметно Secret Voting может сохранять идентифицируемый факт участия без связи Subject↔Position;
+- formal Voting имеет два основных режима прозрачности выбора: **Open Voting** и **Anonymous Voting**; в Anonymous Voting анонимным является choice/Position, а факт участия/Voting Right realization может оставаться идентифицируемым;
 - одна Voting может одновременно принимать online и offline вклад без создания нескольких Voting identities;
 - offline сведения могут вноситься уполномоченным администратором/членом комиссии; data-entry operator ≠ voter/right implementer;
-- Community OS не владеет физической процедурой offline secret voting: форма бумажных бюллетеней, урны, физическая выдача/сбор, работа комиссии, физический подсчёт и процедура подписания бумажного протокола остаются внешней организационной процедурой;
+- Community OS не владеет физической процедурой anonymous offline voting: форма бумажных бюллетеней, урны, физическая выдача/сбор, работа комиссии, физический подсчёт и процедура подписания бумажного протокола остаются внешней организационной процедурой;
 - Community OS принимает полный offline contribution, достаточный для общего Calculation/Established Result;
 - для **open offline** допускаются individual Vote facts с фото/сканом подписанного бумажного ballot;
-- для **secret offline** Community OS не создаёт Subject-linked individual Votes по бумажным анонимным бюллетеням, а принимает aggregate/offline tally по вопросам/вариантам плюс participation/issuance evidence;
-- подтверждением участия secret offline может быть digital copy заверенного списка/реестра выдачи бюллетеней; подтверждением итоговых чисел — digital copy подписанного протокола/итогового документа комиссии;
+- для **anonymous offline** Community OS не создаёт Subject-linked individual Votes по анонимным бумажным бюллетеням, а принимает aggregate/offline tally по вопросам/вариантам плюс participation/issuance evidence;
+- подтверждением anonymous offline participation может быть digital copy заверенного списка/реестра выдачи бюллетеней либо другого документа с подписью/подтверждением вручения бюллетеня; подтверждением итоговых чисел — digital copy подписанного протокола/итогового документа комиссии;
 - relevant physical originals хранятся вне Community OS согласно applicable retention/legal profile; digital copies не заменяют physical originals автоматически;
-- native online Secret Voting остаётся отдельной Stage 11B design task и должен технически исключать сохраняемую связь Subject/Voting Right↔Position.
+- native online Anonymous Voting остаётся отдельной Stage 11B design task и должен технически исключать сохраняемую связь Subject/Voting Right↔Position;
+- **Informal Survey** остаётся отдельным менее формальным сценарием без обязательной электронной подписи по умолчанию. На продуктовом/UI-уровне он может предлагаться рядом с Open/Anonymous Voting, но принятая Stage 10 граница сохраняется: `Survey ≠ Voting`, `Survey Response ≠ Vote`.
 
 Stress-test: `STAGE-11B-MIXED-PAPER-ELECTRONIC-VOTING-STRESS-TEST.md`.
 

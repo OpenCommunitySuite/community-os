@@ -430,9 +430,18 @@ Stage 11B должен отдельно решить, требует ли так
 
 **Обязательное продуктовое требование Stage 11B для первого пилота СТ:** Community OS должна поддерживать дистанционное участие и юридически пригодное signed electronic expression/Vote для отсутствующих владельцев/допустимых реализаторов права, включая находящихся за границей.
 
-Дополнительно принято требование **mixed voting**: одна Voting может принимать позиции через несколько допустимых каналов, включая электронно подписанное волеизъявление и бумажный бюллетень с собственноручной подписью. Канал не создаёт отдельную identity Vote. Бумажный бюллетень остаётся source Document/evidence; scan/photo не превращает его в electronic signature и не создаёт новый Vote. Для accepted paper-origin Vote pilot baseline требует сохранения physical original до explicit разрешённого disposal по applicable retention policy. Data-entry operator ≠ voter. Paper+electronic submissions одного Voting Right требуют explicit conflict/change semantics.
+Дополнительно принято требование **mixed voting**:
 
-Для **secret voting** уточнён отдельный принцип доказуемости: подпись голосующего на самом ballot не является обязательным или желательным default evidence, поскольку связывает Subject с choice и разрушает secrecy. Надёжная модель разделяет `eligibility/Voting Right`, `ballot issuance`, `ballot authenticity` и `anonymous ballot content`. Для бумажного тайного голосования подпись участника может фиксироваться в отдельном register/receipt получения бюллетеня, а подлинность ballot подтверждаться approved form/commission marks/controlled issuance/custody/count reconciliation. Для remote paper secret voting требуется separated-identity process; простой photo upload от известного Subject не сохраняет тайну. Для electronic secret voting прямой КЕП/Дія.Підпис на choice payload также не подходит как secrecy-preserving model.
+- Voting имеет два основных режима прозрачности выбора: **Open** и **Secret**; «анонимное» может использоваться как UI-пояснение, но предметно Secret Voting может сохранять идентифицируемый факт участия без связи Subject↔Position;
+- одна Voting может одновременно принимать online и offline вклад без создания нескольких Voting identities;
+- offline сведения могут вноситься уполномоченным администратором/членом комиссии; data-entry operator ≠ voter/right implementer;
+- Community OS не владеет физической процедурой offline secret voting: форма бумажных бюллетеней, урны, физическая выдача/сбор, работа комиссии, физический подсчёт и процедура подписания бумажного протокола остаются внешней организационной процедурой;
+- Community OS принимает полный offline contribution, достаточный для общего Calculation/Established Result;
+- для **open offline** допускаются individual Vote facts с фото/сканом подписанного бумажного ballot;
+- для **secret offline** Community OS не создаёт Subject-linked individual Votes по бумажным анонимным бюллетеням, а принимает aggregate/offline tally по вопросам/вариантам плюс participation/issuance evidence;
+- подтверждением участия secret offline может быть digital copy заверенного списка/реестра выдачи бюллетеней; подтверждением итоговых чисел — digital copy подписанного протокола/итогового документа комиссии;
+- relevant physical originals хранятся вне Community OS согласно applicable retention/legal profile; digital copies не заменяют physical originals автоматически;
+- native online Secret Voting остаётся отдельной Stage 11B design task и должен технически исключать сохраняемую связь Subject/Voting Right↔Position.
 
 Stress-test: `STAGE-11B-MIXED-PAPER-ELECTRONIC-VOTING-STRESS-TEST.md`.
 

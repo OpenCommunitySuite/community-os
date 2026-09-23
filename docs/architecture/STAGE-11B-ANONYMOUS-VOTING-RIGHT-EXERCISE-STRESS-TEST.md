@@ -1,6 +1,6 @@
 # Stage 11B — Stress-test: анонимность выбора и факт реализации права голоса
 
-**Статус:** Working analysis / proposal for Stage 11B  
+**Статус:** Accepted Stage 11B concept / normative sync deferred to BP  
 **Контекст:** Управление и коллективные процедуры  
 **Связанные решения:** ADR-001, ADR-004, ADR-005, ADR-008, ADR-010, ADR-011  
 **Связанные материалы:** `STAGE-11B-MIXED-PAPER-ELECTRONIC-VOTING-STRESS-TEST.md`
@@ -399,7 +399,7 @@ entitlement
 
 ## 18. Fundamental entity check
 
-Для Anonymous Voting самостоятельная identity факта реализации права **обоснована**.
+Для Anonymous Voting самостоятельная identity факта реализации права **обоснована и принята для Stage 11B**.
 
 Причины:
 
@@ -412,15 +412,15 @@ entitlement
 7. может быть входом quorum/participation calculation according to rule;
 8. не может быть корректно выражен существующим Vote без разрушения anonymous boundary.
 
-Поэтому рабочий вывод:
+Принятое решение:
 
-> `Voting Right Exercise` следует рассматривать как новый identity-bearing Governance concept Stage 11B.
+> `Voting Right Exercise / Реализация права голоса` является новым identity-bearing Governance concept Stage 11B.
 
 Это **не новый bounded context**.
 
 ## 19. Нормативные последствия
 
-Если вывод будет принят, Stage 11B BP должен предложить минимальную sync:
+После принятия решения Stage 11B BP должен предложить минимальную sync:
 
 ### ADR-001
 
@@ -528,8 +528,15 @@ Vote / anonymous counting contribution
 
 Для anonymous offline channel choice-level source остаётся внешним, а Community OS принимает самостоятельный `Result of Offline Count`.
 
-## 22. Вопрос для принятия
+## 22. Решение владельца проекта
 
-Принять ли `Voting Right Exercise / Реализация права голоса` как самостоятельный identity-bearing Governance concept Stage 11B?
+`Voting Right Exercise / Реализация права голоса` **принята** как самостоятельный identity-bearing Governance concept Stage 11B.
 
-Если да, после принятия можно переходить к Draft `BP-GOV-001 — Mixed Open/Anonymous Voting` и нормативной sync proposal.
+Следующий шаг:
+
+~~~text
+Draft BP-GOV-001 — Mixed Open/Anonymous Voting
+→ проверить полный процесс
+→ предложить минимальную normative sync ADR-001 / ADR-008 / DOMAIN_MODEL / TERMINOLOGY
+→ independent review if BP introduces additional identity/ownership changes
+~~~

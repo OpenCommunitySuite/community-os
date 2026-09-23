@@ -387,19 +387,83 @@ Proposed normative sync в PR #71 минимально обновляет ADR-00
 
 ### Этап 11. Электронное подписание и удалённое участие
 
-Сначала исследуется электронное подписание, при этом базовая предметная семантика ADR-009 не пересматривается без необходимости:
+**Состояние:** Stage 11A Round 1 consolidated; point fixes applied; proposed normative synchronization выполнена в Draft PR #73. Решение владельца проекта о принятии/merge Stage 11A ещё не зафиксировано.
 
-- что именно подписывается;
-- какой Revision/Representation;
-- кто подписант;
-- от своего или чужого имени;
-- основание полномочия;
-- какой внешний результат является доказательством;
-- как выполняются validation и recognition внешней подписи;
-- что хранится для последующей проверяемости;
-- актуальные правовые требования.
+Подэтап 11A — электронное подписание документа — исследуется без преждевременного обобщения ADR-009 за пределы Document context.
 
-После этого отдельно описывается электронное/удалённое участие в управленческой процедуре и голосовании.
+Current-law/reference анализ Украины зафиксирован в `UKRAINE_ELECTRONIC_SIGNING_LEGAL_ANALYSIS.md`.
+
+Independent multi-review Claude/Gemini/DeepSeek подтвердил:
+
+- existing ADR-009 `Signing` достаточен для **document-signing scope**;
+- отдельные fundamental `Electronic Signing`, `Signing Evidence`, `Signature Validation` не требуются;
+- conceptual redesign Stage 11A не нужен;
+- semantic target и exact cryptographic target должны быть различены;
+- technical file/artifact не становится Document Representation автоматически;
+- signer/certificate/provider identity, Subject, User Account, Domain Power и Representation различаются;
+- cryptographic validity ≠ domain admissibility;
+- applicable signing rule/policy version и material validation/trust context должны быть historically determinable;
+- revalidation ≠ new Signing и не переписывает initial validation context;
+- external provider/session state может существовать для integration/runtime correlation/reconciliation, но не является Signing;
+- correction ошибочно recognized Signing требует explicit historical correction semantics без universal state machine/entity;
+- signing completeness может быть derived Read Model / Projection;
+- ADR rewrite не требуется.
+
+Один Claude finding был severity BLOCKER из-за внутреннего противоречия Draft: ADR-009 Signing является document-scoped, а Draft называл модель универсально reusable для documentless Vote. Contradiction устранён point fix:
+
+```text
+Stage 11A Signing
+→ only Document Revision / Representation
+
+documentless signed Governance action
+→ open Stage 11B design question
+```
+
+Stage 11B должен отдельно решить, требует ли такой action normative generalization Signing target либо Governance-owned action/evidence concept. Fake Document для переиспользования Signing запрещён.
+
+В Draft branch выполнена минимальная normative sync:
+
+- DOMAIN_MODEL — electronic Signing semantics, exact cryptographic target/evidence/provenance/revalidation, multiple Signings и signing-completeness Projection;
+- TERMINOLOGY — расширен термин `Подписание документа`;
+- DOMAIN_MODEL / TERMINOLOGY — уточнено Membership: несколько historical application/admission/basis records одного Subject не создают автоматически несколько simultaneous Memberships или Voting Rights;
+- новые fundamental Membership Admission / Membership Slot / Membership Unit не вводятся.
+
+**Обязательное продуктовое требование Stage 11B для первого пилота СТ:** Community OS должна поддерживать дистанционное участие и юридически пригодное signed electronic expression/Vote для отсутствующих владельцев/допустимых реализаторов права, включая находящихся за границей.
+
+Дополнительно принято требование **mixed voting**:
+
+- formal Voting имеет два основных режима прозрачности выбора: **Open Voting** и **Anonymous Voting**; в Anonymous Voting анонимным является choice/Position, а факт участия/Voting Right realization может оставаться идентифицируемым;
+- одна Voting может одновременно принимать online и offline вклад без создания нескольких Voting identities;
+- offline сведения могут вноситься уполномоченным администратором/членом комиссии; data-entry operator ≠ voter/right implementer;
+- Community OS не владеет физической процедурой anonymous offline voting: форма бумажных бюллетеней, урны, физическая выдача/сбор, работа комиссии, физический подсчёт и процедура подписания бумажного протокола остаются внешней организационной процедурой;
+- Community OS принимает полный offline contribution, достаточный для общего Calculation/Established Result;
+- для **open offline** допускаются individual Vote facts с фото/сканом подписанного бумажного ballot;
+- для **anonymous offline** Community OS не создаёт Subject-linked individual Votes по анонимным бумажным бюллетеням; вместо этого фиксируется один или несколько самостоятельных identity-bearing **результатов подсчёта офлайн-части**, которые затем используются в общем Calculation;
+- такой результат существует независимо от Calculation, имеет собственный source/provenance и correction/replacement history; protocol Document ≠ result of offline count ≠ Calculation ≠ Established Result;
+- подтверждением anonymous offline participation может быть digital copy заверенного списка/реестра выдачи бюллетеней либо другого документа с подписью/подтверждением вручения бюллетеня; подтверждением каждого результата подсчёта — digital copy подписанного протокола/итогового документа комиссии;
+- relevant physical originals хранятся вне Community OS согласно applicable retention/legal profile; digital copies не заменяют physical originals автоматически;
+- native online Anonymous Voting остаётся отдельной Stage 11B design task и должен технически исключать сохраняемую связь Subject/Voting Right↔Position;
+- принят новый identity-bearing Governance concept **«Реализация права голоса / Voting Right Exercise»**: он фиксирует факт использования конкретного Voting Right без хранения Position; нужен для evidence участия, representation/admissibility history и обнаружения двойной реализации права между online/offline каналами;
+- для Open Voting отдельный Voting Right Exercise не обязателен как дублирующая запись каждого Vote: recognized Vote уже может подтверждать реализацию права;
+- **Informal Survey** остаётся отдельным менее формальным сценарием без обязательной электронной подписи по умолчанию. На продуктовом/UI-уровне он может предлагаться рядом с Open/Anonymous Voting, но принятая Stage 10 граница сохраняется: `Survey ≠ Voting`, `Survey Response ≠ Vote`.
+
+Stress-tests:
+
+- `STAGE-11B-MIXED-PAPER-ELECTRONIC-VOTING-STRESS-TEST.md`;
+- `STAGE-11B-ANONYMOUS-VOTING-RIGHT-EXERCISE-STRESS-TEST.md`.
+
+После анализа устава СТ «ЕКСПРЕС» и уточнения фактической практики сохраняется pilot finding:
+
+- сообщённая практика трактует отдельное заявление по каждому участку как «множественное членство» и фактически использует `1 участок = 1 голос`;
+- Community OS не создаёт copies of Subject/User Account и не считает несколько заявлений автоматическим доказательством нескольких legally independent Membership;
+- ADR-001 уже допускает `one Subject → multiple Voting Rights`;
+- фактический pilot rule следует выражать через applicable versioned Voting Rule и qualifying Membership/Plot bases;
+- legal validity `1 участок = 1 голос` vs `1 член = 1 голос` остаётся focused legal-profile question;
+- Voting Rule/legal profile определяет member-based/object-based/mixed semantics; архитектура не скрывает legal conflict.
+
+**Следующий шаг:** final consistency/readiness check Stage 11A и решение владельца проекта о принятии/merge PR #73. Full Round 2 не требуется, если не появляется generalized non-document Signing, новая fundamental evidence/validation/correction entity, новая Membership identity semantics или изменение Governance ownership.
+
+После принятия Stage 11A начинается Stage 11B — отдельный BP remote participation / electronic voting с profile-driven quorum/presence, Voting Rule, signed ballot/document semantics и обязательным разрешением documentless signed-action boundary.
 
 ### Этап 12. Интеграция с BAS/BAF
 

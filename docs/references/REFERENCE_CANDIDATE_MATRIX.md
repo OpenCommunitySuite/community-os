@@ -443,9 +443,14 @@ Stage 11B должен отдельно решить, требует ли так
 - подтверждением anonymous offline participation может быть digital copy заверенного списка/реестра выдачи бюллетеней либо другого документа с подписью/подтверждением вручения бюллетеня; подтверждением каждого результата подсчёта — digital copy подписанного протокола/итогового документа комиссии;
 - relevant physical originals хранятся вне Community OS согласно applicable retention/legal profile; digital copies не заменяют physical originals автоматически;
 - native online Anonymous Voting остаётся отдельной Stage 11B design task и должен технически исключать сохраняемую связь Subject/Voting Right↔Position;
+- принят новый identity-bearing Governance concept **«Реализация права голоса / Voting Right Exercise»**: он фиксирует факт использования конкретного Voting Right без хранения Position; нужен для evidence участия, representation/admissibility history и обнаружения двойной реализации права между online/offline каналами;
+- для Open Voting отдельный Voting Right Exercise не обязателен как дублирующая запись каждого Vote: recognized Vote уже может подтверждать реализацию права;
 - **Informal Survey** остаётся отдельным менее формальным сценарием без обязательной электронной подписи по умолчанию. На продуктовом/UI-уровне он может предлагаться рядом с Open/Anonymous Voting, но принятая Stage 10 граница сохраняется: `Survey ≠ Voting`, `Survey Response ≠ Vote`.
 
-Stress-test: `STAGE-11B-MIXED-PAPER-ELECTRONIC-VOTING-STRESS-TEST.md`.
+Stress-tests:
+
+- `STAGE-11B-MIXED-PAPER-ELECTRONIC-VOTING-STRESS-TEST.md`;
+- `STAGE-11B-ANONYMOUS-VOTING-RIGHT-EXERCISE-STRESS-TEST.md`.
 
 После анализа устава СТ «ЕКСПРЕС» и уточнения фактической практики сохраняется pilot finding:
 

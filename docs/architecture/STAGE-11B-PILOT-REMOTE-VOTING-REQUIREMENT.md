@@ -98,6 +98,8 @@ one Voting
 
 Канал/форма подачи не создаёт отдельную identity Vote автоматически.
 
+Для mixed Voting полный результат должен формироваться из всех признанных online/offline вкладов. При open offline channel это могут быть individual Votes; при secret offline channel — aggregate/offline tally без восстановления Subject-linked ballot choices.
+
 ### 5.1. Paper-origin Vote
 
 Для участника, который не использует электронную подпись, procedure profile может разрешить бумажный бюллетень с собственноручной подписью.
@@ -198,26 +200,22 @@ two independent Votes automatically
 
 ### 5.5. Open vs secret voting
 
-Signed identifiable ballot подходит не для каждой формы голосования.
+Для Stage 11B фиксируются два основных режима прозрачности выбора:
 
-Для **открытого** голосования ballot может связывать Subject/Voting Right, позицию и собственноручную/электронную подпись.
+- **Open Voting** — Community OS может хранить связь `Subject/Voting Right ↔ Position`;
+- **Secret Voting** — Community OS может хранить факт участия/реализации права, но не должна связывать конкретного Subject с его выбором там, где choice обрабатывается самой системой.
 
-Для **тайного** голосования подпись голосующего на самом ballot не является default requirement: такая подпись связывает identity с ballot position и уничтожает secrecy.
+Термин `Secret Voting` используется как основной предметный термин. «Анонимное» может использоваться как пользовательское пояснение, но не означает, что participation itself неизвестно системе.
 
-Правильная граница:
+Для **open offline Voting** допускается individual data entry с приложением scan/photo подписанного бумажного ballot.
 
-```text
-proof of eligibility / Voting Right
-≠ proof of ballot issuance
-≠ proof of ballot authenticity
-≠ secret ballot content
-```
+Для **secret offline Voting** Community OS не владеет физической процедурой обеспечения тайны и не определяет форму бюллетеня, урны, работу комиссии или физический подсчёт. Система принимает:
 
-Для paper secret voting Stage 11B должен поддерживать модель, где голосующий подтверждает получение/реализацию права в отдельном register/receipt, а сам ballot остаётся anonymous, но authenticated через approved form/commission marks/controlled issuance.
+- participation/issuance evidence без раскрытия выбора, например заверенный список/реестр выдачи бюллетеней;
+- aggregate offline tally по Question/Option;
+- при наличии — digital copy подписанного протокола/итогового документа комиссии как evidence чисел.
 
-Для remote paper secret voting требуется separated-identity process (например outer identified package + inner anonymous ballot), а простой upload photo от известного Subject не считается secrecy-preserving.
-
-Для electronic secret voting direct КЕП/Дія.Підпис на сохраняемом ballot payload с choice также несовместим с настоящей тайной; eligibility/authentication и anonymous ballot submission должны проектироваться раздельно.
+Для **native online Secret Voting** техническая невозможность восстановления `Subject/Voting Right → Position` является уже ответственностью Community OS и требует отдельного Stage 11B design.
 
 Подробная модель — в `STAGE-11B-MIXED-PAPER-ELECTRONIC-VOTING-STRESS-TEST.md`.
 

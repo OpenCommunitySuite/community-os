@@ -212,8 +212,19 @@ two independent Votes automatically
 Для **anonymous offline Voting** Community OS не владеет физической процедурой обеспечения анонимности и не определяет форму бюллетеня, урны, работу комиссии или физический подсчёт. Система принимает:
 
 - participation/issuance evidence без раскрытия выбора, например заверенный список/реестр выдачи бюллетеней либо другой документ с подтверждением вручения бюллетеня;
-- полный aggregate offline tally по Question/Option;
-- при наличии — digital copy подписанного протокола/итогового документа комиссии как evidence чисел.
+- один или несколько самостоятельных **результатов подсчёта офлайн-части** со stable identity и историей;
+- при наличии — digital copy подписанного протокола/итогового документа комиссии как evidence каждого такого результата.
+
+**Результат подсчёта офлайн-части** является отдельным исторически значимым Governance fact, а не просто набором чисел внутри общего Calculation.
+
+```text
+offline counting by commission
+→ Result of Offline Count
+→ Calculation
+→ Established Result
+```
+
+Он должен сохранять собственный source/provenance и correction/replacement history. Протокол комиссии является подтверждающим Document и не тождествен самому результату подсчёта.
 
 Для **native online Anonymous Voting** техническая невозможность восстановления `Subject/Voting Right → Position` является уже ответственностью Community OS и требует отдельного Stage 11B design.
 

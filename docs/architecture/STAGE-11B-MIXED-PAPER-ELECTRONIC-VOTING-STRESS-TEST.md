@@ -55,9 +55,9 @@
 ~~~text
 one Voting
 → common Voting Rule / rights snapshot / questions
-→ electronic signed channel
-→ paper signed channel
-→ one set of recognized Votes
+→ online channels
+→ offline channels
+→ recognized individual Votes and/or recognized offline tally inputs
 → one Calculation
 → one Established Result
 ~~~
@@ -73,11 +73,11 @@ Vote identity
 ≠ data-entry operation
 ~~~
 
-Один Vote остаётся фактом выражения позиции по конкретному Voting Right независимо от того, подтверждён ли он:
+Там, где процедура представляет individual Vote как предметный факт, он остаётся фактом выражения позиции по конкретному Voting Right независимо от допустимого канала/formalization.
 
-- электронно подписанным Document/Representation;
-- бумажным бюллетенем с собственноручной подписью;
-- иным допустимым evidence/formalization способом, предусмотренным profile.
+Для open Voting это обычно позволяет хранить individual Votes из online и offline channels.
+
+Для secret offline Voting Community OS может принимать aggregate/offline tally без создания individual Subject-linked Vote facts по каждому бумажному бюллетеню.
 
 Канал является provenance/formalization semantics, а не отдельным видом Vote автоматически.
 
@@ -111,7 +111,9 @@ Vote возникает/признаётся в Governance context соглас�
 
 ADR-009 Signing не ограничено electronic signature.
 
-Собственноручное подписание бумажного Representation может быть исторически значимым Signing конкретного Document/Representation.
+Для **open paper Voting** собственноручное подписание бумажного Representation может быть исторически значимым Signing конкретного Document/Representation.
+
+Для **secret paper Voting** собственноручная подпись участника может относиться к отдельному participation/issuance register или иному подтверждающему документу, а не к ballot content.
 
 Для paper Signing применимы те же фундаментальные границы:
 
@@ -133,13 +135,15 @@ Stage 11B не должен искусственно превращать handwr
 
 ## 5. Scan/photo
 
-Scan/photo бумажного бюллетеня может использоваться как digital Representation/evidence для:
+Для **open offline Vote** scan/photo бумажного бюллетеня может использоваться как digital Representation/evidence для:
 
 - data entry;
 - remote checking;
 - audit;
 - dispute review;
 - linking to recognized Vote.
+
+Для **secret offline Voting** Community OS обычно хранит scan/photo participation/issuance evidence и counting protocol/result document, а не персонально идентифицируемую копию ballot content.
 
 Но:
 
@@ -152,40 +156,40 @@ scan/photo
 
 Если paper original уже породил recognized Vote, загрузка нескольких фотографий/сканов не создаёт несколько Votes.
 
-## 6. Physical original
+## 6. Physical originals
 
-Для accepted paper-origin Vote physical original сохраняется как первичный материальный evidence, если applicable procedure/profile не устанавливает иное.
+Community OS не заменяет физические оригиналы бумажных evidence автоматически.
+
+Для open offline Voting это прежде всего signed ballots. Для secret offline Voting это могут быть ballot sets, issuance/participation registers, counting protocol и иные документы внешней процедуры.
 
 Рабочий pilot baseline:
 
 ~~~text
-accepted paper-origin Vote
-→ physical original must be retained
-→ scan/photo may supplement it
-→ destruction only after explicit retention rule permits
-   + authorized disposal action is recorded
+paper voting evidence used to support recognized result
+→ relevant physical originals retained externally
+→ digital copies may supplement them
+→ destruction only when applicable retention/legal profile permits
+   + authorized disposal is recorded where required
 ~~~
 
-Это правило вводится как product/process safeguard для доказуемости смешанного голосования.
+Community OS хранит digital copies/provenance и, при необходимости, сведения о physical custody/location, но не управляет физическим архивом как обязательной собственной подсистемой.
 
 Настоящий stress-test не устанавливает универсальный statutory retention period для всех Community types.
 
 ## 7. Custody and archive provenance
 
-Для paper-origin evidence должно быть исторически определимо, где применимо:
+Для значимого paper-origin evidence Community OS должна позволять зафиксировать/сослаться, где применимо, на:
 
-- original received/not received;
-- received time;
-- receiving Subject/commission member;
-- current custodian;
-- physical archive location/reference;
-- movement/transfer between custodians;
-- scan/photo Representation;
-- relation to Voting/Voting Right/Vote;
-- retention rule;
-- destruction authorization, date and actor if destruction is later lawful.
+- вид source evidence;
+- received/provided time;
+- digital copy/scan/photo;
+- источник/ответственного за предоставление;
+- physical custodian/location reference, если это ведётся в Community OS;
+- relation to Voting / Vote / offline tally / participation evidence;
+- applicable retention rule/reference;
+- факт/основание последующего disposal, если он отражается системой.
 
-Это не доказывает необходимость universal `Physical Archive Item` entity.
+Это не означает, что Community OS обязана моделировать полный физический archive workflow и не доказывает необходимость universal `Physical Archive Item` entity.
 
 Если document/archive use cases позднее покажут independent identity/lifecycle физического носителя, вопрос отдельной entity должен быть исследован отдельно.
 

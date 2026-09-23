@@ -9,17 +9,17 @@
 
 Для дальнейшего Stage 11B зафиксированы следующие требования.
 
-1. На предметном уровне Voting поддерживает два основных режима прозрачности выбора:
+1. На предметном уровне формальное Voting поддерживает два основных режима прозрачности выбора:
    - **открытое голосование (Open Voting)** — связь `Subject/Voting Right ↔ Position` допустима и исторически объяснима;
-   - **тайное голосование (Secret Voting)** — Community OS может знать факт участия/реализации Voting Right, но не должна связывать конкретного участника с содержанием его выбора там, где выбор обрабатывается самой системой.
+   - **анонимное голосование (Anonymous Voting)** — Community OS может знать факт участия/реализации Voting Right, но не должна связывать конкретного участника с содержанием его выбора там, где выбор обрабатывается самой системой.
 
-   Термин **«тайное»** используется как основной предметный термин. Слово «анонимное» может применяться в UI как пояснение, но не означает, что Community OS не знает участника вообще: для проверки права голоса факт участия может оставаться идентифицируемым.
+   В этой модели «анонимность» относится прежде всего к **Position/choice**, а не обязательно к самому факту участия. Legal profile может использовать юридический термин «тайное голосование» для процедуры, которая маппится на этот режим.
 
 2. **Mixed voting обязательно поддерживается:** одна Voting может одновременно иметь online и offline каналы без создания нескольких Voting identities.
 
 3. **Offline сведения могут вноситься уполномоченными администраторами/членами комиссии.** Data-entry operator не становится voter/right implementer.
 
-4. Community OS **не определяет и не исполняет физическую процедуру обеспечения тайны офлайн-голосования**. За пределами её предметной ответственности остаются, в частности:
+4. Community OS **не определяет и не исполняет физическую процедуру обеспечения анонимности offline-части голосования**. За пределами её предметной ответственности остаются, в частности:
    - форма и физическое изготовление бумажных бюллетеней;
    - опечатывание урн;
    - физическая выдача/сбор бюллетеней;
@@ -33,16 +33,18 @@
 
    Для open offline channel это может быть набор individual Vote facts, введённых оператором.
 
-   Для secret offline channel Community OS **не должна искусственно создавать Subject-linked individual Votes по каждому бумажному бюллетеню**. Вместо этого она принимает recognized aggregate/offline tally по вопросам/вариантам и иные необходимые счётные показатели как вход Calculation согласно ADR-008.
+   Для anonymous offline channel Community OS **не должна искусственно создавать Subject-linked individual Votes по каждому бумажному бюллетеню**. Вместо этого она принимает полный recognized aggregate/offline tally по вопросам/вариантам и иные необходимые счётные показатели как вход Calculation согласно ADR-008.
 
 6. Evidence для offline части различается по режиму:
    - **open offline Vote** — к individual Vote можно приложить фото/скан бумажного бюллетеня с выбором и собственноручной подписью;
-   - **secret offline participation** — можно приложить фото/скан заверенного списка/реестра выдачи бюллетеней либо другого документа, подтверждающего участие/реализацию права без раскрытия выбора;
-   - **secret offline tally** — для подтверждения внесённых итоговых чисел может быть приложен фото/скан подписанного протокола/итогового документа счётной комиссии.
+   - **anonymous offline participation** — можно приложить фото/скан заверенного списка/реестра выдачи бюллетеней либо иного документа с подписью/подтверждением вручения бюллетеня, доказывающего участие владельца или допустимого представителя без раскрытия выбора;
+   - **anonymous offline tally** — для подтверждения внесённых итоговых чисел может быть приложен фото/скан подписанного протокола/итогового документа счётной комиссии.
 
 7. Физические оригиналы бумажных подтверждающих документов сохраняются вне Community OS согласно applicable retention/legal profile. Community OS хранит digital copies и provenance/links, но digital copy не заменяет physical original автоматически.
 
-8. Native online Secret Voting, если будет реализован Community OS, является отдельной Stage 11B design task: техническая реализация не должна сохранять восстанавливаемую связь `Subject ↔ choice`. Это отличается от внешней физической процедуры офлайн-тайного голосования, которая остаётся вне компетенции Community OS.
+8. Native online Anonymous Voting, если будет реализован Community OS, является отдельной Stage 11B design task: техническая реализация не должна сохранять восстанавливаемую связь `Subject ↔ choice`. Это отличается от внешней физической процедуры обеспечения анонимности offline-части, которая остаётся вне компетенции Community OS.
+
+9. **Неформальный опрос (Survey)** должен быть доступен пользователю как менее формальный способ собрать мнения без обязательной электронной подписи. Однако в предметной модели он **не становится третьим типом Voting**, поскольку Stage 10 уже зафиксировал `Survey ≠ Voting` и `Survey Response ≠ Vote`. На продуктовом/UI-уровне допустимо предлагать рядом три сценария: `Open Voting`, `Anonymous Voting`, `Informal Survey`. Survey использует собственную Communications semantics и не входит автоматически в формальный Calculation/Established Result.
 
 ## 1. Бизнес-потребность
 
@@ -77,7 +79,7 @@ Vote identity
 
 Для open Voting это обычно позволяет хранить individual Votes из online и offline channels.
 
-Для secret offline Voting Community OS может принимать aggregate/offline tally без создания individual Subject-linked Vote facts по каждому бумажному бюллетеню.
+Для anonymous offline Voting Community OS может принимать aggregate/offline tally без создания individual Subject-linked Vote facts по каждому бумажному бюллетеню.
 
 Канал является provenance/formalization semantics, а не отдельным видом Vote автоматически.
 
@@ -113,7 +115,7 @@ ADR-009 Signing не ограничено electronic signature.
 
 Для **open paper Voting** собственноручное подписание бумажного Representation может быть исторически значимым Signing конкретного Document/Representation.
 
-Для **secret paper Voting** собственноручная подпись участника может относиться к отдельному participation/issuance register или иному подтверждающему документу, а не к ballot content.
+Для **anonymous paper Voting** собственноручная подпись участника может относиться к отдельному participation/issuance register или иному подтверждающему документу, а не к ballot content.
 
 Для paper Signing применимы те же фундаментальные границы:
 
@@ -143,7 +145,7 @@ Stage 11B не должен искусственно превращать handwr
 - dispute review;
 - linking to recognized Vote.
 
-Для **secret offline Voting** Community OS обычно хранит scan/photo participation/issuance evidence и counting protocol/result document, а не персонально идентифицируемую копию ballot content.
+Для **anonymous offline Voting** Community OS обычно хранит scan/photo participation/issuance evidence и counting protocol/result document, а не персонально идентифицируемую копию ballot content.
 
 Но:
 
@@ -160,7 +162,7 @@ scan/photo
 
 Community OS не заменяет физические оригиналы бумажных evidence автоматически.
 
-Для open offline Voting это прежде всего signed ballots. Для secret offline Voting это могут быть ballot sets, issuance/participation registers, counting protocol и иные документы внешней процедуры.
+Для open offline Voting это прежде всего signed ballots. Для anonymous offline Voting это могут быть ballot sets, issuance/participation registers, counting protocol и иные документы внешней процедуры.
 
 Рабочий pilot baseline:
 
@@ -207,7 +209,7 @@ voter / right implementer
 
 Data entry является action of fixation/recognition of already expressed will, а не новым волеизъявлением оператора.
 
-Для historical explainability сохраняются:
+Для open offline Vote historical explainability может включать:
 
 - source paper ballot;
 - voter/right implementer;
@@ -216,6 +218,8 @@ Data entry является action of fixation/recognition of already expressed 
 - entry/recognition time;
 - applicable rule/version;
 - validation/admissibility result.
+
+Для anonymous offline contribution оператор фиксирует не choice конкретного Subject, а participation evidence и/или aggregate tally from commission source. В этом случае должны быть различимы recorder/operator, source document, entered aggregate values и момент их recognition.
 
 ## 9. Submission time vs entry time
 
@@ -360,7 +364,7 @@ Subject / Voting Right
 
 Mixed channel здесь концептуально прост: identities остаются различимыми, а source channel фиксируется provenance.
 
-## 18. Secret voting
+## 18. Anonymous voting
 
 Для Stage 11B фиксируется граница:
 
@@ -369,24 +373,24 @@ participation / Voting Right realization
 ≠ ballot choice
 ~~~
 
-Community OS может знать и подтверждать, что конкретный Subject/Voting Right участвовал в secret Voting, но для secret result не должна создавать сохраняемую связь с конкретной Position.
+Community OS может знать и подтверждать, что конкретный Subject/Voting Right участвовал в anonymous Voting, но для anonymous result не должна создавать сохраняемую связь с конкретной Position.
 
-### 18.1. Offline secret voting — external physical procedure
+### 18.1. Offline anonymous voting — external physical procedure
 
 Физическая процедура обеспечения тайны остаётся за пределами Community OS.
 
 Community OS **не управляет**:
 
 - формой/печатью бумажного ballot;
-- выдачей бюллетеня;
+- физической выдачей/вручением бюллетеня;
 - sealed ballot box;
 - физическим подсчётом;
 - работой комиссии;
-- подписанием бумажного протокола.
+- процедурой подписания бумажного протокола.
 
-Community OS принимает результат этой внешней процедуры.
+Community OS принимает полный результат этой внешней процедуры и допустимые подтверждающие документы.
 
-### 18.2. Offline secret participation evidence
+### 18.2. Offline anonymous participation evidence
 
 Для подтверждения участия без раскрытия выбора к Voting/participation records может быть приложен digital copy:
 
@@ -401,9 +405,9 @@ proves participation / issuance
 ≠ proves ballot choice
 ~~~
 
-### 18.3. Offline secret tally
+### 18.3. Offline anonymous tally
 
-Для secret paper channel Community OS не обязана создавать отдельный Vote по каждому анонимному бумажному бюллетеню.
+Для anonymous paper channel Community OS не обязана создавать отдельный Vote по каждому анонимному бумажному бюллетеню.
 
 Уполномоченный оператор может внести полный offline tally, например по каждому Question/Option:
 
@@ -419,9 +423,9 @@ proves participation / issuance
 
 Это не делает protocol Document самим Calculation или Established Result.
 
-### 18.4. Online secret voting
+### 18.4. Online anonymous voting
 
-Если Community OS сама обеспечивает online secret Voting, техническая анонимность выбора уже не является внешней физической процедурой и должна быть обеспечена самой системой.
+Если Community OS сама обеспечивает online anonymous Voting, техническая анонимность выбора уже не является внешней физической процедурой и должна быть обеспечена самой системой.
 
 Минимальный invariant:
 
@@ -430,7 +434,7 @@ Community OS may know:
 Subject / Voting Right participated
 
 Community OS must not retain:
-Subject / Voting Right → secret Position
+Subject / Voting Right → anonymous Position
 ~~~
 
 Конкретный credential/cryptographic protocol остаётся отдельной Stage 11B design task. Новый universal `Anonymous Vote Token` сейчас не вводится.
@@ -441,13 +445,13 @@ Mixed Voting должна сформировать **один полный Calcu
 
 Для open channels Calculation может использовать individual recognized Votes.
 
-Для secret offline channel Calculation может использовать recognized aggregate/offline tally как иной исторически объяснимый вход согласно ADR-008, без восстановления individual Subject-linked Votes.
+Для anonymous offline channel Calculation может использовать recognized aggregate/offline tally как иной исторически объяснимый вход согласно ADR-008, без восстановления individual Subject-linked Votes.
 
 ~~~text
 online open Votes ───────────────┐
 offline open Votes ──────────────┤
-online secret aggregate/input ───┤
-offline secret tally ────────────┼→ Calculation → Established Result
+online anonymous aggregate/input ───┤
+offline anonymous tally ────────────┼→ Calculation → Established Result
 other allowed inputs ────────────┘
 ~~~
 
@@ -467,7 +471,7 @@ Calculation не должен суммировать:
 - число provider callbacks;
 - число paper Documents.
 
-Для secret offline части система считает признанные итоговые значения комиссии, а не пытается восстановить связь anonymous ballot с Voting Right.
+Для anonymous offline части система считает признанные итоговые значения комиссии, а не пытается восстановить связь anonymous ballot с Voting Right.
 
 ## 20. Audit/challenge package
 
@@ -480,15 +484,15 @@ Calculation не должен суммировать:
 - offline open Votes and their ballot evidence;
 - source channel;
 - scan/photo open paper ballot;
-- signed/certified ballot-issuance/participation register for secret offline part;
-- counting-commission protocol or other source document for secret offline tally;
+- signed/certified ballot-issuance/participation register for anonymous offline part;
+- counting-commission protocol or other source document for anonymous offline tally;
 - recorder/data-entry operator actions;
 - rejection/correction history;
 - Calculation;
 - Established Result;
 - protocol/Document.
 
-Community OS хранит digital evidence/provenance, но не обязана владеть physical secret-voting procedure.
+Community OS хранит digital evidence/provenance, но не обязана владеть physical anonymous-voting procedure.
 
 Это не означает universal `Voting Evidence Package` entity.
 
@@ -505,6 +509,43 @@ Current official sources:
 - https://zakon.rada.gov.ua/go/z0736-15
 - https://zakon.rada.gov.ua/go/z0061-24
 
+## 21.1. Informal Survey as adjacent product mode
+
+Уточнено пользовательское требование: кроме формальных Open/Anonymous Voting нужен менее формальный **опрос**, который по умолчанию не требует КЕП/Дія.Підпис.
+
+Это требование уже поддерживается Stage 10:
+
+~~~text
+Informal Survey
+→ Survey Items
+→ Survey Responses
+→ derived aggregation
+~~~
+
+и сохраняет границу:
+
+~~~text
+Survey ≠ Voting
+Survey Response ≠ Vote
+survey aggregation ≠ Voting Calculation
+≠ Established Result
+~~~
+
+Поэтому формулировка «опрос как тип голосования» принимается **на продуктовом уровне выбора сценария**, но не буквально в domain model.
+
+Рекомендуемый пользовательский выбор:
+
+~~~text
+Создать:
+- открытое голосование
+- анонимное голосование
+- неформальный опрос
+~~~
+
+Survey policy может определять identified/anonymous response mode, multiplicity и admissibility без формирования Voting Rights/snapshot, если это не требуется его собственной семантикой.
+
+Отсутствие обязательной электронной подписи является нормальным default для Survey, но конкретный Survey policy может потребовать дополнительное подтверждение ответа. Это не превращает Survey Response в Vote.
+
 ## 22. Fundamental entity check
 
 Stress-test does **not** currently justify:
@@ -515,7 +556,7 @@ Stress-test does **not** currently justify:
 - `Vote Import` entity;
 - `Ballot Scan` entity;
 - `Mixed Voting` as a separate Voting subtype;
-- fundamental individual `Anonymous Offline Vote` records created from secret paper ballots.
+- fundamental individual `Anonymous Offline Vote` records created from anonymous paper ballots.
 
 Отдельный concept для historically recognized offline tally может потребовать проверки при Draft Stage 11B BP, но сейчас ADR-008 уже допускает «иные входы» Calculation, поэтому новая fundamental entity заранее не вводится.
 
@@ -533,7 +574,7 @@ Voting
 
 ## 23. Candidate invariants
 
-1. Voting has two principal choice-visibility modes: Open and Secret.
+1. Voting has two principal choice-visibility modes: Open and Anonymous.
 2. One Voting may accept several online/offline submission/formalization channels.
 3. Vote identity is not channel identity.
 4. Paper-origin open Vote is not converted into a new electronic Vote during data entry.
@@ -546,12 +587,12 @@ Voting
 11. Submission/receipt time ≠ data-entry time automatically.
 12. Paper + electronic submissions for one Voting Right require explicit conflict/change semantics where individual Vote identity exists.
 13. Open offline Votes may be entered individually with ballot evidence.
-14. Secret offline results may be entered as aggregate/offline tally without creating Subject-linked individual Votes.
-15. Secret participation evidence ≠ secret choice evidence.
+14. Anonymous offline results may be entered as aggregate/offline tally without creating Subject-linked individual Votes.
+15. Anonymous participation evidence ≠ anonymous choice evidence.
 16. Calculation may combine individual Votes and historically explainable aggregate offline inputs where allowed by Voting Rule.
 17. Community OS does not own physical offline secrecy mechanics; it stores results/evidence/provenance.
 18. Physical originals remain subject to external applicable retention/archive rules; digital copies do not replace them automatically.
-19. Native online Secret Voting must not retain a recoverable Subject/Voting Right → Position link.
+19. Native online Anonymous Voting must not retain a recoverable Subject/Voting Right → Position link.
 20. Mixed Voting does not require a new Voting subtype or new Vote entity.
 
 ## 24. Result
@@ -560,15 +601,15 @@ Mixed paper/electronic voting fits the existing Community OS architecture withou
 
 Accepted Stage 11B direction:
 
-- Open and Secret are the two principal voting visibility modes;
+- Open and Anonymous are the two principal formal Voting visibility modes;
 - online/offline channels may coexist within one Voting;
 - administrators may enter offline results with explicit attribution;
 - open offline channel can create individual Vote facts backed by ballot scans/photos;
-- secret offline channel contributes aggregate tally plus participation/counting evidence, without Subject-linked ballot choices;
+- anonymous offline channel contributes aggregate tally plus participation/counting evidence, without Subject-linked ballot choices;
 - physical secrecy procedure remains external to Community OS;
 - Community OS must be able to combine all recognized online/offline inputs into one complete result;
 - physical originals remain external archival evidence; Community OS stores digital copies/provenance;
-- native online Secret Voting remains a dedicated design problem because the system itself must prevent retained Subject↔choice linkage.
+- native online Anonymous Voting remains a dedicated design problem because the system itself must prevent retained Subject↔choice linkage.
 
 ## 25. Next step
 
@@ -580,5 +621,5 @@ Before implementation, Stage 11B still needs:
 2. exact rule for paper/electronic conflict/change;
 3. ballot document semantics;
 4. retention period/legal destruction rule;
-5. secret-voting decision;
+5. anonymous-voting decision;
 6. remote paper original receipt rules, if supported.

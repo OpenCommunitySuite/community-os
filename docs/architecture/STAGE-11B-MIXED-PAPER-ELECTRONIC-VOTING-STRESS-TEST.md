@@ -33,12 +33,12 @@
 
    Для open offline channel это может быть набор individual Vote facts, введённых оператором.
 
-   Для anonymous offline channel Community OS **не должна искусственно создавать Subject-linked individual Votes по каждому бумажному бюллетеню**. Вместо этого она принимает полный recognized aggregate/offline tally по вопросам/вариантам и иные необходимые счётные показатели как вход Calculation согласно ADR-008.
+   Для anonymous offline channel Community OS **не должна искусственно создавать Subject-linked individual Votes по каждому бумажному бюллетеню**. Вместо этого комиссия/уполномоченный оператор передаёт полный результат подсчёта офлайн-части, который Community OS фиксирует как самостоятельный исторически значимый факт со своей identity, источником и историей исправлений. Уже этот факт используется как вход общего Calculation согласно ADR-008.
 
 6. Evidence для offline части различается по режиму:
    - **open offline Vote** — к individual Vote можно приложить фото/скан бумажного бюллетеня с выбором и собственноручной подписью;
    - **anonymous offline participation** — можно приложить фото/скан заверенного списка/реестра выдачи бюллетеней либо иного документа с подписью/подтверждением вручения бюллетеня, доказывающего участие владельца или допустимого представителя без раскрытия выбора;
-   - **anonymous offline tally** — для подтверждения внесённых итоговых чисел может быть приложен фото/скан подписанного протокола/итогового документа счётной комиссии.
+   - **результат подсчёта anonymous offline-части** — самостоятельная запись с итоговыми числами; для подтверждения к ней может быть приложен фото/скан подписанного протокола/итогового документа счётной комиссии.
 
 7. Физические оригиналы бумажных подтверждающих документов сохраняются вне Community OS согласно applicable retention/legal profile. Community OS хранит digital copies и provenance/links, но digital copy не заменяет physical original автоматически.
 
@@ -415,23 +415,51 @@ proves participation / issuance
 ≠ proves ballot choice
 ~~~
 
-### 18.3. Offline anonymous tally
+### 18.3. Результат подсчёта анонимной offline-части
 
-Для anonymous paper channel Community OS не обязана создавать отдельный Vote по каждому анонимному бумажному бюллетеню.
+Для anonymous paper channel Community OS не создаёт отдельный Subject-linked Vote по каждому анонимному бумажному бюллетеню.
 
-Уполномоченный оператор может внести полный offline tally, например по каждому Question/Option:
+Вместо этого вводится самостоятельный исторически значимый факт **«Результат подсчёта офлайн-части»**.
 
+Он имеет собственную identity и должен позволять исторически определить, где применимо:
+
+- к какому Voting/Question относится;
+- область подсчёта, если offline-частей несколько;
 - количество `За`;
 - количество `Против`;
 - количество `Воздержался`, если такой вариант предусмотрен;
 - количество недействительных/неучтённых бюллетеней where applicable;
-- иные счётные показатели, требуемые Voting Rule.
+- иные счётные показатели, требуемые Voting Rule;
+- кто внёс сведения в Community OS;
+- когда сведения были внесены/признаны;
+- какой внешний документ/протокол является источником;
+- приложенный scan/photo source document;
+- историю исправлений/замен и их основание.
 
-Источник чисел должен быть исторически объясним.
+Базовая цепочка:
 
-Как evidence можно приложить digital copy подписанного протокола/итогового документа счётной комиссии.
+~~~text
+external/offline counting by commission
+→ Result of Offline Count
+→ evidence/protocol
+→ Calculation
+→ Established Result
+~~~
 
-Это не делает protocol Document самим Calculation или Established Result.
+Сам протокол комиссии остаётся Document/Representation и **не является** этим предметным фактом автоматически:
+
+~~~text
+counting protocol Document
+≠ Result of Offline Count
+≠ Calculation
+≠ Established Result
+~~~
+
+Если комиссия или оператор обнаружили ошибку, исходная запись не переписывается молча. Исправленный результат должен быть исторически связан с первоначальным и иметь объяснимое основание согласно ADR-004.
+
+Одна Voting может иметь более одного такого результата, если offline counting фактически разделён на несколько независимых областей/комиссий/мест и применимое правило допускает их последующее объединение.
+
+Для open offline Voting такой результат может использоваться как дополнительный итог/сверка, но individual recognized Votes остаются самостоятельными фактами и не заменяются агрегатом.
 
 ### 18.4. Online anonymous voting
 
@@ -455,13 +483,13 @@ Mixed Voting должна сформировать **один полный Calcu
 
 Для open channels Calculation может использовать individual recognized Votes.
 
-Для anonymous offline channel Calculation может использовать recognized aggregate/offline tally как иной исторически объяснимый вход согласно ADR-008, без восстановления individual Subject-linked Votes.
+Для anonymous offline channel Calculation использует один или несколько признанных **результатов подсчёта офлайн-части** как самостоятельные исторически объяснимые входы согласно ADR-008, без восстановления individual Subject-linked Votes.
 
 ~~~text
 online open Votes ───────────────┐
 offline open Votes ──────────────┤
-online anonymous aggregate/input ───┤
-offline anonymous tally ────────────┼→ Calculation → Established Result
+online anonymous aggregate/input ────────────────┤
+offline count result(s) ──────────────────────────┼→ Calculation → Established Result
 other allowed inputs ────────────┘
 ~~~
 
@@ -469,8 +497,8 @@ Calculation должен позволять объяснить:
 
 - какие каналы участвовали;
 - какие individual Votes использованы;
-- какие aggregate offline values использованы;
-- их source/provenance;
+- какие результаты подсчёта офлайн-части использованы;
+- их source/provenance и history/correction context;
 - применимую Voting Rule version;
 - exclusions/corrections where relevant.
 
@@ -495,7 +523,8 @@ Calculation не должен суммировать:
 - source channel;
 - scan/photo open paper ballot;
 - signed/certified ballot-issuance/participation register for anonymous offline part;
-- counting-commission protocol or other source document for anonymous offline tally;
+- one or more results of offline count;
+- counting-commission protocol or other source document for each such result;
 - recorder/data-entry operator actions;
 - rejection/correction history;
 - Calculation;
@@ -568,7 +597,18 @@ Stress-test does **not** currently justify:
 - `Mixed Voting` as a separate Voting subtype;
 - fundamental individual `Anonymous Offline Vote` records created from anonymous paper ballots.
 
-Отдельный concept для historically recognized offline tally может потребовать проверки при Draft Stage 11B BP, но сейчас ADR-008 уже допускает «иные входы» Calculation, поэтому новая fundamental entity заранее не вводится.
+При этом **отдельный identity-bearing факт «Результат подсчёта офлайн-части» теперь обоснован и принят для Stage 11B**.
+
+Причины:
+
+- он существует до общего Calculation;
+- может быть использован несколькими пересчётами;
+- имеет собственный source/provenance;
+- может быть исправлен/заменён независимо от общего Calculation;
+- один Voting может иметь несколько таких результатов;
+- его история нужна для доказуемости итогового результата.
+
+Это не новый bounded context и не universal platform-wide aggregate entity. Ownership остаётся в Governance context, а точная нормативная формулировка должна быть закреплена в BP Stage 11B.
 
 Working model:
 
@@ -577,10 +617,11 @@ Voting
 + Voting Rule
 + Voting Rights
 + individual Vote where applicable
-+ recognized offline tally/input where applicable
++ Result of Offline Count 0..N
 + Documents/Representations/Signings
 + provenance
-+ channel-specific recognition semantics
+→ Calculation
+→ Established Result
 ~~~
 
 ## 23. Candidate invariants
@@ -598,9 +639,9 @@ Voting
 11. Submission/receipt time ≠ data-entry time automatically.
 12. Paper + electronic submissions for one Voting Right require explicit conflict/change semantics where individual Vote identity exists.
 13. Open offline Votes may be entered individually with ballot evidence.
-14. Anonymous offline results may be entered as aggregate/offline tally without creating Subject-linked individual Votes.
+14. Anonymous offline results are recorded as one or more identity-bearing Results of Offline Count without creating Subject-linked individual Votes.
 15. Anonymous participation evidence ≠ anonymous choice evidence.
-16. Calculation may combine individual Votes and historically explainable aggregate offline inputs where allowed by Voting Rule.
+16. Calculation may combine individual Votes and historically explainable Results of Offline Count where allowed by Voting Rule.
 17. Community OS does not own physical offline secrecy mechanics; it stores results/evidence/provenance.
 18. Physical originals remain subject to external applicable retention/archive rules; digital copies do not replace them automatically.
 19. Native online Anonymous Voting must not retain a recoverable Subject/Voting Right → Position link.
@@ -616,7 +657,7 @@ Accepted Stage 11B direction:
 - online/offline channels may coexist within one Voting;
 - administrators may enter offline results with explicit attribution;
 - open offline channel can create individual Vote facts backed by ballot scans/photos;
-- anonymous offline channel contributes aggregate tally plus participation/counting evidence, without Subject-linked ballot choices;
+- anonymous offline channel contributes one or more identity-bearing Results of Offline Count plus participation/counting evidence, without Subject-linked ballot choices;
 - physical secrecy procedure remains external to Community OS;
 - Community OS must be able to combine all recognized online/offline inputs into one complete result;
 - physical originals remain external archival evidence; Community OS stores digital copies/provenance;
@@ -633,5 +674,5 @@ Before implementation, Stage 11B still needs:
 3. ballot document semantics;
 4. retention period/legal destruction rule;
 5. native online Anonymous Voting identity-separation design;
-6. exact semantics/identity of recognized anonymous offline tally as Calculation input;
+6. закрепить в Draft BP Stage 11B точную нормативную модель «Результата подсчёта офлайн-части»: identity, scope, correction/replacement и связь с source protocol;
 7. remote open-paper original receipt rules, if supported.

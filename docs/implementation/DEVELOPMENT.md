@@ -12,6 +12,7 @@ Accepted architecture и [Implementation Baseline](IMPLEMENTATION_BASELINE.md) �
 business requirement
 → accepted architecture / explicit implementation baseline
 → scoped implementation task and acceptance criteria
+→ AI-assisted test design и анализ покрытия
 → implementation
 → build and applicable tests
 → complete diff/review
@@ -28,7 +29,7 @@ Task указывает:
 - source requirement и applicable ADR/baseline sections;
 - точный scope и files/components in scope;
 - acceptance criteria и expected observable behavior;
-- applicable test guarantees;
+- applicable test guarantees и прослеживаемость requirement → scenario → test / accepted deferment;
 - explicit deferrals и prohibited changes.
 
 Unrelated cleanup не включается в task/commit/PR. Чужие или неожиданные local changes не уничтожаются и не скрываются.
@@ -44,6 +45,8 @@ Critical objective boundaries становятся machine-checkable там, г�
 AI-assisted development и AI coding agents допустимы как инструменты реализации и review. Business/owner decisions, acceptance архитектуры, security exceptions и merge authorization не делегируются автоматически AI.
 
 Generated implementation проходит те же compiler, formatting, static, architecture, test, diff и review gates, что и human-written code. Проект не зависит от конкретного AI product или provider.
+
+Для изменений с применимыми требованиями используется [AI-assisted Test Design](AI_ASSISTED_TEST_DESIGN.md): анализ нормативных источников до реализации, выявление пробелов, подготовка сценариев и матрицы покрытия, генерация тестов при наличии реализованного поведения. ИИ не утверждает ожидаемый предметный результат, не подменяет review и не исправляет assertions/пропуски тестов только ради зелёного CI. Принятые автоматические тесты запускаются воспроизводимо без зависимости от ИИ во время CI.
 
 Для существенных предметных и архитектурных изменений применяется процесс [Independent Multi-Review](../process/INDEPENDENT_MULTI_REVIEW.md): независимые рецензенты работают с одним замороженным review package, а их выводы проходят отдельный синтез и сверку с repository source of truth.
 

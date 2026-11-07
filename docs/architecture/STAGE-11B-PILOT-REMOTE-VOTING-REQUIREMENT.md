@@ -98,7 +98,46 @@ one Voting
 
 Канал/форма подачи не создаёт отдельную identity Vote автоматически.
 
-Для mixed Voting полный результат должен формироваться из всех признанных online/offline вкладов. При open offline channel это могут быть individual Votes; при secret offline channel — aggregate/offline tally без восстановления Subject-linked ballot choices.
+Для mixed Voting полный результат должен формироваться из всех признанных online/offline вкладов. При open offline channel это могут быть individual Votes; при anonymous offline channel — aggregate/offline tally без восстановления Subject-linked ballot choices.
+
+### 5.0. Очная часть и последующий бумажный сбор голосов могут быть одной процедурой
+
+Реальный pilot case 24.10.2026 показывает:
+
+```text
+≈60 physically present participants
+→ paper ballots distributed at meeting
+→ some submit positions, some do not
+→ board later personally delivers ballots to other gardeners
+→ written offline participation continues after meeting
+→ final count/protocol
+```
+
+Поэтому Community OS не должна hard-code:
+
+```text
+physical presence
+=
+participation
+=
+ballot receipt
+=
+Vote
+```
+
+И не должна считать момент окончания очной части автоматическим окончанием Voting.
+
+Applicable rule/profile должен позволять отдельно определить:
+
+- период очной части;
+- период письменного/асинхронного сбора позиций;
+- что считается participation для конкретной процедуры;
+- что считается presence;
+- какие факты участвуют в quorum;
+- deadline подачи ballot;
+- момент закрытия Voting.
+
+Одна Voting может объединять очную дискуссию и последующее paper/offline collection, если это допускает applicable rule.
 
 ### 5.1. Paper-origin Vote
 

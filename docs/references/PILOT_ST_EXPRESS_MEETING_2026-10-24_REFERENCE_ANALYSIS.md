@@ -505,44 +505,131 @@ debt
 
 Протокол утверждает:
 
-- общий норматив потерь — **10 %**;
-- из них **3,5 %** — на трансформацию;
+- общий норматив компенсации потерь — **10 %**;
+- из них **3,5 %** — трансформационные потери;
 - **6,5 %** — потери в сетях товарищества.
 
-Дополнительное фактическое уточнение пользователя определяет, как это применяется в пилоте:
+Последующее фактическое уточнение пользователя показывает, что 10 % не были выбраны произвольно. Они основаны на нескольких независимых наблюдениях/расчётах по инженерной цепочке.
+
+### 13.1. Уровень 1 — трансформация 10 кВ / 0,4 кВ
+
+Поставщик сразу начисляет примерно **3,5 %** как потери на понижающем трансформаторе 10 кВ / 0,4 кВ.
+
+Для Community OS это прежде всего:
 
 ```text
-тариф поставщика: 4,32 грн/кВт·ч
-нормативная компенсация потерь: 0,43 грн/кВт·ч
-внутренняя цена для начисления: 4,75 грн/кВт·ч
+supplier-side transformation-loss calculation
+→ external settlement input
 ```
 
-Число 0,43 грн соответствует примерно 10 % от 4,32 грн с округлением денежной ставки до копеек:
+Он не становится автоматически внутренним `Calculated Imbalance` или `Operational Loss`, хотя может быть evidence/reference input для внутреннего анализа.
+
+### 13.2. Уровень 2 — общий счётчик трансформатора против уличных контрольных счётчиков
+
+После установки контрольных счётчиков на улицах была сопоставлена:
 
 ```text
-4,32 × 10 % = 0,432
-→ 0,43 грн/кВт·ч
-
-4,32 + 0,43 = 4,75 грн/кВт·ч
+Consumption / volume по общему счётчику на понижающем трансформаторе
+vs
+сумма Consumption / volumes по уличным контрольным точкам
 ```
 
-Следовательно, для текущей практики пилота 10 % используются не как отдельное распределение фактически признанной Operational Loss между владельцами, а как **нормативная надбавка / компонент внутренней цены электроэнергии**.
+Наблюдаемая разница составила примерно **3–3,5 %**.
 
-Предметная модель должна сохранять различие:
+Это хорошо соответствует существующей модели `Control Reconciliation`:
 
 ```text
-supplier tariff = 4,32
-≠
-loss-compensation norm = 10 %
-≠
-derived compensation component = 0,43
-≠
-internal owner price = 4,75
-≠
-actual Operational Loss quantity
+transformer/general Accounting Point
+→ street/group Accounting Points
+→ reconciliation by engineering scope
+→ Calculated Imbalance ≈ 3–3,5 %
 ```
 
-Практическая цепочка начисления:
+Сам `Calculated Imbalance` не является `Operational Loss` автоматически, но является сильным evidence для оценки реальных сетевых потерь при достаточной полноте данных и корректной топологии.
+
+### 13.3. Уровень 3 — уличный контрольный счётчик против индивидуальных счётчиков участков
+
+Для нескольких улиц была отдельно сопоставлена:
+
+```text
+street control Accounting Point
+vs
+sum of individual plot Accounting Points connected through that branch
+```
+
+Разница также составила примерно **3–3,5 %**.
+
+Это второй самостоятельный `Control Reconciliation` на другом engineering scope:
+
+```text
+street/group Accounting Point
+→ individual plot Accounting Points
+→ Calculated Imbalance ≈ 3–3,5 %
+```
+
+Эти результаты не следует молча объединять в один reconciliation result. Они относятся к разным участкам топологии и имеют собственные scopes/provenance.
+
+### 13.4. Как из наблюдений получен норматив 10 %
+
+Практическое основание решения:
+
+```text
+supplier transformation component ≈ 3,5 %
++
+transformer → street measured imbalance ≈ 3–3,5 %
++
+street → plots measured imbalance ≈ 3–3,5 %
+→ empirical total ≈ 10 %
+→ Management Decision approves 10 % compensation norm
+```
+
+То есть 10 % — это **утверждённый финансовый/тарифный норматив, основанный на инженерных и внешних расчётных данных**, а не один непосредственный физический measurement.
+
+Это важная граница:
+
+```text
+supplier settlement calculation
++
+one or more Control Reconciliation results
+→ evidence/basis
+
+evidence/basis
+→ approved 10 % compensation rule
+
+approved compensation rule
+≠ source reconciliation results
+≠ Operational Loss fact automatically
+```
+
+### 13.5. Изменение предыдущего норматива
+
+До собрания во внутреннем тарифе использовалась компенсация потерь примерно **7,6 %**.
+
+Установка уличных контрольных счётчиков дала более детальную инженерную наблюдаемость и позволила оценить потери по двум внутренним уровням сети. На основании новых данных товарищество изменило норматив примерно с 7,6 % до 10 %.
+
+Это является хорошим реальным примером ADR-005:
+
+```text
+old rule/version ≈ 7,6 %
+→ new evidence / reconciliation results
+→ governance decision
+→ new rule/version = 10 %
+```
+
+Старая версия правила не должна переписываться задним числом, а начисления, сделанные по ней, остаются исторически объяснимыми.
+
+### 13.6. Финансовое применение
+
+По фактическому пилотному правилу:
+
+```text
+supplier tariff: 4,32 грн/кВт·ч
+loss-compensation norm: 10 %
+derived compensation component: 0,43 грн/кВт·ч
+internal owner price: 4,75 грн/кВт·ч
+```
+
+Практическая цепочка:
 
 ```text
 recognized individual Consumption
@@ -552,25 +639,42 @@ applicable internal electricity price
 → Financial Obligation
 ```
 
-При этом внутренняя цена исторически объяснима как композиция:
+При этом должны быть исторически различимы:
 
 ```text
 supplier tariff
-+
-normative loss-compensation component
-→ internal electricity price
+≠ supplier transformation-loss calculation
+≠ internal reconciliation results
+≠ approved compensation norm
+≠ derived compensation component
+≠ internal owner price
+≠ actual Operational Loss
+≠ Accrual
 ```
 
-Это хорошо соответствует уже принятой финансовой модели Community OS:
+Это соответствует уже принятой финансовой модели Community OS:
 
 - внешний тариф поставщика и внутренний тариф сообщества не тождественны;
-- внутренний тариф может явно зависеть от внешнего тарифа;
-- норматив/коэффициент является входом правила, но не Operational Loss;
-- применённые тариф, коэффициент, округление и итоговая ставка должны быть исторически определимы.
+- внутренний тариф может зависеть от внешнего тарифа и иных явных входов;
+- resource-domain results могут быть evidence/input для финансового правила, не переходя во владение Finance;
+- применённая версия правила, исходные значения, округление и итоговая ставка должны быть исторически определимы.
 
-**Корректировка предыдущего вывода:** данный пилотный документ сам по себе **не доказывает необходимость отдельного BP распределения фактических потерь по владельцам**. Для первого внедрения подтверждён более конкретный процесс — формирование внутренней цены электроэнергии с нормативной компенсацией потерь.
+### 13.7. Архитектурный вывод
 
-Отдельный loss-allocation process остаётся возможным будущим сценарием для других способов распределения фактических/расчётных потерь, но не должен вводиться только на основании этого пилотного правила.
+Текущий пилот **не требует отдельного процесса распределения одной признанной Operational Loss между владельцами**.
+
+Нужен другой, более точный процесс:
+
+```text
+engineering/external evidence
+→ governance approval of compensation norm
+→ versioned internal electricity pricing rule
+→ owner Accruals
+```
+
+При этом resource side должна уметь сохранять самостоятельные `Control Reconciliation` по разным уровням инженерной топологии. Это уже поддерживается ADR-007 и BP-RECON-001.
+
+Отдельный loss-allocation process остаётся возможным для другого сценария, если сообщество действительно распределяет конкретно признанную/рассчитанную величину потери, но настоящий пилотный кейс этого не требует.
 
 ## 14. Организационно-технические решения
 
@@ -620,7 +724,8 @@ Management Decision
 | Отключение за долг | cross-context process not yet modeled | пробел |
 | Плата за повторное подключение | Accrual/Obligation supported | финансово соответствует; operational BP нужен |
 | Норматив потерь 10 % | rule ≠ actual Operational Loss | соответствует |
-| 4,32 + 0,43 = 4,75 грн/кВт·ч | supplier tariff + normative compensation component → internal tariff | соответствует текущей финансовой модели; нужен конкретный tariff/accrual rule |
+| Два уровня внутренних сверок ~3–3,5 % + supplier transformation 3,5 % | external settlement input + multiple Control Reconciliation scopes | соответствует ADR-007/BP-RECON-001; результаты нельзя сливать в один факт |
+| 4,32 + 0,43 = 4,75 грн/кВт·ч | evidence-based 10 % compensation rule → internal tariff | соответствует текущей финансовой модели; нужен versioned tariff/accrual rule |
 | Распределение фактических потерь владельцам | в пилоте этим документом не подтверждено | отдельный BP сейчас не требуется на этом основании |
 | Хозяйственные работы | Operational Work | соответствует |
 
@@ -687,13 +792,19 @@ debt/overdue basis
 → reconnection
 ```
 
-### 16.7. Finance + Resource — внутренний тариф электроэнергии с компенсацией нормативных потерь
+### 16.7. Finance + Resource — evidence-based внутренний тариф электроэнергии
 
-Для пилота подтверждён не отдельный процесс распределения фактических потерь, а правило формирования внутренней цены:
+Пилот подтверждает цепочку:
 
 ```text
-supplier tariff 4,32
-+ loss-compensation component 0,43
+supplier transformation calculation
++
+Control Reconciliation: transformer → streets
++
+Control Reconciliation: street → plots
+→ governance decision
+→ approved 10 % compensation norm
+→ supplier tariff 4,32 + component 0,43
 → internal tariff 4,75 грн/кВт·ч
 → Consumption × internal tariff
 → Accrual
@@ -702,14 +813,18 @@ supplier tariff 4,32
 Нужно сохранить исторически:
 
 - supplier tariff/version;
-- норматив 10 %;
+- supplier transformation-loss input;
+- reconciliation results/scopes, послужившие основанием;
+- old compensation rule ≈ 7,6 %;
+- new compensation rule 10 %;
+- Management Decision / effective date;
 - правило расчёта компонента;
 - округление до 0,43;
 - итоговую internal price 4,75;
 - период применимости;
 - связь начисления с использованной ставкой.
 
-Не смешивать normative compensation component с фактически признанной Operational Loss.
+Не смешивать reconciliation/imbalance, Operational Loss, tariff compensation rule и финансовое начисление.
 
 ---
 

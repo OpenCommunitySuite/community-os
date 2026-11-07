@@ -452,6 +452,18 @@ Stress-tests:
 - `STAGE-11B-MIXED-PAPER-ELECTRONIC-VOTING-STRESS-TEST.md`;
 - `STAGE-11B-ANONYMOUS-VOTING-RIGHT-EXERCISE-STRESS-TEST.md`.
 
+**Empirical pilot reference:** `PILOT_ST_EXPRESS_MEETING_2026-10-24_REFERENCE_ANALYSIS.md`.
+
+Реальные документы общего собрания СТ «ЕКСПРЕС» от 24.10.2026 подтверждают и уточняют Stage 11B:
+
+- 340 членов, 181 участник процедуры и 139 учтённых позиций по каждому вопросу подтверждают, что participation/ballot handling/recognized Vote нельзя сводить в один факт; разница 42 не может автоматически трактоваться как `Воздержался`, rejected Vote или non-participation;
+- один подписанный paper ballot содержит семь вопросов, поэтому `1 ballot/document/file ≠ 1 Vote`;
+- письменный именной ballot с ФИО, номером участка, подписью и Position является реальным pilot case Open Offline Voting;
+- опубликованная agenda, обсуждение, фактическая ballot formulation и Management Decision могут различаться и должны быть исторически различимы;
+- термин `опитування` в украинской реальной процедуре может обозначать formal Voting, поэтому UI должен явно отличать `Неформальне опитування` от `Голосування / письмове опитування`;
+- пакет не подтверждает однозначно `1 Plot = 1 Vote`: протокол оперирует членами, а ballot содержит и ФИО, и номер участка; нужна проверка реестра/заполненных листов;
+- выявлены отдельные кандидаты вне Stage 11B: charge target «семья/домохозяйство», debt-based disconnection/reconnection process и loss-allocation process.
+
 После анализа устава СТ «ЕКСПРЕС» и уточнения фактической практики сохраняется pilot finding:
 
 - сообщённая практика трактует отдельное заявление по каждому участку как «множественное членство» и фактически использует `1 участок = 1 голос`;

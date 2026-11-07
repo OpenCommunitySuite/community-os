@@ -54,23 +54,29 @@
 
 Предоставленные реальные документы пилотного СТ дают обязательные проверочные сценарии для настоящего stress-test:
 
-1. **Participation ≠ recognized Position.**
+1. **Physical presence ≠ participation ≠ recognized Position.**
 
-   По протоколу:
+   Дополнительное фактическое уточнение пилота:
 
    ~~~text
    members = 340
-   registered/participated = 181
+   physically present at meeting ≈ 60
+   ballots handed to present participants
+   some voted, some did not
+   board later personally delivered ballots to other gardeners
+   protocol registered/participated = 181
    recognized positions per each question = 139
    ~~~
 
-   Community OS не должна автоматически объяснять разницу `181 - 139 = 42` как:
-   - `Воздержались`;
-   - rejected Votes;
-   - missing ballots;
-   - non-participation.
+   Следовательно, одно Voting может продолжаться после очной части собрания через последующий paper/offline collection period.
 
-   Такая причина должна следовать только из реальных process/evidence data.
+   Community OS не должна автоматически считать:
+   - `physical presence = participation`;
+   - `participation = ballot receipt`;
+   - `ballot receipt = Vote`;
+   - разницу `181 - 139 = 42` как `Воздержались`, rejected Votes, missing ballots или non-participation.
+
+   Причина каждого расхождения должна следовать только из реальных process/evidence data и applicable rule.
 
 2. **One signed paper ballot may formalize several Votes.**
 

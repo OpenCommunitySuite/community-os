@@ -585,6 +585,25 @@ street → plots measured imbalance ≈ 3–3,5 %
 
 То есть 10 % — это **утверждённый финансовый/тарифный норматив, основанный на инженерных и внешних расчётных данных**, а не один непосредственный физический measurement.
 
+При этом проценты отдельных уровней могут иметь разные расчётные базы/границы. Поэтому Community OS не должна вводить универсальное правило:
+
+```text
+total loss percentage
+=
+sum of all layer percentages
+```
+
+В пилоте фактический смысл другой:
+
+```text
+several layer-specific observations/calculations
+→ empirical assessment of overall situation
+→ Management Decision
+→ approved 10 % compensation norm
+```
+
+То есть арифметика конкретного решения принадлежит версии применимого правила/решения и должна сохраняться как provenance, а не становиться универсальной инженерной формулой платформы.
+
 Это важная граница:
 
 ```text

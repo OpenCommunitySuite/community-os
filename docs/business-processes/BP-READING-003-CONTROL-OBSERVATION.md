@@ -111,6 +111,10 @@ control window
 
 Window должен быть достаточно узким для последующего сопоставления согласно применимому reconciliation process.
 
+Для campaign, цель которой — оценить небаланс между связанными уровнями учёта, **минимизация длительности окна является предметной целью качества**, потому что реальное потребление между первым и последним снятием создаёт timing error.
+
+Это не требует одного fictitious common timestamp: каждый Reading всё равно сохраняет actual measurement time/precision.
+
 ## 9. Planned time ≠ actual measurement time
 
 План обхода или назначенная дата не являются measurement time.
@@ -169,6 +173,43 @@ Reading
 Не вводится universal Control Commission entity.
 
 Where relevant, сохраняются acting Subject(s), User Account/access context и authority/basis.
+
+### 14.1. One campaign — several controllers
+
+Одна Control Observation campaign может выполняться несколькими контролёрами параллельно.
+
+```text
+one Control Observation
+→ controller A → assigned subset of Accounting Points
+→ controller B → assigned subset of Accounting Points
+→ controller C → assigned subset of Accounting Points
+```
+
+Это не создаёт автоматически несколько независимых Control Observation.
+
+Для campaign должны оставаться объяснимы:
+
+- общий scope и expected set;
+- общий planned observation window;
+- controller assignments / фактически охваченные subsets where material;
+- per-point acting Subject;
+- actual measurement time каждого Reading;
+- missing/unresolved points;
+- фактическое начало/окончание campaign.
+
+Разделение expected set между контролёрами является организацией одного процесса сбора данных и не меняет identity Accounting Point, Reading или последующих reconciliation scopes.
+
+### 14.2. Parallel observation as quality control
+
+Параллельный обход несколькими контролёрами может использоваться специально для сокращения actual observation window.
+
+```text
+more parallel controllers
+→ shorter time spread between readings
+→ lower timing-related reconciliation uncertainty
+```
+
+Это улучшает качество inputs, но не делает readings одновременными и не отменяет обязанность сохранять actual measurement times.
 
 ## 15. Authority
 
@@ -264,9 +305,13 @@ Conflict остаётся явным и передаётся на applicable res
 
 ## 25. Same-day non-simultaneous values
 
-Для пилотного СТ показания могут сниматься в течение 1–2 часов.
+Для пилотного СТ контрольная campaign должна проводиться **как можно быстрее практически достижимым способом**.
 
-Такое окно допустимо как operational policy, если дальнейшая Control Reconciliation явно учитывает несовпадение времени и ограничения качества.
+Исторически обсуждавшееся окно 1–2 часа является не целевым нормативом, а примером допустимого operational window при ручном обходе.
+
+Для сокращения timing error допускается и ожидается параллельный обход несколькими контролёрами.
+
+Такое окно допустимо только если дальнейшая Control Reconciliation явно учитывает несовпадение времени и ограничения качества.
 
 Настоящий BP не фиксирует universal 1–2 hour tolerance для всех Community.
 
@@ -330,17 +375,64 @@ Observation completeness/result revalidates separately.
 
 Late evidence может подтвердить observation/Reading, но не переносит measurement time на дату загрузки.
 
-## 34. Pilot ST — street reconciliation preparation
+## 34. Pilot ST — one campaign for nested electricity reconciliation
 
-Street/group scope:
+Для пилотного СТ одна campaign может охватывать сразу несколько уровней инженерной топологии:
 
 ```text
-street/group meter
-+ individual plot Accounting Points
-→ control observation window
+general transformer Accounting Point
+→ street/group control Accounting Points
+→ individual plot Accounting Points
 ```
 
-Control observation собирает available Reading и completeness, но ещё не считает difference.
+Практическая цель — снять связанные значения в максимально коротком общем окне, используя несколько контролёров параллельно.
+
+Одна campaign может затем предоставить inputs для нескольких самостоятельных Control Reconciliation:
+
+```text
+R1:
+general transformer point
+→ sum of street/group control points
+
+R2-A:
+street/group point A
+→ sum of plots connected through A
+
+R2-B:
+street/group point B
+→ sum of plots connected through B
+
+...
+```
+
+Control Observation собирает Reading, actor/time provenance и completeness, но **не считает** differences/imbalances.
+
+### 34.1. Controller assignment by topology subset
+
+Контролёры могут быть распределены, например:
+
+```text
+controller 1 → transformer/general + selected street controls
+controller 2 → plots of street A
+controller 3 → plots of street B
+controller 4 → plots of street C
+```
+
+Конкретный маршрут не является domain invariant.
+
+Важно, чтобы каждому Reading можно было сопоставить actual measurement time и acting controller, а campaign сохраняла общий scope/window.
+
+### 34.2. Same campaign may feed several reconciliations
+
+Повторное использование recognized Reading из одной campaign в нескольких reconciliation scopes допустимо.
+
+```text
+one control Reading at street meter A
+→ may be outgoing input of transformer→streets reconciliation
+→ may be incoming input of street A→plots reconciliation
+```
+
+Это не дублирует Reading и не объединяет разные reconciliation results.
 
 ## 35. Pilot ST — several independent electricity branches
 
@@ -437,6 +529,7 @@ Where materially relevant, should be determinable:
 - topology/version/context;
 - observation window;
 - acting Subject(s);
+- controller assignment/sub-scope where material;
 - authority/basis;
 - participating Reading identities;
 - per-point outcome;
@@ -477,6 +570,11 @@ Where materially relevant, should be determinable:
 28. Control observation does not create Operational Loss automatically.
 29. Control observation does not create Accrual automatically.
 30. Universal route/inspection/work-order entity is not introduced.
+31. One Control Observation may be executed by several controllers in parallel.
+32. Parallel controller assignments do not create separate Control Observation automatically.
+33. One campaign may feed several nested/branch Control Reconciliation results.
+34. A Reading reused across reconciliation scopes remains one Reading.
+35. Short observation window improves quality but does not create fictitious simultaneity.
 
 ## 48. Решения internal review
 
@@ -491,7 +589,9 @@ Where materially relevant, should be determinable:
 9. Control observation does not resolve Reading conflicts universally.
 10. Control observation does not calculate imbalance.
 11. Replacement/topology changes inside window remain explicit quality/context facts.
-12. Pilot-ST 1–2 hour observation window is local practice, not universal invariant.
+12. Pilot-ST 1–2 hour window is only an example of manual field duration, not a target or universal invariant.
+13. Pilot campaign may use several controllers in parallel specifically to minimize timing-related error.
+14. One nested campaign may collect inputs for transformer→streets and street→plots reconciliations without merging those reconciliation identities.
 
 Блокирующих предметных вопросов после internal review не осталось.
 
@@ -512,7 +612,7 @@ BP-READING-001/002 не требуют изменения: recognition и automa
 
 BP прошёл internal consistency review against ADR-007 and BP-READING-001/002.
 
-Проверены expected scope, historical topology, manual/telemetry mix, missing/excluded/unresolved points, multi-channel values, replacement in observation window, no-access, evidence/photo timing, duplicate/conflict и pilot-ST 1–2 hour operational window.
+Проверены expected scope, historical topology, manual/telemetry mix, missing/excluded/unresolved points, multi-channel values, replacement in observation window, no-access, evidence/photo timing, duplicate/conflict, multi-controller parallel campaign, nested transformer→streets / street→plots acquisition и минимизация observation window.
 
 Блокирующих предметных вопросов после internal review не осталось.
 

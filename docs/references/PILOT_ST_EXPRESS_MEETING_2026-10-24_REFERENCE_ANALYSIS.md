@@ -569,6 +569,81 @@ street/group Accounting Point
 
 Эти результаты не следует молча объединять в один reconciliation result. Они относятся к разным участкам топологии и имеют собственные scopes/provenance.
 
+### 13.3.1. Два обязательных варианта сверки для пилота
+
+По фактической эксплуатации нужны два устойчивых сценария:
+
+```text
+Variant A:
+general transformer Accounting Point
+→ street/group control Accounting Points
+
+Variant B:
+one street/group control Accounting Point
+→ individual plot Accounting Points connected through it
+```
+
+Variant B выполняется отдельно для каждой выбранной street/group branch.
+
+Один street control Reading может участвовать:
+
+- как downstream input в Variant A;
+- как upstream input в Variant B.
+
+Это не создаёт новый Reading и не объединяет два reconciliation result.
+
+### 13.3.2. Коэффициент общего счётчика трансформатора
+
+Общий счётчик на трансформаторе имеет коэффициент **40**.
+
+Показание/разность показаний этого Meter нельзя напрямую сравнивать с downstream quantities без преобразования:
+
+```text
+raw general-meter register / delta
+× 40
+→ normalized energy quantity
+```
+
+Точная derivation от накопительного register к interval Consumption остаётся в применимой reading/consumption semantics.
+
+Следует различать:
+
+```text
+Meter coefficient 40
+≠ supplier transformation-loss percentage 3,5 %
+```
+
+Коэффициент 40 относится к измерению/преобразованию данных конкретного Meter/Installation, а 3,5 % — к supplier-side settlement/loss semantics.
+
+### 13.3.3. Одна кампания — несколько контролёров
+
+Для снижения погрешности из-за продолжающегося потребления во время обхода сверка должна проводиться в максимально короткое practically achievable окно.
+
+Одна Control Observation campaign может выполняться несколькими контролёрами одновременно:
+
+```text
+one campaign
+→ controller A → transformer / selected street meters
+→ controller B → plots of street A
+→ controller C → plots of street B
+→ controller D → plots of street C
+```
+
+Конкретное распределение маршрутов не является invariant.
+
+Должны сохраняться:
+
+- общий campaign scope;
+- expected Accounting Points;
+- фактический controller per point where material;
+- actual measurement time каждого Reading;
+- фактическое начало/окончание campaign;
+- missing/unresolved points.
+
+Одна campaign может затем использоваться как source сразу для нескольких самостоятельных Control Reconciliation.
+
+Сокращение временного окна уменьшает timing-related uncertainty, но не создаёт fictitious simultaneity.
+
 ### 13.4. Как из наблюдений получен норматив 10 %
 
 Практическое основание решения:
@@ -744,6 +819,8 @@ Management Decision
 | Плата за повторное подключение | Accrual/Obligation supported | финансово соответствует; operational BP нужен |
 | Норматив потерь 10 % | rule ≠ actual Operational Loss | соответствует |
 | Два уровня внутренних сверок ~3–3,5 % + supplier transformation 3,5 % | external settlement input + multiple Control Reconciliation scopes | соответствует ADR-007/BP-RECON-001; результаты нельзя сливать в один факт |
+| Общий трансформаторный Meter с коэффициентом 40 | Meter/Installation conversion before reconciliation | соответствует существующей scaling/conversion semantics; коэффициент 40 ≠ supplier loss 3,5 % |
+| Одна campaign несколькими контролёрами | parallel Control Observation with per-point actor/time provenance | соответствует BP-READING-003; сокращает timing error, но не создаёт simultaneity |
 | 4,32 + 0,43 = 4,75 грн/кВт·ч | evidence-based 10 % compensation rule → internal tariff | соответствует текущей финансовой модели; нужен versioned tariff/accrual rule |
 | Распределение фактических потерь владельцам | в пилоте этим документом не подтверждено | отдельный BP сейчас не требуется на этом основании |
 | Хозяйственные работы | Operational Work | соответствует |

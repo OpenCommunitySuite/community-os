@@ -281,6 +281,41 @@ Reconciliation может использовать historically applicable:
 
 Current coefficient не применяется ретроактивно автоматически.
 
+### 23.1. Pilot ST — коэффициент общего счётчика трансформатора
+
+В пилотном СТ общий расчётный счётчик на понижающем трансформаторе имеет коэффициент **40**.
+
+Это означает, что displayed/register value нельзя напрямую сравнивать с downstream values без применимой conversion semantics.
+
+```text
+raw meter register / delta
+× historically applicable coefficient 40
+→ normalized energy quantity
+```
+
+Если Meter использует накопительный register, конкретный Consumption/interval quantity определяется по применимой reading/consumption semantics, например через преобразование разности показаний. Настоящий BP не устанавливает универсальную формулу register-to-consumption для всех Meter.
+
+Критические границы:
+
+```text
+raw Reading
+≠ normalized quantity
+
+coefficient 40
+≠ supplier transformation-loss coefficient
+```
+
+Для воспроизводимости reconciliation должны быть определимы:
+
+- Meter / Meter Installation;
+- raw source Reading(s);
+- applicable coefficient/version;
+- transformation rule;
+- resulting normalized input;
+- period/time context.
+
+Замена счётчика или изменение коэффициента не переписывает исторические reconciliation.
+
 ## 24. Supplier-side coefficients
 
 Supplier-calculated transformation-loss coefficient из финансово-settlement context не становится reconciliation coefficient Community OS автоматически.
@@ -340,6 +375,75 @@ group → individual
 ```
 
 Их results не обязаны быть одним Calculated Imbalance.
+
+### 29.1. Pilot variant A — transformer/general → street controls
+
+Первый обязательный пилотный вариант:
+
+```text
+normalized input from general transformer Accounting Point
+→ compare with
+sum of street/group control Accounting Points
+→ Control Reconciliation A
+→ Calculated Imbalance A where possible
+```
+
+Назначение — оценить небаланс на участке сети между общим учётом трансформатора и уличными контрольными точками.
+
+Для общего transformer Meter применяется historically applicable coefficient 40 согласно section 23.1.
+
+### 29.2. Pilot variant B — street control → connected plots
+
+Второй обязательный пилотный вариант выполняется отдельно для конкретной улицы/ветви:
+
+```text
+street/group control Accounting Point
+→ compare with
+sum of individual plot Accounting Points
+connected through this street/group point
+→ Control Reconciliation B
+→ Calculated Imbalance B where possible
+```
+
+Expected individual set определяется historical topology, а не только названием улицы или ручным списком.
+
+### 29.3. One observation campaign, several reconciliation results
+
+Одна Control Observation campaign может дать данные сразу для обоих уровней:
+
+```text
+one campaign
+→ general transformer Reading
+→ street control Readings
+→ individual plot Readings
+
+then:
+
+R-A = transformer → streets
+R-B1 = street 1 → its plots
+R-B2 = street 2 → its plots
+...
+```
+
+Это не создаёт один «общий» Calculated Imbalance автоматически.
+
+Каждый reconciliation сохраняет собственные:
+
+- scope;
+- expected points/flows;
+- participating inputs;
+- time/quality context;
+- rule/version;
+- result.
+
+Street control Reading может участвовать в двух reconciliations в разных ролях:
+
+```text
+outgoing input in transformer→streets
+incoming input in street→plots
+```
+
+Reading при этом остаётся одним предметным фактом.
 
 ## 30. Several independent branches
 
@@ -458,6 +562,7 @@ Process result may state:
 Quality limitations may include:
 
 - wide timing window;
+- large spread between earliest and latest participating measurement times;
 - partial coverage;
 - substitute data;
 - mixed acquisition times;
@@ -520,27 +625,39 @@ Allocation of resource loss to owners/objects is not owned by BP-RECON-001.
 
 Даже recognized Operational Loss не создаёт owner Accrual автоматически.
 
-## 50. Pilot ST — street/group electricity reconciliation
+## 50. Pilot ST — required electricity reconciliation variants
 
-Example scope:
+Пилот требует как минимум два варианта:
 
 ```text
-group/street incoming Accounting Point
-→ individual plot Accounting Points
-+ common-use point where applicable
+A. general transformer Accounting Point
+   → street/group control Accounting Points
+
+B. one street/group control Accounting Point
+   → individual plot Accounting Points connected through it
 ```
 
-Control Observation provides readings/completeness.
+Оба используют одну и ту же universal Control Reconciliation semantics, но имеют разные scopes и отдельные results.
 
-Control Reconciliation compares relevant volumes for the window.
+Для варианта A transformer input должен быть нормализован с учётом коэффициента Meter Installation = 40.
 
-## 51. Pilot ST — two-hour snapshot
+Для варианта B expected plot set определяется historical topology конкретной street/group branch.
 
-Readings were taken within 1–2 hours.
+## 51. Pilot ST — shortest practical observation campaign
 
-Reconciliation may proceed if local rule accepts the window, but result records timing limitation.
+Цель полевого процесса — получить readings по связанным points за максимально короткое practically achievable окно.
 
-Universal exact simultaneity is not required.
+Для этого одна campaign может использовать нескольких контролёров параллельно.
+
+```text
+parallel observation
+→ shorter measurement-time spread
+→ lower timing-related uncertainty
+```
+
+Исторические 1–2 часа являются примером возможной длительности ручного обхода, а не целевым нормативом.
+
+Reconciliation сохраняет actual participating measurement times и timing limitation; universal exact simultaneity не требуется.
 
 ## 52. Pilot ST — missing one plot
 
@@ -647,6 +764,7 @@ Where materially relevant, should be determinable:
 - participating inputs;
 - missing/excluded/substitute inputs;
 - Control Observation identity where used;
+- actual measurement-time spread / observation-window context where material;
 - units/conversions/coefficients;
 - alignment/interpolation rules;
 - reconciliation rule/version;
@@ -691,6 +809,12 @@ Where materially relevant, should be determinable:
 32. Reading/topology/rule correction triggers explicit revalidation/recalculation where needed.
 33. Control Reconciliation does not create Accrual/Obligation/Payment/Expense automatically.
 34. Loss allocation to owners is not owned by this BP.
+35. Transformer→streets and street→plots are separate reconciliation scopes/results.
+36. One Control Observation campaign may feed several reconciliation results.
+37. Reuse of one Reading in several scopes does not duplicate the Reading.
+38. Raw transformer Reading must not be compared downstream before applicable coefficient/conversion.
+39. Pilot coefficient 40 is Meter/installation conversion semantics, not supplier loss semantics.
+40. Shorter observation window reduces timing uncertainty but does not create exact simultaneity.
 
 ## 64. Решения internal review
 
@@ -706,6 +830,9 @@ Where materially relevant, should be determinable:
 10. Supplier-calculated transformation loss remains separate from internal imbalance.
 11. Operational Loss recognition remains a separate next process.
 12. No new universal Reconciliation Entry/Balance Line entity is required.
+13. Pilot requires two explicit nested reconciliation variants: transformer→streets and street→plots.
+14. Coefficient 40 on the transformer general meter is handled by existing scaling/conversion semantics; no new entity is required.
+15. One multi-controller observation campaign may supply several reconciliation scopes without merging their identities.
 
 Блокирующих предметных вопросов после internal review не осталось.
 
@@ -728,7 +855,10 @@ BP прошёл internal consistency review against ADR-007, BP-READING-001/002/
 
 Проверены:
 
-- street/group reconciliation;
+- transformer→street reconciliation;
+- street→individual-plot reconciliation;
+- multi-controller campaign feeding nested scopes;
+- transformer meter coefficient 40;
 - several independent branches;
 - transformer/intermediate/nested scopes;
 - pump/common-use consumption;

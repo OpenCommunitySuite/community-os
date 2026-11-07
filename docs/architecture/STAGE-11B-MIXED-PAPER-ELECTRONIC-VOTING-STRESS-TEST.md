@@ -46,6 +46,58 @@
 
 9. **Неформальный опрос (Survey)** должен быть доступен пользователю как менее формальный способ собрать мнения без обязательной электронной подписи. Однако в предметной модели он **не становится третьим типом Voting**, поскольку Stage 10 уже зафиксировал `Survey ≠ Voting` и `Survey Response ≠ Vote`. На продуктовом/UI-уровне допустимо предлагать рядом три сценария: `Open Voting`, `Anonymous Voting`, `Informal Survey`. Survey использует собственную Communications semantics и не входит автоматически в формальный Calculation/Established Result.
 
+## 0.1. Эмпирический pilot case — собрание 24.10.2026
+
+Отдельный reference analysis:
+
+`../references/PILOT_ST_EXPRESS_MEETING_2026-10-24_REFERENCE_ANALYSIS.md`
+
+Предоставленные реальные документы пилотного СТ дают обязательные проверочные сценарии для настоящего stress-test:
+
+1. **Participation ≠ recognized Position.**
+
+   По протоколу:
+
+   ~~~text
+   members = 340
+   registered/participated = 181
+   recognized positions per each question = 139
+   ~~~
+
+   Community OS не должна автоматически объяснять разницу `181 - 139 = 42` как:
+   - `Воздержались`;
+   - rejected Votes;
+   - missing ballots;
+   - non-participation.
+
+   Такая причина должна следовать только из реальных process/evidence data.
+
+2. **One signed paper ballot may formalize several Votes.**
+
+   Реальный опросный лист содержит ФИО, Plot number, одну подпись и семь Questions с отдельными `ТАК / НІ / УТР.`.
+
+   ~~~text
+   one signed paper Document
+   → Vote for Question 1
+   → Vote for Question 2
+   → ...
+   → Vote for Question 7
+   ~~~
+
+   Поэтому `1 ballot/document/file = 1 Vote` запрещено как universal assumption.
+
+3. **Agenda/question wording is historically significant.**
+
+   Уведомление, обсуждение, фактическая структура ballot и итоговый протокол не полностью совпадают. Изменение предложения во время обсуждения не меняет ballot автоматически.
+
+4. **Ukrainian term `опитування` is ambiguous.**
+
+   В реальной formal procedure используются `письмове опитування` и `опитувальний лист (лист голосування)`. Поэтому product/UI terminology должна явно различать formal Voting и `Неформальне опитування / Survey`.
+
+5. **Pilot rule `1 Plot = 1 Vote` не подтверждён этим пакетом самостоятельно.**
+
+   Protocol counts members; ballot contains both member name and Plot number. Проверка требует реестра участников и заполненных ballot sheets.
+
 ## 1. Бизнес-потребность
 
 Часть участников пилотного СТ не готова пользоваться КЕП/Дія.Підпис или другими electronic signing mechanisms.

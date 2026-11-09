@@ -1,4 +1,4 @@
-# BP-GOV-001 — Смешанное открытое и анонимное голосование
+# BP-GOV-001 — Открытое и анонимное голосование со смешанными каналами
 
 **Статус:** Draft / Stage 11B / based on accepted requirements and stress-tests  
 **Контекст:** Управление и коллективные процедуры  
@@ -1002,8 +1002,8 @@ Where materially relevant, should be determinable:
 
 1. Voting ≠ channel.
 2. Open Voting ≠ Anonymous Voting.
-4. One Voting has one declared choice-visibility mode; mixed channels do not mix Open and Anonymous semantics.
-3. Voting Right ≠ Vote.
+3. One Voting has one declared choice-visibility mode; mixed channels do not mix Open and Anonymous semantics.
+4. Voting Right ≠ Vote.
 5. Voting Right Exercise ≠ Vote.
 6. Voting Right Exercise ≠ Position.
 7. Participation Right ≠ Voting Right Exercise.

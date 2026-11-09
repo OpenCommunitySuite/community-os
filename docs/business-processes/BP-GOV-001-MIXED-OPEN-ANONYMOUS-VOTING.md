@@ -522,13 +522,17 @@ one Open Voting
 
 ### 19.2. Mixed-channel Anonymous Voting
 
+Если native online Anonymous Voting для конкретного profile уже имеет отдельно принятую choice-side semantics:
+
 ~~~text
 one Anonymous Voting
-→ anonymous online counting inputs/results
+→ anonymous online counting inputs/results where supported
 → anonymous offline Results of Offline Count
 → Voting Right Exercises where applicable
 → one Calculation
 ~~~
+
+До разрешения BLOCKER из section 16 гарантированно определён только offline anonymous contribution; наличие online anonymous input не предполагается автоматически.
 
 Одна Voting не смешивает Open и Anonymous choice semantics. Если по тем же Governance Questions требуется другая прозрачность выбора, это требует отдельной Voting согласно applicable rule.
 
@@ -731,15 +735,15 @@ recognized effective individual Votes
 ### 31.2. Anonymous Voting
 
 ~~~text
-anonymous online counting inputs/results
-+
 Results of Offline Count
++
+anonymous online counting inputs/results where separately supported
 +
 Voting Right Exercises / participation metrics where rule requires
 → Calculation
 ~~~
 
-При mixed-channel Anonymous Voting Calculation объединяет анонимные результаты допустимых каналов, не создавая Subject/Voting Right→Position linkage.
+При mixed-channel Anonymous Voting Calculation объединяет только те анонимные inputs, чья domain semantics уже определена для соответствующего profile. До разрешения BLOCKER section 16 native online anonymous input не считается нормативно определённым.
 
 Open individual Votes и Anonymous counting inputs не смешиваются внутри одной Voting.
 
@@ -932,13 +936,15 @@ VR3 → electronic signed ballot Document → Vote
 
 ## 45. Pilot scenario C — anonymous mixed
 
+Этот сценарий становится допустимым только после отдельного решения native online Anonymous choice-side semantics.
+
 ~~~text
 offline:
 Voting Right Exercises
 +
 Result of Offline Count
 
-online:
+online where separately supported:
 Voting Right Exercises
 +
 anonymous online choice/count inputs
@@ -946,7 +952,7 @@ anonymous online choice/count inputs
 → one Calculation
 ~~~
 
-Exercise→Position link запрещён.
+До такого решения pilot Anonymous Voting может оставаться offline-only. Exercise→Position link запрещён.
 
 ---
 

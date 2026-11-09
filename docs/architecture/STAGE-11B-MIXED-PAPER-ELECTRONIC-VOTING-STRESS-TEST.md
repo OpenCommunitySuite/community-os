@@ -1,6 +1,6 @@
 # Stage 11B — Mixed paper/electronic voting stress-test
 
-**Статус:** Accepted Stage 11B requirements / detailed BP not yet drafted  
+**Статус:** Completed stress-test / conclusions incorporated into accepted BP-GOV-001 / not normative  
 **Пилот:** Садівниче товариство «ЕКСПРЕС»  
 **Связанный этап:** Stage 11B — Remote Participation and Electronic Voting  
 **Цель:** проверить смешанную процедуру, в которой одна Voting допускает электронно подписанное волеизъявление и бумажные бюллетени с собственноручной подписью без раздвоения предметной модели Vote.
@@ -721,16 +721,24 @@ Accepted Stage 11B direction:
 - physical originals remain external archival evidence; Community OS stores digital copies/provenance;
 - native online Anonymous Voting remains a dedicated design problem because the system itself must prevent retained Subject↔choice linkage.
 
-## 25. Next step
+## 25. Result after Stage 11B consolidation
 
-These findings should be input to the future Stage 11B BP.
+Findings настоящего stress-test включены в accepted `BP-GOV-001` и нормативную синхронизацию ADR-001 / ADR-008 / DOMAIN_MODEL / TERMINOLOGY.
 
-Before implementation, Stage 11B still needs:
+В first normative / first-pilot scope зафиксировано:
 
-1. pilot legal/governance profile;
-2. exact rule for paper/electronic conflict/change;
-3. ballot document semantics;
-4. retention period/legal destruction rule;
-5. native online Anonymous Voting identity-separation design;
-6. закрепить в Draft BP Stage 11B точную нормативную модель «Результата подсчёта офлайн-части»: identity, scope, correction/replacement и связь с source protocol;
-7. remote open-paper original receipt rules, if supported.
+- document-backed signed electronic ballot — для Open Voting;
+- Anonymous Voting — physical/offline choice-side + Voting Right Exercise + Result of Offline Count;
+- native online Anonymous Voting — Future Design Task;
+- Result of Offline Count имеет самостоятельную identity, question-local scope и correction/replacement history;
+- Open/Anonymous mode не смешивается внутри одной Voting.
+
+Перед реализацией остаются pilot profile/legal decisions:
+
+1. exact presence/quorum semantics;
+2. paper/electronic conflict/change policy;
+3. legal/profile validation `1 Plot = 1 Vote`;
+4. retention/physical-original rules;
+5. anonymous consumption moment/reissue/privacy-scope rules.
+
+Эти открытые вопросы не отменяют завершённость настоящего архитектурного stress-test.

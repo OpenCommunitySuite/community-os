@@ -1,6 +1,6 @@
 # BP-GOV-001 — Открытое и анонимное голосование со смешанными каналами
 
-**Статус:** Draft / Stage 11B / based on accepted requirements and stress-tests  
+**Статус:** Draft / independent multi-review consolidated / Option A accepted / point fixes applied  
 **Контекст:** Управление и коллективные процедуры  
 **Связанные контексты:** Субъекты; Полномочия и представительство; Документы и формализация; Доступ; Интеграции  
 **Связанные решения:** ADR-001, ADR-004, ADR-005, ADR-008, ADR-009, ADR-010, ADR-011
@@ -169,7 +169,24 @@ Position
 
 Самостоятельный исторически значимый Governance fact, фиксирующий, что согласно applicable Voting Rule конкретное Voting Right признано **реализованным/расходованным для целей процедуры** допустимым реализатором без обязательного хранения Position.
 
-Voting Right Exercise сам по себе не доказывает автоматически, что valid Position была подана, ballot был физически подсчитан либо Exercise должен участвовать в quorum/counting. Эти последствия определяет applicable rule.
+Voting Right Exercise сам по себе не утверждает автоматически:
+
+- Position;
+- valid cast;
+- physical counting;
+- participation;
+- quorum effect;
+- counting effect.
+
+Эти последствия определяет historically applicable Voting Rule.
+
+Для каждого recognized Exercise должно быть исторически объяснимо:
+
+- какой event/evidence был recognition basis;
+- какая Voting Rule version объявила этот basis достаточным;
+- какие procedural effects rule придаёт этому Exercise.
+
+Recognition basis является provenance процесса, а не новой universal entity taxonomy.
 
 ~~~text
 Voting Right Exercise
@@ -220,6 +237,29 @@ Vote
 
 Разница между величинами не классифицируется автоматически.
 
+### 6.1. Participation
+
+Participation не вводится настоящим BP как новая fundamental identity-bearing entity.
+
+Где процедура использует понятие участия, оно определяется применимой Voting Rule как rule-derived procedural fact/metric на основании явно допустимых inputs, например:
+
+- presence evidence;
+- received ballot/evidence;
+- Voting Right Exercise;
+- recognized Vote;
+- иных rule-defined facts.
+
+Следовательно:
+
+~~~text
+participation
+≠ physical presence automatically
+≠ Voting Right Exercise automatically
+≠ Vote automatically
+~~~
+
+Новая самостоятельная Participation identity должна вводиться только если будущий процесс докажет независимый lifecycle/correction semantics.
+
 ---
 
 ## 7. Voting Rule
@@ -232,7 +272,12 @@ Vote
 - implementer;
 - Representation;
 - режим Open / Anonymous;
-- допустимые каналы;
+- момент фиксации режима до opening/acceptance submissions;
+- способы участия, подачи и формализации;
+- recognition basis/effects Voting Right Exercise where applicable;
+- participation semantics/inputs where applicable;
+- conflict classes, resolution basis и procedural outcome;
+- relevant reference time для change/conflict;
 - period/deadline;
 - presence semantics;
 - participation semantics;
@@ -336,7 +381,7 @@ Data-entry operator ≠ voter ≠ Voting Right implementer.
 
 ---
 
-## 12. Один paper ballot может содержать несколько Votes
+## 12. Один identifiable/signed Open ballot может содержать несколько Votes
 
 ~~~text
 one paper Document
@@ -358,7 +403,24 @@ one paper Document
 - какой Signing покрывал соответствующую Revision/Representation;
 - как Position была распознана/введена.
 
+Для любого Vote, происходящего из multi-item Document, эта mapping provenance является обязательной, а не optional evidence.
+
 Отдельная universal Ballot Item entity этим не вводится.
+
+Для Anonymous Voting действует дополнительная граница:
+
+> identifiable/signed Document, связанный с Subject, не может содержать Position по Anonymous Voting.
+
+Иначе:
+
+~~~text
+Signing → Subject
+Document item → Position
+~~~
+
+восстанавливает запрещённую Subject/Voting Right→Position связь.
+
+Следовательно, identifiable/signed multi-question ballot может объединять только совместимые Open Votings. Anonymous Position требует отдельного неидентифицируемого носителя/procedure.
 
 ---
 
@@ -373,14 +435,21 @@ Community OS не владеет физической процедурой об�
 ~~~text
 certified ballot issuance / receipt evidence
 → validation under applicable Voting Rule
-→ may justify Voting Right Exercise
+→ Voting Right Exercise only if the rule explicitly declares
+  that event as the right-consumption moment
 ~~~
 
 Mere issuance/receipt **не является Voting Right Exercise автоматически**.
 
-Для anonymous offline procedure Voting Rule должен определить, какой момент считается реализацией/расходованием права. Например, если после выдачи unlinkable paper ballot система объективно не может установить, был ли он впоследствии опущен в урну, rule может считать саму допустимую выдачу моментом расходования права для защиты от двойного использования.
+Для anonymous offline procedure Voting Rule должен явно определить, какой event считается реализацией/расходованием права.
+
+Если rule не объявляет issuance/receipt consumption moment, такой факт остаётся evidence only и не создаёт Exercise.
+
+Если после выдачи unlinkable paper ballot система объективно не может установить, был ли он впоследствии опущен в урну, rule может сознательно выбрать допустимую выдачу как consumption moment для защиты от двойного использования.
 
 Такой Exercise не доказывает Position и не доказывает физический подсчёт ballot.
+
+Reissue spoiled/lost ballot также определяется explicit Voting Rule и не возвращает право молча.
 
 ### 13.2. Choice count
 
@@ -401,9 +470,11 @@ Community OS не создаёт Subject-linked Votes из анонимных б
 
 - Voting;
 - Governance Question;
-- count scope;
+- declared count scope;
 - source commission/location/area;
+- counting units/semantics according to Voting Rule;
 - counts by Position;
+- total counted quantity/weight where applicable;
 - invalid/other indicators;
 - counting time/period;
 - recognition time;
@@ -416,6 +487,26 @@ Community OS не создаёт Subject-linked Votes из анонимных б
 Одна Voting может иметь 0..N Results of Offline Count, если physical count разделён на независимые scopes.
 
 Один multi-question counting protocol Document может быть source/evidence для нескольких отдельных Results of Offline Count — по одному или нескольким results для каждой соответствующей Voting. Multi-question Result of Offline Count container не вводится.
+
+Result of Offline Count сам по себе не утверждает автоматически:
+
+- participation;
+- quorum;
+- right use;
+- полноту issued ballots;
+- Established Result.
+
+Это position-count input.
+
+Нельзя универсально предполагать:
+
+~~~text
+one ballot = one unit of result weight
+~~~
+
+Counting units/weights определяет Voting Rule. Для weighted anonymous Voting rule должна сохранять counting semantics без восстановления Subject/Voting Right→Position linkage.
+
+Если одна Calculation использует несколько count scopes, должно быть объяснимо, как исключено double counting и какая effective result/version использована для каждого scope. Полнота покрытия определяется applicable rule, но gaps/overlaps не могут быть неявными.
 
 ---
 
@@ -436,33 +527,52 @@ Calculation должен позволять определить, какая в�
 
 ---
 
-## 16. Anonymous online Voting
+## 16. Native online Anonymous Voting — Future Design Task
 
-Минимальный domain invariant:
+**Решение Stage 11B after independent multi-review: Option A.**
 
-> Community OS не должна сохранять восстанавливаемую связь Subject/Voting Right → Position.
+Native online Anonymous Voting **исключается из первой нормативной версии и первого пилота**.
 
-Одновременно она должна:
+Первая версия Anonymous Voting поддерживает:
 
-- проверить eligibility;
-- признать Voting Right Exercise;
-- предотвратить несовместимое повторное использование права;
-- принять anonymous choice;
-- включить его в counting/result;
-- не раскрыть Position через source-of-truth, projections, exports или audit surfaces.
+~~~text
+physical/offline anonymous procedure
+→ rule-defined Voting Right Exercise
+→ physical anonymous count
+→ Result of Offline Count
+→ Calculation
+~~~
 
-Конкретный механизм anonymous credential / blind signature / provider / cryptographic mix настоящим BP не выбирается.
+Community OS не принимает native anonymous online choice в first-pilot scope.
 
-Если техническая реализация не обеспечивает invariant, native online Anonymous Voting не считается корректно реализованным.
+При этом сохраняется future invariant:
 
-**Текущий Draft gap:** пока не определён choice-side domain referent для случая, когда Community OS сама принимает anonymous online choice. Existing Vote использовать нельзя, потому что он связан с конкретным Voting Right. До отдельного stress-test/design этот участок не готов к normative sync.
+> если Community OS в будущем сама принимает anonymous online choice, штатные данные системы не должны позволять восстановить Subject/Voting Right → Position.
 
-Допустимые направления дальнейшего решения:
+Existing Vote для этого использовать нельзя, поскольку Vote по ADR-001 связан с конкретным Voting Right.
 
-- оставить native online Anonymous Voting вне первой нормативной версии/пилота, сохранив только invariant и future design task;
-- либо отдельно спроектировать anonymous choice-side concept с identity/correction/idempotency/counting semantics без Voting Right→Position linkage.
+Скрытие Position только в UI при сохранении Subject/Voting Right→Position в source-of-truth **не является Anonymous Voting**.
 
-Настоящий BP не выбирает второй вариант автоматически.
+### 16.1. Trigger future design
+
+Отдельный design/stress-test требуется, когда конкретный профиль требует:
+
+- native remote Anonymous Voting;
+- verifiable anonymous online counting;
+- external anonymous-voting provider с domain-recognized result;
+- иной concrete process, требующий online anonymous choice-side semantics.
+
+Будущий stress-test должен отдельно проверить:
+
+- identity/non-identity choice-side referent;
+- idempotency/redelivery;
+- correction/rejection;
+- counting provenance;
+- verifiability;
+- privacy/non-linkage;
+- aggregate-vs-individual boundary.
+
+Настоящий BP не предрешает, будет ли future referent individual или aggregate.
 
 ---
 
@@ -479,7 +589,9 @@ Calculation должен позволять определить, какая в�
 - recognition time;
 - acting recorder;
 - evidence/source;
+- recognition basis;
 - rule/version;
+- rule-defined procedural effects;
 - correction/review history.
 
 Position для Anonymous Voting отсутствует.
@@ -493,6 +605,10 @@ Applicable rule/review должна позволять определить:
 - какой claim был rejected/conflicting;
 - кто считался actual implementer.
 
+Для одного Voting Right в одной Voting в соответствующий reference time не может существовать более одной effective realization.
+
+Historical claims/recognitions/corrections могут быть множественными, но rule/review должна определить единственное effective use либо явно unresolved conflict.
+
 Отдельная universal Voting Right Exercise Claim entity пока не вводится.
 
 ---
@@ -503,7 +619,17 @@ Applicable rule/review должна позволять определить:
 
 Recognized Vote уже может подтверждать реализацию права.
 
-Voting Right Exercise нужен там, где требуется отдельная семантика использования права без Position.
+Voting Right Exercise нужен там, где требуется отдельная семантика использования права без Position либо процедурный факт right-use/participation не совпадает с recognized Vote.
+
+Пример:
+
+~~~text
+paper ballot received
+→ rule considers right consumed
+→ one Question left blank/invalid
+~~~
+
+В таком Open scenario Exercise допустим, но не создаётся как обязательный дубль каждого Vote.
 
 ---
 
@@ -520,52 +646,52 @@ one Open Voting
 → one Calculation
 ~~~
 
-### 19.2. Mixed-channel Anonymous Voting
+### 19.2. Anonymous Voting первой нормативной версии
 
-Если native online Anonymous Voting для конкретного profile уже имеет отдельно принятую choice-side semantics:
+В first normative / first-pilot scope Anonymous Voting является offline/physical по choice-side:
 
 ~~~text
 one Anonymous Voting
-→ anonymous online counting inputs/results where supported
-→ anonymous offline Results of Offline Count
 → Voting Right Exercises where applicable
+→ one or more Results of Offline Count
 → one Calculation
 ~~~
 
-До разрешения BLOCKER из section 16 гарантированно определён только offline anonymous contribution; наличие online anonymous input не предполагается автоматически.
+Native online Anonymous choice input отсутствует согласно section 16.
 
-Одна Voting не смешивает Open и Anonymous choice semantics. Если по тем же Governance Questions требуется другая прозрачность выбора, это требует отдельной Voting согласно applicable rule.
+Одна Voting не смешивает Open и Anonymous choice semantics.
 
-Mixed mode не создаёт отдельную paper/electronic Voting только из-за channel.
+Если один Governance Question требует different visibility semantics, используются distinct Voting identities. Настоящий BP не допускает объединять Open и Anonymous Votings в один общий Calculation/Established Result как обход one-mode invariant; отдельный cross-Voting process потребовал бы самостоятельного review.
+
+Mixed mode не создаёт отдельную paper/electronic Voting только из-за способа подачи/формализации.
 
 ---
 
 ## 20. Double-use / channel conflict
 
-~~~text
-VR-15
-→ online exercise recognized
+Conflict означает incompatible claims/actions, которые applicable Voting Rule не считает разрешённым supersession/change.
 
-later
-→ offline register claims same VR-15
-→ conflict
-~~~
+Community OS фиксирует conflict без необходимости раскрывать Position.
 
-Community OS фиксирует conflict без раскрытия Position. Второй несовместимый claim не обязан немедленно становиться вторым effective Voting Right Exercise; он может оставаться received/conflicting evidence до rule-driven resolution.
+Второй несовместимый claim не обязан немедленно становиться вторым effective Voting Right Exercise; он может оставаться received/conflicting evidence до rule-driven resolution.
 
-Voting Rule определяет outcome:
+Voting Rule должна явно определять:
 
-- reject later claim;
-- suspend/review;
-- authoritative source;
-- correction erroneous recognition;
-- иной profile-specific result.
+- conflict class;
+- resolution basis;
+- relevant reference time;
+- procedural outcome;
+- effect on effective realization/Calculation.
+
+Platform-wide closed enum outcomes не вводится.
 
 Universal latest-wins rule не вводится.
 
 ---
 
 ## 21. Повторная/изменённая подача Open Vote
+
+Change/revote — later action, которое applicable rule считает допустимым supersession/replacement предыдущего action.
 
 Если rule разрешает change/revote:
 
@@ -577,6 +703,8 @@ Vote V1
 ~~~
 
 Paper/electronic conflict/change semantics должны быть explicit.
+
+Applicable rule определяет relevant reference time: submitted, received, recognized либо другой domain time, подтверждаемый evidence.
 
 ---
 
@@ -602,6 +730,8 @@ Representation не создаёт новое Voting Right.
 ---
 
 ## 24. Pilot rule 1 участок = 1 голос
+
+**Pilot-only working profile rule; not a universal Community OS invariant. Legal/profile validity remains open.**
 
 Рабочее требование первого внедрения:
 
@@ -644,6 +774,10 @@ electronic ballot Document
 ~~~
 
 Это не требует обобщать ADR-009 Signing.
+
+Эта document-backed signed model относится к **Open Voting**.
+
+Identifiable/signed Document не используется для хранения Position Anonymous Voting.
 
 ### 26.1. Direct documentless signed Vote
 
@@ -691,6 +825,8 @@ Late recognition ранее своевременно received action не дел
 
 Technical delay не должен молча менять предметное время действия.
 
+У multi-question Document один receipt event может подтверждать submissions по нескольким Voting, но admissibility/deadline проверяется по applicable rule каждой Voting отдельно.
+
 ---
 
 ## 29. Unknown external outcome
@@ -732,22 +868,22 @@ recognized effective individual Votes
 
 При mixed-channel Open Voting сюда могут входить признанные Votes из paper и electronic channels.
 
-### 31.2. Anonymous Voting
+### 31.2. Anonymous Voting первой нормативной версии
 
 ~~~text
 Results of Offline Count
-+
-anonymous online counting inputs/results where separately supported
 +
 Voting Right Exercises / participation metrics where rule requires
 → Calculation
 ~~~
 
-При mixed-channel Anonymous Voting Calculation объединяет только те анонимные inputs, чья domain semantics уже определена для соответствующего profile. До разрешения BLOCKER section 16 native online anonymous input не считается нормативно определённым.
+Native online anonymous input отсутствует в first-pilot scope.
 
-Open individual Votes и Anonymous counting inputs не смешиваются внутри одной Voting.
+Result of Offline Count является position-count input, а Exercise/participation facts используются только там, где Voting Rule явно задаёт их effect.
 
-Calculation сохраняет provenance input identities/versions.
+Open individual Votes и Anonymous count inputs не смешиваются внутри одной Voting.
+
+Calculation сохраняет provenance input identities/versions и effective result/version per count scope.
 
 ---
 
@@ -763,6 +899,8 @@ Quorum не выводится универсально из:
 - User Accounts.
 
 Формулу задаёт applicable Voting Rule.
+
+Если rule использует participation как вход кворума/процедуры, participation вычисляется только из явно определённых rule inputs. Ни Vote, ни Exercise, ни presence не считаются participation по умолчанию.
 
 ---
 
@@ -816,6 +954,12 @@ physical recount
 
 Correction individual Vote/evidence не переписывает Established Result автоматически.
 
+Для Anonymous Voting correction Voting Right Exercise **не** означает correction anonymous choice/count автоматически.
+
+После физического смешения anonymous ballot конкретный choice нельзя удалить из count без восстановления запрещённой linkage.
+
+Если после counting обнаружен ошибочный Exercise/right-use, последствия определяет applicable rule на уровне Result Review, recount where physically meaningful, materiality/impact analysis, procedure invalidation/repetition либо другого explicit governance remedy.
+
 Для Open offline Voting aggregate paper count может храниться как дополнительное evidence/reconciliation input where useful, но для текущего пилотного сценария он не заменяет individual recognized Votes. Aggregate-only Open semantics потребовали бы отдельного review.
 
 ---
@@ -858,6 +1002,21 @@ Open/Anonymous distinction распространяется на:
 - operational logs where linkage can be reconstructed.
 
 Anonymous mode нарушен, если Subject→Position link восстанавливается из штатных данных системы.
+
+Это относится не только к прямым relations, но и к корреляции разрешённых metadata.
+
+Где применимо, Voting Rule/profile должна предотвращать восстановление linkage через:
+
+- общий ballot serial/identifier в issuance evidence и counted ballot;
+- слишком малый count scope/anonymity set;
+- точную временную/пространственную корреляцию Exercise и count scope;
+- промежуточную публикацию counts в малом anonymity set;
+- scans/photos individual anonymous ballots, если handwriting/marking позволяет корреляцию;
+- correction/replacement metadata, раскрывающие individual participant.
+
+Individual anonymous ballot scan/photo не является штатным count evidence, если он создаёт риск deanonymization. Предпочтительным evidence является protocol/counting document без Subject→Position linkage.
+
+Community OS не владеет физической тайной внешней процедуры, но не должна ухудшать её своими данными.
 
 ---
 
@@ -934,54 +1093,62 @@ VR3 → electronic signed ballot Document → Vote
 
 ---
 
-## 45. Pilot scenario C — anonymous mixed
-
-Этот сценарий становится допустимым только после отдельного решения native online Anonymous choice-side semantics.
+## 45. Pilot scenario C — anonymous offline
 
 ~~~text
-offline:
-Voting Right Exercises
+Voting Right Exercises where rule defines right consumption
 +
-Result of Offline Count
-
-online where separately supported:
-Voting Right Exercises
-+
-anonymous online choice/count inputs
-
-→ one Calculation
+physical anonymous ballots
+→ external physical count
+→ Result of Offline Count
+→ Calculation
 ~~~
 
-До такого решения pilot Anonymous Voting может оставаться offline-only. Exercise→Position link запрещён.
+Native online Anonymous Voting не входит в first-pilot scope.
+
+Exercise→Position link запрещён.
 
 ---
 
-## 46. Pilot scenario D — same right in two channels
+## 46. Pilot scenario D — same right conflict
+
+Open example:
 
 ~~~text
-VR27 → online Exercise E1
+VR27 → paper Vote V1
 
 later:
-paper register → claimed offline Exercise E2
+electronic submission claims same VR27
+→ change or conflict according to Voting Rule
+~~~
 
+Anonymous offline example:
+
+~~~text
+VR27 → issuance/receipt evidence E1
+
+later:
+another incompatible issuance/receipt claim for VR27
 → conflict
 → rule-driven review
 ~~~
 
-Оба использования не учитываются молча.
+Не более одной effective realization учитывается для одного Voting Right в одной Voting на соответствующий reference time.
 
 ---
 
-## 47. Pilot scenario E — multi-question ballot
+## 47. Pilot scenario E — multi-question Open ballot
 
 ~~~text
-one signed ballot
-→ Vote Q1
-→ Vote Q2
-→ Vote Q3
+one identifiable/signed ballot
+→ Open Vote Q1
+→ Open Vote Q2
+→ Open Vote Q3
 ~~~
 
 Пустая позиция по одному Question не invalidates остальные автоматически, если rule не требует обратного.
+
+Anonymous Position не включается в такой identifiable/signed Document.
 
 ---
 
@@ -1028,7 +1195,7 @@ Calculation может быть blocked/limited/proceed только по explic
 
 ## 50. Provenance
 
-Where materially relevant, should be determinable:
+For all recognized facts должно быть определимо в объёме, требуемом applicable process/rule:
 
 - Voting;
 - Question;
@@ -1044,6 +1211,7 @@ Where materially relevant, should be determinable:
 - Voting Right Exercise identity;
 - Result of Offline Count identity/version;
 - ballot/protocol Documents;
+- for multi-item Document: per-Vote source item/local address and mapping;
 - Signing identities;
 - provider correlation;
 - rejection/conflict reason;
@@ -1070,7 +1238,7 @@ Where materially relevant, should be determinable:
 14. Explicit abstain ≠ no Vote.
 15. One ballot may contain several Votes.
 16. Mixed channels do not create multiple Voting identities.
-17. One Voting Right cannot have two incompatible effective uses.
+17. One Voting Right has no more than one effective realization in one Voting at a reference time; historical claims/records may be multiple.
 18. Conflict outcome is rule-driven.
 19. Anonymous mode must not retain recoverable Subject/Voting Right→Position linkage.
 20. Anonymous offline paper choices are not reconstructed as Subject-linked Votes.
@@ -1090,6 +1258,21 @@ Where materially relevant, should be determinable:
 34. One protocol Document may evidence several question-local Results of Offline Count.
 35. Multiple historical Exercise records/claims do not imply multiple simultaneously effective realizations.
 36. Participation mode and carrier/formalization mode are not one universal Channel taxonomy.
+37. Native online Anonymous Voting is outside first normative / first-pilot scope.
+38. UI-hidden Position with retained Subject/Voting Right→Position linkage is not Anonymous Voting.
+39. Issuance/receipt creates Exercise only when applicable Voting Rule explicitly declares it a right-consumption event.
+40. Voting Right Exercise does not automatically assert participation, quorum, valid cast or counting effect.
+41. Result of Offline Count does not automatically assert participation, quorum, right use or Established Result.
+42. One Result of Offline Count belongs to one declared count scope; Calculation must avoid implicit double counting across scopes.
+43. Counting units/weights are defined by Voting Rule; one ballot is not universally one unit of result weight.
+44. Identifiable/signed Document cannot contain Position for Anonymous Voting.
+45. Multi-item Document-origin Vote requires per-Vote source-item mapping provenance.
+46. Choice-visibility mode is fixed before acceptance of submissions and is not silently changed afterward.
+47. Different Open/Anonymous Votings are not aggregated into one Calculation/Established Result by this BP.
+48. Timely received action recognized later is not late automatically.
+49. Anonymous privacy includes correlation risks across identifiers, timing, scope, evidence and correction metadata.
+50. Aggregate Open count does not replace individual Open Votes in first-pilot semantics.
+51. Correction Exercise in Anonymous Voting does not identify/correct a particular anonymous Position automatically.
 
 ---
 
@@ -1117,57 +1300,85 @@ Stage 11A document-scoped Signing не обобщается автоматиче
 
 ---
 
-## 53. Proposed normative synchronization after review
+## 53. Normative synchronization after adjudication
 
-После review/adjudication предлагается минимальная sync.
+Independent multi-review consolidated; Option A accepted; point fixes applied.
 
-ADR-001:
+Разрешена минимальная normative sync.
 
-- добавить Voting Right Exercise как distinct from Vote;
-- разрешить anonymous exercise без Position;
-- rule определяет effective use/conflict outcome.
+### ADR-001
 
-ADR-008:
+Добавить:
 
-- добавить Result of Offline Count как самостоятельный input;
-- mixed Calculation может использовать individual Votes и другие recognized inputs;
-- anonymous procedure разделяет right-use evidence и position-counting inputs.
+- Voting Right Exercise как distinct from Vote;
+- Exercise without Position;
+- rule-defined recognition basis/effects;
+- no more than one effective realization per Voting Right in one Voting at reference time;
+- one declared choice-visibility mode per Voting.
 
-DOMAIN_MODEL:
+### ADR-008
 
-- добавить Voting Right Exercise;
-- добавить Result of Offline Count;
-- закрепить границы с Vote/Calculation/Established Result.
+Добавить:
 
-TERMINOLOGY:
+- Result of Offline Count как самостоятельный question-local Calculation input;
+- Calculation may use recognized non-Vote inputs where rule explicitly permits;
+- anonymous offline separates right-use facts from position-counting facts;
+- correction Exercise does not identify/correct a particular anonymous Position;
+- native online Anonymous outside first normative scope.
 
-- добавить канонические русские/английские термины.
+### DOMAIN_MODEL
+
+Добавить:
+
+- Voting Right Exercise;
+- Result of Offline Count;
+- negative boundaries;
+- count-scope semantics;
+- multi-item Document→Vote mapping provenance;
+- anonymous privacy correlation constraint;
+- one-mode invariant;
+- first normative Anonymous scope = offline/physical choice-side.
+
+### TERMINOLOGY
+
+Добавить канонические RU/EN terms и negative definitions.
 
 Новый bounded context не требуется.
 
 ---
 
-## 54. Open questions for review/adjudication
+## 54. Remaining profile / future-design questions
 
-1. Document-backed electronic ballot — обязательный pilot mechanism для signed Open remote Vote?
-2. Direct documentless signed Vote откладывается из первого пилота?
-3. Exact paper/electronic change/conflict rules.
-4. Может ли later electronic Vote заменять paper Vote и на каком основании?
-5. Exact legal/profile definition presence/quorum для пилота.
-6. Exact legal/profile status 1 Plot = 1 Vote.
-7. Native online Anonymous Voting входит ли в первый пилот либо откладывается до отдельного design?
-8. Anonymous online choice-side referent: нужен ли новый identity-bearing concept либо first-pilot scope исключает native online Anonymous?
-9. Physical-original retention/receipt rules.
-10. Нужен ли Voting Right Exercise для некоторых Open Voting participation cases?
-11. Exact correction/replacement terminology Result of Offline Count.
+После adjudication закрыто:
 
-Решено internal review: один Result of Offline Count относится к одной Voting/Question; multi-question protocol Document может подтверждать несколько таких results.
+- native online Anonymous исключён из first-pilot scope;
+- новый anonymous choice-side concept сейчас не вводится;
+- Voting Right Exercise допустим в Open Voting where rule needs separate right-use semantics;
+- one Result of Offline Count относится к one Voting/Question;
+- document-backed signed electronic ballot используется только для Open Voting.
+
+Остаются profile-specific вопросы первого пилота:
+
+1. Exact paper/electronic change/conflict rules.
+2. Exact legal/profile definition presence/quorum.
+3. Exact legal/profile status 1 Plot = 1 Vote.
+4. Physical-original retention/receipt rules.
+5. Exact consumption moment для anonymous paper procedure: issuance/receipt/other.
+6. Reissue spoiled/lost anonymous ballot semantics.
+7. Minimum anonymity/count-scope constraints.
+
+Future Design Task:
+
+8. Native online Anonymous Voting choice/counting semantics.
+9. Direct documentless signed Vote boundary if future process requires it.
 
 ---
 
-## 55. Independent review focus
+## 55. Independent review result
 
-Reviewers should test:
+Independent multi-review completed. Consolidation: BP-GOV-001-INDEPENDENT-MULTI-REVIEW-CONSOLIDATION.md.
+
+Review confirmed or tested:
 
 - contradiction with ADR-001/008/009;
 - Subject→Position leakage in Anonymous mode;
@@ -1185,19 +1396,27 @@ Reviewers should test:
 
 ## 56. Текущий вывод Draft
 
-Accepted Stage 11B requirements собираются в один Governance BP без отдельных paper/electronic Voting models.
+Independent multi-review завершён.
 
-Новые fundamental Governance concepts, уже принятые в Stage 11B analysis:
+Adjudication:
 
 ~~~text
-Voting Right Exercise
-Result of Offline Count
+Option A accepted
+→ native online Anonymous deferred
+→ point fixes applied
+→ no conceptual redesign
+→ no additional fundamental entities
+→ approved for minimal normative sync
 ~~~
 
-Крупные нерешённые вопросы:
+Stage 11B first normative scope поддерживает:
 
-- **BLOCKER до normative sync:** native online Anonymous Voting choice-side domain referent / решение об исключении native online Anonymous из first-pilot normative scope;
-- documentless signed-action boundary;
-- pilot-specific conflict/change and legal/profile rules.
+- Open Voting с paper/electronic/remote formalization where rule permits;
+- document-backed signed electronic Open ballot;
+- Anonymous offline/physical choice procedure;
+- Voting Right Exercise;
+- Result of Offline Count;
+- mixed Open channels;
+- correction/review/privacy boundaries.
 
-До review/adjudication и normative synchronization implementation task для Codex не формируется.
+Implementation task для Codex формируется только после нормативной синхронизации ADR-001 / ADR-008 / DOMAIN_MODEL / TERMINOLOGY и финального consistency check.

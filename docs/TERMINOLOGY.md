@@ -694,6 +694,15 @@ Refund не требует универсальной связи 1:1 с конк
 - вариантами ответа;
 - результатами.
 
+Каждое конкретное голосование использует один объявленный режим прозрачности выбора:
+
+- **Открытое голосование (Open Voting)** — связь Voting Right→Vote→Position может сохраняться и быть исторически объяснимой;
+- **Анонимное голосование (Anonymous Voting)** — штатные данные Community OS не должны позволять восстановить Subject/Voting Right→Position.
+
+Режим определяется до начала приёма волеизъявлений и не меняется молча после открытия. Open и Anonymous semantics не смешиваются внутри одной Voting.
+
+В первой нормативной версии Anonymous Voting поддерживает external/physical offline choice procedure. Native online Anonymous Voting остаётся Future Design Task.
+
 ---
 
 # 37. Право голоса
@@ -1681,6 +1690,68 @@ Invitation не является Access Grant и само по себе не д�
 
 ---
 
+# 79.1. Реализация права голоса
+
+**Реализация права голоса (Voting Right Exercise)** — самостоятельный исторически значимый Governance fact того, что согласно применимой версии правила конкретное Voting Right признано реализованным/расходованным для целей процедуры без обязательного хранения Position.
+
+~~~text
+Voting Right Exercise
+≠ Vote
+≠ Position
+≠ Participation Right
+~~~
+
+Exercise сам по себе не означает автоматически:
+
+- что valid Position была подана;
+- что ballot был физически подсчитан;
+- что субъект считается participant;
+- что факт влияет на quorum;
+- что факт входит в position count.
+
+Recognition basis и procedural effects Exercise определяются applicable Voting Rule version и должны быть исторически объяснимы.
+
+Issuance/receipt ballot не создаёт Exercise автоматически. Оно создаёт Exercise только если applicable rule явно объявляет такой event моментом right consumption.
+
+Для одного Voting Right в одной Voting на соответствующий reference time допускается не более одной effective realization. Historical claims/records могут быть множественными.
+
+---
+
+# 79.2. Результат подсчёта офлайн-части
+
+**Результат подсчёта офлайн-части (Result of Offline Count)** — самостоятельный исторически значимый Governance fact признанного результата внешнего физического anonymous count по одной Voting/Question и одному declared count scope.
+
+~~~text
+counting protocol Document
+≠ Result of Offline Count
+≠ Calculation
+≠ Established Result
+~~~
+
+Result of Offline Count сам по себе не означает автоматически:
+
+- participation;
+- quorum;
+- right use;
+- completeness issued ballots;
+- Established Result.
+
+Counting units/weights определяет Voting Rule; универсальное правило one ballot = one unit of result weight не вводится.
+
+Один source protocol Document может подтверждать несколько question-local Results of Offline Count.
+
+---
+
+# 79.3. Фактическое участие в процедуре
+
+**Фактическое участие (participation)** — rule-derived procedural fact/metric там, где конкретная процедура придаёт ему предметный смысл.
+
+Participation не тождественно автоматически physical presence, ballot receipt, Voting Right Exercise или Vote. Применимое правило определяет historical inputs, из которых participation выводится.
+
+Самостоятельная fundamental identity-bearing Participation entity не вводится настоящей моделью.
+
+---
+
 # 80. История голоса
 
 **История голоса** — сохранённые сведения об исторически поданных значениях голоса и их изменениях по конкретному праву голоса.
@@ -1861,7 +1932,11 @@ Contractual Relationship может существовать без загруж
 
 # 100. Расчёт результата
 
-**Расчёт результата** — исторически определённое применение правила к эффективному составу прав и голосов.
+**Расчёт результата** — исторически определённое применение правила к предусмотренному набору признанных inputs.
+
+Для Open Voting такими inputs обычно являются effective Votes. Для anonymous offline procedure ими могут быть Results of Offline Count и, где правило требует, Voting Right Exercises/participation metrics.
+
+Расчёт должен позволять определить использованные input identities/versions/scopes и существенные exclusions.
 
 Технический предварительный пересчёт сам по себе не является расчётом результата в предметном смысле.
 

@@ -30,6 +30,8 @@ BP поддерживает два основных режима прозрач�
 - **Open Voting** — связь между конкретным Voting Right и Position может быть исторически сохраняема;
 - **Anonymous Voting** — Community OS не должна сохранять восстанавливаемую связь между конкретным Subject/Voting Right и Position там, где выбор обрабатывается самой системой.
 
+**Одна конкретная Voting использует один объявленный режим прозрачности выбора.** Mixed voting в настоящем BP означает смешение допустимых каналов внутри этого режима, а не одновременное смешение Open и Anonymous semantics в одной Voting.
+
 Главная модель:
 
 ~~~text
@@ -463,20 +465,30 @@ Voting Right Exercise нужен там, где требуется отдель�
 
 ## 19. Mixed Voting
 
-Одна Voting может принимать вклад через несколько каналов:
+Mixed Voting означает использование нескольких каналов **при одном режиме прозрачности выбора**.
+
+### 19.1. Mixed-channel Open Voting
 
 ~~~text
-one Voting
+one Open Voting
 → open online Votes
 → open paper Votes
-→ anonymous online contributions
-→ anonymous offline Results of Offline Count
 → one Calculation
 ~~~
 
-Конкретная комбинация определяется Voting Rule.
+### 19.2. Mixed-channel Anonymous Voting
 
-Mixed mode не создаёт отдельную paper/electronic Voting.
+~~~text
+one Anonymous Voting
+→ anonymous online counting inputs/results
+→ anonymous offline Results of Offline Count
+→ Voting Right Exercises where applicable
+→ one Calculation
+~~~
+
+Одна Voting не смешивает Open и Anonymous choice semantics. Если по тем же Governance Questions требуется другая прозрачность выбора, это требует отдельной Voting согласно applicable rule.
+
+Mixed mode не создаёт отдельную paper/electronic Voting только из-за channel.
 
 ---
 
@@ -661,34 +673,29 @@ Retry не создаёт новый Vote автоматически.
 
 ## 31. Calculation
 
-Open Voting:
+### 31.1. Open Voting
 
 ~~~text
-recognized effective Votes
+recognized effective individual Votes
 → Calculation
 ~~~
 
-Anonymous Voting:
+При mixed-channel Open Voting сюда могут входить признанные Votes из paper и electronic channels.
+
+### 31.2. Anonymous Voting
 
 ~~~text
-anonymous counting inputs/results
+anonymous online counting inputs/results
++
+Results of Offline Count
 +
 Voting Right Exercises / participation metrics where rule requires
 → Calculation
 ~~~
 
-Mixed:
+При mixed-channel Anonymous Voting Calculation объединяет анонимные результаты допустимых каналов, не создавая Subject/Voting Right→Position linkage.
 
-~~~text
-individual Votes
-+
-anonymous online count inputs
-+
-Results of Offline Count
-+
-other rule-required inputs
-→ Calculation
-~~~
+Open individual Votes и Anonymous counting inputs не смешиваются внутри одной Voting.
 
 Calculation сохраняет provenance input identities/versions.
 
@@ -995,34 +1002,35 @@ Where materially relevant, should be determinable:
 
 1. Voting ≠ channel.
 2. Open Voting ≠ Anonymous Voting.
+4. One Voting has one declared choice-visibility mode; mixed channels do not mix Open and Anonymous semantics.
 3. Voting Right ≠ Vote.
-4. Voting Right Exercise ≠ Vote.
-5. Voting Right Exercise ≠ Position.
-6. Participation Right ≠ Voting Right Exercise.
-7. Ballot Document ≠ Vote.
-8. Signing ≠ Vote.
-9. Data-entry operator ≠ voter/implementer.
-10. Physical presence ≠ participation automatically.
-11. Participation ≠ Vote automatically.
-12. Ballot receipt ≠ Vote automatically.
-13. Explicit abstain ≠ no Vote.
-14. One ballot may contain several Votes.
-15. Mixed channels do not create multiple Voting identities.
-16. One Voting Right cannot have two incompatible effective uses.
-17. Conflict outcome is rule-driven.
-18. Anonymous mode must not retain recoverable Subject/Voting Right→Position linkage.
-19. Anonymous offline paper choices are not reconstructed as Subject-linked Votes.
-20. Result of Offline Count has own identity.
-21. Result of Offline Count ≠ protocol Document.
-22. Result of Offline Count ≠ Calculation.
-23. Calculation ≠ Established Result.
-24. Established Result ≠ Management Decision.
-25. External received data ≠ recognized domain fact automatically.
-26. Cryptographic validity ≠ domain admissibility.
-27. User Account/access ≠ Voting Right.
-28. Representation does not create a new Voting Right.
-29. Registry changes do not silently rewrite snapshot.
-30. Corrections do not silently rewrite historical facts.
+5. Voting Right Exercise ≠ Vote.
+6. Voting Right Exercise ≠ Position.
+7. Participation Right ≠ Voting Right Exercise.
+8. Ballot Document ≠ Vote.
+9. Signing ≠ Vote.
+10. Data-entry operator ≠ voter/implementer.
+11. Physical presence ≠ participation automatically.
+12. Participation ≠ Vote automatically.
+13. Ballot receipt ≠ Vote automatically.
+14. Explicit abstain ≠ no Vote.
+15. One ballot may contain several Votes.
+16. Mixed channels do not create multiple Voting identities.
+17. One Voting Right cannot have two incompatible effective uses.
+18. Conflict outcome is rule-driven.
+19. Anonymous mode must not retain recoverable Subject/Voting Right→Position linkage.
+20. Anonymous offline paper choices are not reconstructed as Subject-linked Votes.
+21. Result of Offline Count has own identity.
+22. Result of Offline Count ≠ protocol Document.
+23. Result of Offline Count ≠ Calculation.
+24. Calculation ≠ Established Result.
+25. Established Result ≠ Management Decision.
+26. External received data ≠ recognized domain fact automatically.
+27. Cryptographic validity ≠ domain admissibility.
+28. User Account/access ≠ Voting Right.
+29. Representation does not create a new Voting Right.
+30. Registry changes do not silently rewrite snapshot.
+31. Corrections do not silently rewrite historical facts.
 
 ---
 

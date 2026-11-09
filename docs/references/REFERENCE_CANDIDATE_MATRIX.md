@@ -479,7 +479,9 @@ Stress-tests:
 
 **Результат Stage 11A:** final consistency/readiness check завершён без новых BLOCKER; Stage 11A принят. Full Round 2 не требуется, если не появляется generalized non-document Signing, новая fundamental evidence/validation/correction entity, новая Membership identity semantics или изменение Governance ownership.
 
-**Следующий шаг Stage 11B:** подготовить отдельный detailed BP remote participation / electronic voting с profile-driven quorum/presence, Voting Rule, signed ballot/document semantics, mixed online/offline flow, Result of Offline Count, Voting Right Exercise и обязательным разрешением documentless signed-action boundary / native online Anonymous Voting.
+**Stage 11B:** Draft `BP-GOV-001 — Открытое и анонимное голосование со смешанными каналами` подготовлен в PR #79. Он собирает принятые требования в единый Governance process: один declared Open/Anonymous mode на Voting, mixed paper/electronic channels внутри этого режима, Voting Right Exercise, Result of Offline Count, paper/electronic ballot formalization, quorum/presence separation и pilot scenarios.
+
+**Следующий шаг Stage 11B:** провести review/adjudication Draft BP-GOV-001. Особого решения требуют document-backed signed electronic ballot как first-pilot mechanism, direct documentless signed Vote boundary, paper/electronic conflict/change rules, native online Anonymous Voting mechanism/scope и pilot legal/governance profile. Normative sync ADR-001 / ADR-008 / DOMAIN_MODEL / TERMINOLOGY выполнять только после review.
 
 ### Этап 12. Интеграция с BAS/BAF
 

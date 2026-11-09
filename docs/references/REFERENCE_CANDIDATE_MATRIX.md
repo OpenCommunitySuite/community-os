@@ -78,7 +78,7 @@
 | REF-DOC-001 | Подписание предметно значимого документа | DAH | ADR-009 уже определяет Signing как действие над конкретной Revision/Representation и отличает его от approval/registration/publication | **Частично закрыт** | Исследовать электронное доказательство подписания, внешние подписи и правовые требования; не пересматривать базовую семантику без причины |
 | REF-DOC-002 | Публикация документа/отчёта | МДО, DAH | ADR-009 определяет Publication, Audience и историчность публикаций | **Закрыт решением** | Конкретные публикационные BP вводить по продуктовой необходимости |
 | REF-TRANS-001 | Финансовая прозрачность для участников, органов управления/контроля и публичного раскрытия | DAH, пилотный СТ/ОСББ/ЖСК | Зафиксирован `BP-TRANS-001`: personal/community/governance/oversight/public scopes разделены; dynamic view = Read Model/Projection, formal historical disclosure = Document/Revision/Representation/Publication; universal Disclosure entity/rule не вводятся; locally owned rules ADR-005, explicit temporal/additivity semantics, debtor/privacy, bank movement/classification, sub-community scope, resident/tenant, target accumulation и pass-through boundaries определены | **Закрыт решением** | Конкретные disclosure policies, privacy/legal rules, viewer scopes и report metrics задавать локально; не создавать второй financial source of truth |
-| REF-GOV-001 | Неформальный опрос ≠ формальное голосование | МДО, DAH | Draft `BP-SURVEY-001` прошёл independent multi-review Claude/Gemini/DeepSeek без BLOCKER; point fixes применены; Survey и Survey Response имеют самостоятельную identity в Communications; Survey Item имеет stable local identity + historical definition/applicability; Survey ≠ Voting, Response ≠ Vote; admissibility provenance, anonymity/multiplicity, correction, external recognition и fixed/reproducible Governance summary уточнены; proposed sync ADR-002/DOMAIN_MODEL/TERMINOLOGY подготовлена в PR #71 | **В работе (Round 1 consolidated / PR #71)** | Владелец проекта принимает/отклоняет модель; при принятии — final consistency check и merge PR #71. Full Round 2 не требуется без новой identity/ownership/model semantics |
+| REF-GOV-001 | Неформальный опрос ≠ формальное голосование | МДО, DAH | `BP-SURVEY-001` прошёл independent multi-review Claude/Gemini/DeepSeek без BLOCKER; point fixes применены; Survey и Survey Response имеют самостоятельную identity в Communications; Survey Item имеет stable local identity + historical definition/applicability; Survey ≠ Voting, Response ≠ Vote; admissibility provenance, anonymity/multiplicity, correction, external recognition и fixed/reproducible Governance summary уточнены; normative sync ADR-002/DOMAIN_MODEL/TERMINOLOGY смержена в PR #71 | **Закрыт решением** | Использовать принятую Stage 10 модель; возвращаться только при новом сценарии, требующем изменения identity/ownership/model semantics |
 | REF-GOV-002 | Электронное участие в собрании и доказательство волеизъявления | DAH, МДО | Канал подачи не меняет природу голоса; управление и подписание разделены; техническое/правовое доказательство удалённого участия не определено | **Отложен** | После исследования электронной подписи описать специализированный процесс удалённого участия |
 | REF-INT-001 | Экспорт канонических операций в BAS/BAF с устойчивыми идентификаторами | МДО | ADR-006/011 фиксируют границу внешней бухгалтерии и semantic contract; конкретный контракт отсутствует | **Backlog** | Проектировать отдельный integration semantic contract, не копируя модель BAS/BAF |
 | REF-INT-002 | API-first режим Community OS поверх внешней учётной системы | DAH | Архитектурно совместим с ADR-011; не является требованием первого внедрения | **Отложен** | Вернуться после стабилизации пилота и основных интеграционных контрактов |
@@ -361,7 +361,7 @@ Subject
 
 ### Этап 10. Неформальный опрос
 
-**Состояние:** Round 1 consolidated; point fixes applied; proposed normative synchronization подготовлена в Draft PR #71. Решение владельца проекта о принятии/merge ещё не зафиксировано.
+**Состояние:** завершён. Round 1 consolidated; point fixes applied; нормативная синхронизация смержена в PR #71.
 
 **Источники:** МДО + DAH.
 
@@ -381,13 +381,13 @@ Independent multi-review Claude/Gemini/DeepSeek подтвердил рабоч�
 - materially significant definition changes не silent-rewrite Responses; local history не требует universal Survey Version, а material changes baseline ведут к explicit replacement Survey;
 - external submissions используют ADR-011 recognition/rejection/duplicate/redelivery semantics.
 
-Proposed normative sync в PR #71 минимально обновляет ADR-002, DOMAIN_MODEL и TERMINOLOGY без нового bounded context и без изменения Voting model.
+Normative sync в PR #71 минимально обновила ADR-002, DOMAIN_MODEL и TERMINOLOGY без нового bounded context и без изменения Voting model.
 
-**Следующий шаг:** решение владельца проекта по модели; при принятии — final consistency check и merge PR #71. Полный Round 2 не требуется, если не появляется новая identity/ownership/model semantics.
+**Результат:** Stage 10 принят и смержен. Полный Round 2 не требуется, если не появляется новая identity/ownership/model semantics.
 
 ### Этап 11. Электронное подписание и удалённое участие
 
-**Состояние:** Stage 11A Round 1 consolidated; point fixes applied; proposed normative synchronization выполнена в Draft PR #73. Решение владельца проекта о принятии/merge Stage 11A ещё не зафиксировано.
+**Состояние:** Stage 11A завершён и принят как текущая рабочая предметная основа; Round 1 consolidated, point fixes и normative synchronization выполнены. Stage 11B requirements/stress-tests частично приняты; detailed BP ещё не подготовлен.
 
 Подэтап 11A — электронное подписание документа — исследуется без преждевременного обобщения ADR-009 за пределы Document context.
 
@@ -421,7 +421,7 @@ documentless signed Governance action
 
 Stage 11B должен отдельно решить, требует ли такой action normative generalization Signing target либо Governance-owned action/evidence concept. Fake Document для переиспользования Signing запрещён.
 
-В Draft branch выполнена минимальная normative sync:
+Для Stage 11A выполнена минимальная normative sync:
 
 - DOMAIN_MODEL — electronic Signing semantics, exact cryptographic target/evidence/provenance/revalidation, multiple Signings и signing-completeness Projection;
 - TERMINOLOGY — расширен термин `Подписание документа`;
@@ -477,9 +477,9 @@ Stress-tests:
 - legal validity `1 участок = 1 голос` vs `1 член = 1 голос` остаётся focused legal-profile question;
 - Voting Rule/legal profile определяет member-based/object-based/mixed semantics; архитектура не скрывает legal conflict.
 
-**Следующий шаг:** final consistency/readiness check Stage 11A и решение владельца проекта о принятии/merge PR #73. Full Round 2 не требуется, если не появляется generalized non-document Signing, новая fundamental evidence/validation/correction entity, новая Membership identity semantics или изменение Governance ownership.
+**Результат Stage 11A:** final consistency/readiness check завершён без новых BLOCKER; Stage 11A принят. Full Round 2 не требуется, если не появляется generalized non-document Signing, новая fundamental evidence/validation/correction entity, новая Membership identity semantics или изменение Governance ownership.
 
-После принятия Stage 11A начинается Stage 11B — отдельный BP remote participation / electronic voting с profile-driven quorum/presence, Voting Rule, signed ballot/document semantics и обязательным разрешением documentless signed-action boundary.
+**Следующий шаг Stage 11B:** подготовить отдельный detailed BP remote participation / electronic voting с profile-driven quorum/presence, Voting Rule, signed ballot/document semantics, mixed online/offline flow, Result of Offline Count, Voting Right Exercise и обязательным разрешением documentless signed-action boundary / native online Anonymous Voting.
 
 ### Этап 12. Интеграция с BAS/BAF
 

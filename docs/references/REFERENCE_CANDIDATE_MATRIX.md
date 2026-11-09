@@ -78,7 +78,7 @@
 | REF-DOC-001 | Подписание предметно значимого документа | DAH | ADR-009 уже определяет Signing как действие над конкретной Revision/Representation и отличает его от approval/registration/publication | **Частично закрыт** | Исследовать электронное доказательство подписания, внешние подписи и правовые требования; не пересматривать базовую семантику без причины |
 | REF-DOC-002 | Публикация документа/отчёта | МДО, DAH | ADR-009 определяет Publication, Audience и историчность публикаций | **Закрыт решением** | Конкретные публикационные BP вводить по продуктовой необходимости |
 | REF-TRANS-001 | Финансовая прозрачность для участников, органов управления/контроля и публичного раскрытия | DAH, пилотный СТ/ОСББ/ЖСК | Зафиксирован `BP-TRANS-001`: personal/community/governance/oversight/public scopes разделены; dynamic view = Read Model/Projection, formal historical disclosure = Document/Revision/Representation/Publication; universal Disclosure entity/rule не вводятся; locally owned rules ADR-005, explicit temporal/additivity semantics, debtor/privacy, bank movement/classification, sub-community scope, resident/tenant, target accumulation и pass-through boundaries определены | **Закрыт решением** | Конкретные disclosure policies, privacy/legal rules, viewer scopes и report metrics задавать локально; не создавать второй financial source of truth |
-| REF-GOV-001 | Неформальный опрос ≠ формальное голосование | МДО, DAH | Draft `BP-SURVEY-001` прошёл independent multi-review Claude/Gemini/DeepSeek без BLOCKER; point fixes применены; Survey и Survey Response имеют самостоятельную identity в Communications; Survey Item имеет stable local identity + historical definition/applicability; Survey ≠ Voting, Response ≠ Vote; admissibility provenance, anonymity/multiplicity, correction, external recognition и fixed/reproducible Governance summary уточнены; proposed sync ADR-002/DOMAIN_MODEL/TERMINOLOGY подготовлена в PR #71 | **В работе (Round 1 consolidated / PR #71)** | Владелец проекта принимает/отклоняет модель; при принятии — final consistency check и merge PR #71. Full Round 2 не требуется без новой identity/ownership/model semantics |
+| REF-GOV-001 | Неформальный опрос ≠ формальное голосование | МДО, DAH | `BP-SURVEY-001` прошёл independent multi-review Claude/Gemini/DeepSeek без BLOCKER; point fixes применены; Survey и Survey Response имеют самостоятельную identity в Communications; Survey Item имеет stable local identity + historical definition/applicability; Survey ≠ Voting, Response ≠ Vote; admissibility provenance, anonymity/multiplicity, correction, external recognition и fixed/reproducible Governance summary уточнены; normative sync ADR-002/DOMAIN_MODEL/TERMINOLOGY смержена в PR #71 | **Закрыт решением** | Использовать принятую Stage 10 модель; возвращаться только при новом сценарии, требующем изменения identity/ownership/model semantics |
 | REF-GOV-002 | Электронное участие в собрании и доказательство волеизъявления | DAH, МДО | Канал подачи не меняет природу голоса; управление и подписание разделены; техническое/правовое доказательство удалённого участия не определено | **Отложен** | После исследования электронной подписи описать специализированный процесс удалённого участия |
 | REF-INT-001 | Экспорт канонических операций в BAS/BAF с устойчивыми идентификаторами | МДО | ADR-006/011 фиксируют границу внешней бухгалтерии и semantic contract; конкретный контракт отсутствует | **Backlog** | Проектировать отдельный integration semantic contract, не копируя модель BAS/BAF |
 | REF-INT-002 | API-first режим Community OS поверх внешней учётной системы | DAH | Архитектурно совместим с ADR-011; не является требованием первого внедрения | **Отложен** | Вернуться после стабилизации пилота и основных интеграционных контрактов |
@@ -361,7 +361,7 @@ Subject
 
 ### Этап 10. Неформальный опрос
 
-**Состояние:** Round 1 consolidated; point fixes applied; proposed normative synchronization подготовлена в Draft PR #71. Решение владельца проекта о принятии/merge ещё не зафиксировано.
+**Состояние:** завершён. Round 1 consolidated; point fixes applied; нормативная синхронизация смержена в PR #71.
 
 **Источники:** МДО + DAH.
 
@@ -381,25 +381,105 @@ Independent multi-review Claude/Gemini/DeepSeek подтвердил рабоч�
 - materially significant definition changes не silent-rewrite Responses; local history не требует universal Survey Version, а material changes baseline ведут к explicit replacement Survey;
 - external submissions используют ADR-011 recognition/rejection/duplicate/redelivery semantics.
 
-Proposed normative sync в PR #71 минимально обновляет ADR-002, DOMAIN_MODEL и TERMINOLOGY без нового bounded context и без изменения Voting model.
+Normative sync в PR #71 минимально обновила ADR-002, DOMAIN_MODEL и TERMINOLOGY без нового bounded context и без изменения Voting model.
 
-**Следующий шаг:** решение владельца проекта по модели; при принятии — final consistency check и merge PR #71. Полный Round 2 не требуется, если не появляется новая identity/ownership/model semantics.
+**Результат:** Stage 10 принят и смержен. Полный Round 2 не требуется, если не появляется новая identity/ownership/model semantics.
 
 ### Этап 11. Электронное подписание и удалённое участие
 
-Сначала исследуется электронное подписание, при этом базовая предметная семантика ADR-009 не пересматривается без необходимости:
+**Состояние:** Stage 11A завершён и принят как текущая рабочая предметная основа; Round 1 consolidated, point fixes и normative synchronization выполнены. Stage 11B requirements/stress-tests частично приняты; detailed BP ещё не подготовлен.
 
-- что именно подписывается;
-- какой Revision/Representation;
-- кто подписант;
-- от своего или чужого имени;
-- основание полномочия;
-- какой внешний результат является доказательством;
-- как выполняются validation и recognition внешней подписи;
-- что хранится для последующей проверяемости;
-- актуальные правовые требования.
+Подэтап 11A — электронное подписание документа — исследуется без преждевременного обобщения ADR-009 за пределы Document context.
 
-После этого отдельно описывается электронное/удалённое участие в управленческой процедуре и голосовании.
+Current-law/reference анализ Украины зафиксирован в `UKRAINE_ELECTRONIC_SIGNING_LEGAL_ANALYSIS.md`.
+
+Independent multi-review Claude/Gemini/DeepSeek подтвердил:
+
+- existing ADR-009 `Signing` достаточен для **document-signing scope**;
+- отдельные fundamental `Electronic Signing`, `Signing Evidence`, `Signature Validation` не требуются;
+- conceptual redesign Stage 11A не нужен;
+- semantic target и exact cryptographic target должны быть различены;
+- technical file/artifact не становится Document Representation автоматически;
+- signer/certificate/provider identity, Subject, User Account, Domain Power и Representation различаются;
+- cryptographic validity ≠ domain admissibility;
+- applicable signing rule/policy version и material validation/trust context должны быть historically determinable;
+- revalidation ≠ new Signing и не переписывает initial validation context;
+- external provider/session state может существовать для integration/runtime correlation/reconciliation, но не является Signing;
+- correction ошибочно recognized Signing требует explicit historical correction semantics без universal state machine/entity;
+- signing completeness может быть derived Read Model / Projection;
+- ADR rewrite не требуется.
+
+Один Claude finding был severity BLOCKER из-за внутреннего противоречия Draft: ADR-009 Signing является document-scoped, а Draft называл модель универсально reusable для documentless Vote. Contradiction устранён point fix:
+
+```text
+Stage 11A Signing
+→ only Document Revision / Representation
+
+documentless signed Governance action
+→ open Stage 11B design question
+```
+
+Stage 11B должен отдельно решить, требует ли такой action normative generalization Signing target либо Governance-owned action/evidence concept. Fake Document для переиспользования Signing запрещён.
+
+Для Stage 11A выполнена минимальная normative sync:
+
+- DOMAIN_MODEL — electronic Signing semantics, exact cryptographic target/evidence/provenance/revalidation, multiple Signings и signing-completeness Projection;
+- TERMINOLOGY — расширен термин `Подписание документа`;
+- DOMAIN_MODEL / TERMINOLOGY — уточнено Membership: несколько historical application/admission/basis records одного Subject не создают автоматически несколько simultaneous Memberships или Voting Rights;
+- новые fundamental Membership Admission / Membership Slot / Membership Unit не вводятся.
+
+**Обязательное продуктовое требование Stage 11B для первого пилота СТ:** Community OS должна поддерживать дистанционное участие и юридически пригодное signed electronic expression/Vote для отсутствующих владельцев/допустимых реализаторов права, включая находящихся за границей.
+
+Дополнительно принято требование **mixed voting**:
+
+- formal Voting имеет два основных режима прозрачности выбора: **Open Voting** и **Anonymous Voting**; в Anonymous Voting анонимным является choice/Position, а факт участия/Voting Right realization может оставаться идентифицируемым;
+- одна Voting может одновременно принимать online и offline вклад без создания нескольких Voting identities;
+- offline сведения могут вноситься уполномоченным администратором/членом комиссии; data-entry operator ≠ voter/right implementer;
+- Community OS не владеет физической процедурой anonymous offline voting: форма бумажных бюллетеней, урны, физическая выдача/сбор, работа комиссии, физический подсчёт и процедура подписания бумажного протокола остаются внешней организационной процедурой;
+- Community OS принимает полный offline contribution, достаточный для общего Calculation/Established Result;
+- для **open offline** допускаются individual Vote facts с фото/сканом подписанного бумажного ballot;
+- для **anonymous offline** Community OS не создаёт Subject-linked individual Votes по анонимным бумажным бюллетеням; вместо этого фиксируется один или несколько самостоятельных identity-bearing **результатов подсчёта офлайн-части**, которые затем используются в общем Calculation;
+- такой результат существует независимо от Calculation, имеет собственный source/provenance и correction/replacement history; protocol Document ≠ result of offline count ≠ Calculation ≠ Established Result;
+- подтверждением anonymous offline participation может быть digital copy заверенного списка/реестра выдачи бюллетеней либо другого документа с подписью/подтверждением вручения бюллетеня; подтверждением каждого результата подсчёта — digital copy подписанного протокола/итогового документа комиссии;
+- relevant physical originals хранятся вне Community OS согласно applicable retention/legal profile; digital copies не заменяют physical originals автоматически;
+- native online Anonymous Voting остаётся отдельной Stage 11B design task и должен технически исключать сохраняемую связь Subject/Voting Right↔Position;
+- принят новый identity-bearing Governance concept **«Реализация права голоса / Voting Right Exercise»**: он фиксирует факт использования конкретного Voting Right без хранения Position; нужен для evidence участия, representation/admissibility history и обнаружения двойной реализации права между online/offline каналами;
+- для Open Voting отдельный Voting Right Exercise не обязателен как дублирующая запись каждого Vote: recognized Vote уже может подтверждать реализацию права;
+- **Informal Survey** остаётся отдельным менее формальным сценарием без обязательной электронной подписи по умолчанию. На продуктовом/UI-уровне он может предлагаться рядом с Open/Anonymous Voting, но принятая Stage 10 граница сохраняется: `Survey ≠ Voting`, `Survey Response ≠ Vote`.
+
+Stress-tests:
+
+- `STAGE-11B-MIXED-PAPER-ELECTRONIC-VOTING-STRESS-TEST.md`;
+- `STAGE-11B-ANONYMOUS-VOTING-RIGHT-EXERCISE-STRESS-TEST.md`.
+
+**Empirical pilot reference:** `PILOT_ST_EXPRESS_MEETING_2026-10-24_REFERENCE_ANALYSIS.md`.
+
+Реальные документы общего собрания СТ «ЕКСПРЕС» от 24.10.2026 подтверждают и уточняют Stage 11B:
+
+- дополнительное фактическое уточнение: на очной части было около 60 участников; им раздали бюллетени, часть проголосовала, часть нет; затем правление лично разносило бюллетени другим садоводам. Поэтому physical presence, participation, ballot receipt и recognized Vote нельзя сводить в один факт; протокол указывает 181 участника процедуры и 139 учтённых позиций по каждому вопросу, а разница 42 не может автоматически трактоваться как `Воздержался`, rejected Vote или non-participation;
+- один подписанный paper ballot содержит семь вопросов, поэтому `1 ballot/document/file ≠ 1 Vote`;
+- письменный именной ballot с ФИО, номером участка, подписью и Position является реальным pilot case Open Offline Voting;
+- опубликованная agenda, обсуждение, фактическая ballot formulation и Management Decision могут различаться и должны быть исторически различимы;
+- термин `опитування` в украинской реальной процедуре может обозначать formal Voting, поэтому UI должен явно отличать `Неформальне опитування` от `Голосування / письмове опитування`;
+- пакет не подтверждает однозначно `1 Plot = 1 Vote`: протокол оперирует членами, а ballot содержит и ФИО, и номер участка; нужна проверка реестра/заполненных листов;
+- выявлены отдельные кандидаты вне Stage 11B: charge target «семья/домохозяйство» и debt-based disconnection/reconnection process;
+- по электроэнергии уточнена полная причинная цепочка pilot rule: поставщик отдельно начисляет около 3,5 % трансформационных потерь 10 кВ/0,4 кВ; внутренние Control Reconciliation показали примерно 3–3,5 % между общим трансформаторным учётом и суммой уличных контрольных точек и ещё примерно 3–3,5 % между уличными контрольными точками и суммой индивидуальных точек участков; на основании этой совокупности evidence собрание утвердило compensation norm 10 % вместо прежних ≈7,6 %; supplier tariff 4,32 грн/кВт·ч + derived compensation component 0,43 грн/кВт·ч = internal owner price 4,75 грн/кВт·ч. Это подтверждает необходимость versioned evidence-based tariff/accrual rule и сохранения provenance от engineering/external evidence к Management Decision, но **не** доказывает необходимость отдельного BP распределения одной признанной Operational Loss;
+- для пилота обязательны два nested reconciliation variant: `general transformer → street control points` и `one street control point → connected plot points`; они используют одну универсальную семантику, но имеют отдельные scopes/results;
+- общий расчётный Meter на трансформаторе имеет conversion coefficient **40**; raw Reading/interval delta должен нормализоваться по historically applicable Meter/Installation semantics до сравнения с downstream quantities; коэффициент 40 не связан с supplier loss percentage 3,5 %;
+- одна Control Observation campaign должна поддерживать нескольких контролёров, параллельно обходящих assigned subsets, чтобы минимизировать measurement-time spread; per-point actor/time provenance сохраняется, fictitious simultaneity не создаётся; одна campaign может feed несколько nested Control Reconciliation.
+
+После анализа устава СТ «ЕКСПРЕС» и уточнения фактической практики сохраняется pilot finding:
+
+- сообщённая практика трактует отдельное заявление по каждому участку как «множественное членство» и фактически использует `1 участок = 1 голос`;
+- Community OS не создаёт copies of Subject/User Account и не считает несколько заявлений автоматическим доказательством нескольких legally independent Membership;
+- ADR-001 уже допускает `one Subject → multiple Voting Rights`;
+- фактический pilot rule следует выражать через applicable versioned Voting Rule и qualifying Membership/Plot bases;
+- legal validity `1 участок = 1 голос` vs `1 член = 1 голос` остаётся focused legal-profile question;
+- Voting Rule/legal profile определяет member-based/object-based/mixed semantics; архитектура не скрывает legal conflict.
+
+**Результат Stage 11A:** final consistency/readiness check завершён без новых BLOCKER; Stage 11A принят. Full Round 2 не требуется, если не появляется generalized non-document Signing, новая fundamental evidence/validation/correction entity, новая Membership identity semantics или изменение Governance ownership.
+
+**Следующий шаг Stage 11B:** подготовить отдельный detailed BP remote participation / electronic voting с profile-driven quorum/presence, Voting Rule, signed ballot/document semantics, mixed online/offline flow, Result of Offline Count, Voting Right Exercise и обязательным разрешением documentless signed-action boundary / native online Anonymous Voting.
 
 ### Этап 12. Интеграция с BAS/BAF
 

@@ -812,9 +812,19 @@ Refund не требует универсальной связи 1:1 с конк
 
 # 42.5. Подписание документа
 
-**Подписание документа** — исторически значимое действие над конкретной редакцией документа или её определённым представлением с определимым подписантом и, где применимо, основанием действия от собственного или чужого имени.
+**Подписание документа (Signing)** — исторически значимое действие над конкретной редакцией документа или её определённым представлением с определимым подписантом и, где применимо, основанием действия от собственного или чужого имени.
 
-Подписание не тождественно утверждению, регистрации или публикации. Новая редакция не наследует автоматически подписание предыдущей.
+Для электронного Signing различаются **semantic target** — подписываемая в предметном смысле Revision/Representation — и **exact cryptographic target** — конкретные electronic data, криптографически покрытые подписью. Technical file/artifact не становится Document Representation автоматически.
+
+Electronic signature artifact/provider result не является Signing автоматически. Cryptographic validity не создаёт Subject, Domain Power, Voting Right или domain admissibility. Recognition электронного Signing требует применимых validation/mapping/admissibility semantics и исторически объяснимого evidence/provenance.
+
+Одно Signing имеет собственную historical identity. Identity не выводится из пары `signer + target`; один Subject может иметь несколько самостоятельных Signings по одному semantic target, если applicable policy признаёт их исторически разными действиями.
+
+Applicable signing rule/policy version и значимый validation/trust context должны быть исторически определимы, если они повлияли на recognition. Revalidation не создаёт новое Signing и не переписывает первоначальный validation/recognition context молча.
+
+Подписание не тождественно утверждению, регистрации, публикации или Vote. Новая редакция не наследует автоматически подписание предыдущей. Document-scoped Signing не считается автоматически универсальным понятием для signed non-document actions.
+
+Отдельные universal `Electronic Signing`, `Signing Evidence` и `Signature Validation` как fundamental entities не вводятся.
 
 ---
 
@@ -1754,6 +1764,10 @@ Contractual Relationship может существовать без загруж
 **Членство** — историческое отношение субъекта к сообществу, наличие, основания и последствия которого определяются правилами сообщества.
 
 Членство не тождественно собственности, пользователю системы, праву участия или праву голоса.
+
+У одного Membership может быть несколько исторически значимых заявлений, решений и иных оснований/актов признания. Несколько таких оснований одного Subject не создают автоматически несколько simultaneous Memberships или несколько Voting Rights.
+
+Несколько самостоятельных Membership relation instances одного Subject в одном Community допускаются только когда их отдельная identity и lifecycle следуют из конкретной community/legal semantics; само количество заявлений этого не определяет.
 
 ---
 

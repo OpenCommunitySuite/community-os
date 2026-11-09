@@ -553,6 +553,8 @@ Derived aggregation Survey Responses является Read Model / Projection, �
 
 Вопрос может не требовать голосования либо иметь одно или несколько связанных голосований. **Голосование** имеет самостоятельную предметную идентичность; каждое конкретное голосование использует одну применимую версию правила и после формирования имеет один исходный снимок прав, где он применим. Разные голосования одного вопроса могут использовать разные версии правил и снимки прав. Повторное голосование является новым, исторически связанным голосованием, а не новой версией или переписыванием предыдущего.
 
+Каждое Voting использует один объявленный режим прозрачности выбора: Open или Anonymous. Режим определяется до начала приёма волеизъявлений и не изменяется молча после открытия. Open и Anonymous choice semantics не смешиваются внутри одной Voting. Разные режимы требуют разных Voting identities; настоящий нормативный scope не объединяет Open и Anonymous Votings в один общий Calculation/Established Result.
+
 **Повестка** может быть самостоятельным представлением исторически определимого состава и порядка вопросов, если это предусмотрено конкретной процедурой, но не является обязательной универсальной сущностью.
 
 **Кворум** — предусмотренное применимым правилом условие достаточности состава или участия для определённой области процедуры. Правило определяет необходимость, область, исходные данные и способ определения кворума; снимок прав конкретного голосования не является универсальным источником любого кворума. Универсальная модель результата кворума не вводится.
@@ -602,6 +604,17 @@ Derived aggregation Survey Responses является Read Model / Projection, �
 
 **Правило голосования** определяет условия формирования прав голоса, основания, реализаторов, веса, варианты ответа, порядок учёта голосов, расчёта и установления результата. Связь права участия с правом голоса определяется применимыми правилами конкретной процедуры.
 
+Где применимо, версия Voting Rule также определяет:
+
+- mode Open/Anonymous;
+- допустимые способы участия, подачи и формализации;
+- recognition basis и procedural effects Voting Right Exercise;
+- participation semantics/inputs;
+- conflict/change semantics и relevant reference time;
+- count scope/units для anonymous offline;
+- privacy/anonymity constraints;
+- correction/review consequences.
+
 **Версия правила голосования** — специальная для голосования версия правила. Она сохраняет гарантии общей концепции версии и специальные инварианты ADR-001. Каждое конкретное голосование использует одну применимую версию; разные голосования одного или разных вопросов могут использовать разные версии. Если версия опирается на конфигурацию, она должна ссылаться на исторически определённое состояние её предметно значимых частей.
 
 **Право голоса** существует в контексте конкретного вопроса и голосования. Оно имеет одно или несколько оснований, использованные значения, вес, состояние возможности реализации и реализатора при наличии.
@@ -636,9 +649,53 @@ Derived aggregation Survey Responses является Read Model / Projection, �
 
 Одно право не может иметь более одного одновременно учитываемого голоса. При изменении голоса сохраняется история предыдущих значений. Версия правила определяет допустимость изменения и то, какое значение учитывается.
 
-Для голоса различаются исторический факт подачи, результат его проверки в момент подачи и учитываемость в конкретном расчёте результата. Учитываемость и основание учёта или неучёта относятся к конкретному расчёту и не являются неизменяемым свойством самого голоса. Поздняя корректировка права не удаляет исторически поданный голос и не переписывает то, как голос был принят или проверен в момент подачи.
+Для голоса различаются исторический факт подачи, результат его проверки в момент подачи и учитываемость в конкретном расчёте результата. Учитываемость и основание учёта или неучёта относятся к конкретному расчёту и не являются неизменяемым свойством самого голоса. Поздняя корректировка права не удаляет исторически поданный голос и не переписывает то, как голос был принят или проверен в момент подачи. Timely received action, recognized позднее, не считается late автоматически; relevant reference time задаёт applicable rule и evidence.
 
-**Расчёт результата** — исторически определённое применение правила к эффективному составу прав и голосов. Он может фиксировать версию правила, момент, учтённые и существенные неучтённые голоса, показатели и расчётный результат. Технический предварительный пересчёт сам по себе не является предметно значимым расчётом.
+**Реализация права голоса (Voting Right Exercise)** — самостоятельный identity-bearing Governance fact того, что согласно применимой версии Voting Rule конкретное Voting Right признано реализованным/расходованным для целей процедуры без обязательного хранения Position.
+
+~~~text
+Voting Right Exercise
+≠ Vote
+≠ Position
+≠ Participation Right
+~~~
+
+Exercise сам по себе не утверждает valid Position, physical counting, participation, quorum effect или counting effect. Для него исторически объяснимы recognition basis, applicable Voting Rule version, фактический implementer, evidence/provenance и rule-defined procedural effects.
+
+Issuance/receipt ballot не создаёт Exercise автоматически. Это происходит только если applicable Voting Rule явно объявляет соответствующий event моментом right consumption.
+
+Exercise может применяться и в Open Voting, если right-use/participation имеет самостоятельный procedural meaning и не совпадает с recognized Vote; обязательное дублирование каждого Open Vote не вводится.
+
+Для одного Voting Right в одной Voting на соответствующий reference time допускается не более одной effective realization. Historical claims/recognitions/corrections могут быть множественными без образования нескольких одновременно effective uses.
+
+**Participation** как фактический procedural показатель не вводится отдельной fundamental identity-bearing entity. Где оно нужно, оно выводится применимым rule из явно определённых historical inputs и не тождественно автоматически presence, ballot receipt, Exercise или Vote.
+
+**Результат подсчёта офлайн-части (Result of Offline Count)** — самостоятельный identity-bearing Governance fact признанного результата внешнего физического anonymous count.
+
+~~~text
+one Result of Offline Count
+→ one Voting
+→ one Question
+→ one declared count scope
+~~~
+
+Source protocol Document, Result of Offline Count, Calculation и Established Result различаются.
+
+Result of Offline Count не утверждает автоматически participation, quorum, right use, completeness issued ballots или Established Result. Counting units/weights определяет Voting Rule; универсальное one ballot = one result-weight unit не вводится.
+
+Один source protocol Document может подтверждать несколько question-local Results. Calculation, использующая несколько scopes, должна исторически объяснять effective result/version per scope и отсутствие неявного double counting.
+
+В first normative scope Anonymous choice-side является внешней physical/offline procedure. Native online Anonymous Voting остаётся Future Design Task и не моделируется обычным Vote.
+
+Для anonymous privacy запрещена не только прямая, но и восстанавливаемая через штатную correlation связь Subject/Voting Right→Position. Поэтому identifiers, timing, scopes, individual ballot evidence и correction metadata должны применяться так, чтобы не разрушать anonymity.
+
+Для Vote, происходящего из multi-item Document, обязательна historical mapping provenance от конкретного Document Revision/Representation и локально адресуемого item/field к конкретному Vote. Identifiable/signed Document не может содержать Position Anonymous Voting, поскольку Signing→Subject вместе с Document item→Position восстановит запрещённую linkage.
+
+**Расчёт результата** — исторически определённое применение правила к предусмотренному набору признанных inputs. Для Open Voting основными inputs являются effective Votes. Для anonymous offline procedure Calculation может использовать Results of Offline Count и, где rule требует, Voting Right Exercises/participation metrics.
+
+Он может фиксировать версию правила, момент, использованные rights/weights, Votes, Exercise, Results of Offline Count, существенные exclusions, effective input versions/scopes, показатели и расчётный результат.
+
+Технический предварительный пересчёт сам по себе не является предметно значимым расчётом.
 
 **Расчётный результат** — результат применения правила к определённому составу прав и голосов.
 

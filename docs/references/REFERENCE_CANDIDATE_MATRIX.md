@@ -387,7 +387,7 @@ Normative sync в PR #71 минимально обновила ADR-002, DOMAIN_M
 
 ### Этап 11. Электронное подписание и удалённое участие
 
-**Состояние:** Stage 11A завершён и принят как текущая рабочая предметная основа; Round 1 consolidated, point fixes и normative synchronization выполнены. Stage 11B requirements/stress-tests частично приняты; detailed BP ещё не подготовлен.
+**Состояние:** Stage 11A и Stage 11B завершены на уровне текущей универсальной предметной модели и нормативной синхронизации. BP-GOV-001 прошёл independent multi-review, adjudication и merge; remaining items относятся к pilot legal/profile decisions и Future Design Tasks.
 
 Подэтап 11A — электронное подписание документа — исследуется без преждевременного обобщения ADR-009 за пределы Document context.
 
@@ -481,7 +481,7 @@ Stress-tests:
 
 **Stage 11B:** independent multi-review BP-GOV-001 завершён и консолидирован. Все reviewers дали итог `ACCEPT AFTER POINT FIXES`; conceptual redesign не требуется. Принят Option A: native online Anonymous deferred. Point fixes применены.
 
-Normative sync выполнена в PR #79:
+Normative sync выполнена и смержена в PR #79:
 
 - ADR-001 — Voting Right Exercise ≠ Vote, rule-defined recognition/effects, one effective realization;
 - ADR-008 — Result of Offline Count как question-local Calculation input, anonymous offline right-use/count separation, correction asymmetry;
@@ -496,7 +496,7 @@ First normative scope Stage 11B:
 - direct documentless signed Vote — deferred;
 - pilot legal/profile questions (presence/quorum, 1 Plot=1 Vote, paper/electronic conflict/change, anonymous consumption moment/reissue/privacy scope) остаются profile-specific.
 
-**Следующий шаг Stage 11B:** final consistency/readiness check PR #79 и решение о merge.
+**Результат Stage 11B:** PR #79 смержен. Следующая работа перед реализацией first-pilot voting — зафиксировать pilot legal/profile rules: presence/quorum, `1 Plot = 1 Vote`, paper/electronic conflict/change, anonymous consumption/reissue/privacy scope и physical-original retention. Native online Anonymous и direct documentless signed Vote остаются Future Design Tasks.
 
 ### Этап 12. Интеграция с BAS/BAF
 

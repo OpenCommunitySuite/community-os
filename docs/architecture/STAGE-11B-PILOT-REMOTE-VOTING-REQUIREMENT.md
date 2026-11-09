@@ -1,6 +1,6 @@
 # Stage 11B — Pilot requirement: дистанционное участие и подписанное электронное голосование
 
-**Статус:** Accepted product requirement / architecture not yet finalized  
+**Статус:** Accepted product requirement / architecture incorporated into accepted BP-GOV-001; pilot legal/profile details remain open  
 **Связанный этап:** Stage 11B — Remote Participation and Electronic Voting  
 **Первое внедрение:** пилотное садовое товарищество (СТ)
 

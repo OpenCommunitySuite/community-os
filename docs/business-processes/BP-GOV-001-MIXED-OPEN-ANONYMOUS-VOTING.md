@@ -1,6 +1,6 @@
 # BP-GOV-001 — Открытое и анонимное голосование со смешанными каналами
 
-**Статус:** Draft / independent multi-review consolidated / Option A accepted / point fixes applied  
+**Статус:** Accepted Stage 11B domain basis / independent multi-review consolidated / Option A accepted / normative synchronization performed  
 **Контекст:** Управление и коллективные процедуры  
 **Связанные контексты:** Субъекты; Полномочия и представительство; Документы и формализация; Доступ; Интеграции  
 **Связанные решения:** ADR-001, ADR-004, ADR-005, ADR-008, ADR-009, ADR-010, ADR-011
@@ -761,9 +761,9 @@ Ballot Document
 
 ---
 
-## 26. Electronic signed ballot — Draft rule
+## 26. Electronic signed ballot — first-pilot rule
 
-Для первого пилота предлагается document-scoped модель дистанционного Open Vote:
+Для первого пилота принята document-scoped модель дистанционного Open Vote:
 
 ~~~text
 electronic ballot Document
@@ -789,7 +789,7 @@ Direct signed non-document Vote остаётся отдельной архите
 - Signing target не обобщается молча;
 - pilot может использовать document-backed signed ballot.
 
-Это предложение настоящего Draft BP, а не ранее принятое универсальное решение.
+Direct documentless signed Vote остаётся deferred архитектурной возможностью и не входит в first-pilot normative scope.
 
 ---
 
@@ -1394,7 +1394,7 @@ Review confirmed or tested:
 
 ---
 
-## 56. Текущий вывод Draft
+## 56. Итог Stage 11B
 
 Independent multi-review завершён.
 
@@ -1419,4 +1419,17 @@ Stage 11B first normative scope поддерживает:
 - mixed Open channels;
 - correction/review/privacy boundaries.
 
-Implementation task для Codex формируется только после нормативной синхронизации ADR-001 / ADR-008 / DOMAIN_MODEL / TERMINOLOGY и финального consistency check.
+Normative synchronization ADR-001 / ADR-008 / DOMAIN_MODEL / TERMINOLOGY и final consistency check завершены.
+
+BP-GOV-001 принят как текущая предметная основа Stage 11B.
+
+Перед реализацией first-pilot voting остаются profile/legal decisions, не меняющие принятую universal model:
+
+- exact presence/quorum semantics;
+- legal/profile validation правила `1 Plot = 1 Vote`;
+- paper/electronic change/conflict policy;
+- anonymous paper consumption moment и reissue policy;
+- minimum anonymity/count-scope constraints;
+- physical-original retention rules.
+
+Codex implementation task формируется после фиксации необходимых pilot profile rules.

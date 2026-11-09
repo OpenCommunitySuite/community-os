@@ -1,6 +1,6 @@
 # Stage 11B — Pilot stress-test: Membership ↔ Plot ↔ Voting Right
 
-**Статус:** Working analysis / not normative  
+**Статус:** Completed architecture stress-test / normative membership clarification incorporated / pilot legal-profile validation remains open / not normative  
 **Пилот:** Садівниче товариство «ЕКСПРЕС»  
 **Связанный этап:** Stage 11B — Remote Participation and Electronic Voting  
 **Цель:** проверить, как фактическая практика «1 участок = 1 голос» соотносится с Membership model Community OS и нужен ли новый fundamental concept для повторных заявлений/приёмов одного Subject.
@@ -483,18 +483,24 @@ Community OS должна уметь воспроизвести фактичес
 - pilot «1 участок = 1 голос» следует моделировать Voting Rule, а не количеством копий Subject/Membership;
 - legal validity конкретного pilot Voting Rule остаётся открытым legal/profile question.
 
-## 16. Кандидат на минимальную будущую нормативную синхронизацию
+## 16. Нормативный результат
 
-После review Stage 11B может потребоваться уточнить DOMAIN_MODEL/TERMINOLOGY:
+Минимальное уточнение Membership уже включено в DOMAIN_MODEL/TERMINOLOGY:
 
 > Membership может иметь несколько исторически значимых оснований/актов признания; наличие нескольких оснований одного Subject не создаёт автоматически несколько Memberships или Voting Rights. Один Subject может иметь несколько Membership relation instances в одном Community только если их самостоятельность следует из concrete community/legal semantics.
 
-Это **пока proposal**, а не изменение normative main.
+Это не создаёт fundamental Membership Admission / Membership Slot / Membership Unit.
 
-## 17. Следующий шаг
+## 17. Оставшийся pilot legal-profile вопрос
 
-1. зафиксировать finding в Stage 11B pilot requirement;
-2. сохранить legal ambiguity «1 member = 1 vote» vs reported «1 plot = 1 vote»;
-3. не блокировать проектирование электронного голосования;
-4. BP Stage 11B должен строить Voting Rights из applicable versioned Voting Rule, а не из количества заявлений/аккаунтов;
-5. перед production use legally significant voting провести focused legal-profile validation пилотного СТ.
+Архитектурный stress-test завершён, но legal/profile ambiguity сохраняется:
+
+~~~text
+charter wording: 1 member = 1 vote
+vs
+reported pilot practice: 1 plot = 1 vote
+~~~
+
+Community OS строит Voting Rights из applicable versioned Voting Rule, а не из количества заявлений, аккаунтов или копий Subject/Membership.
+
+До production use legally significant voting требуется focused legal-profile validation пилотного СТ. Этот вопрос не требует изменения universal domain model, пока не появятся новые юридически подтверждённые semantics.

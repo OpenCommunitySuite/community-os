@@ -1,6 +1,6 @@
 # Stage 11B — Stress-test: анонимность выбора и факт реализации права голоса
 
-**Статус:** Accepted Stage 11B concept / normative sync deferred to BP  
+**Статус:** Completed stress-test / concept incorporated into accepted BP-GOV-001 and normative synchronization / not normative  
 **Контекст:** Управление и коллективные процедуры  
 **Связанные решения:** ADR-001, ADR-004, ADR-005, ADR-008, ADR-010, ADR-011  
 **Связанные материалы:** `STAGE-11B-MIXED-PAPER-ELECTRONIC-VOTING-STRESS-TEST.md`
@@ -516,7 +516,7 @@ Historical record не удаляется silently.
 - сохранять доказательство участия;
 - не хранить связь права/Subject с Position.
 
-Поэтому следующий Draft BP Stage 11B должен использовать два независимых понятия:
+Accepted BP-GOV-001 использует два независимых понятия:
 
 ~~~text
 Voting Right Exercise
@@ -532,11 +532,13 @@ Vote / anonymous counting contribution
 
 `Voting Right Exercise / Реализация права голоса` **принята** как самостоятельный identity-bearing Governance concept Stage 11B.
 
-Следующий шаг:
+Результат после Stage 11B consolidation:
 
 ~~~text
-Draft BP-GOV-001 — Mixed Open/Anonymous Voting
-→ проверить полный процесс
-→ предложить минимальную normative sync ADR-001 / ADR-008 / DOMAIN_MODEL / TERMINOLOGY
-→ independent review if BP introduces additional identity/ownership changes
+BP-GOV-001 accepted
+→ Voting Right Exercise retained as identity-bearing Governance fact
+→ Result of Offline Count retained as independent anonymous offline count fact
+→ independent multi-review completed
+→ normative sync ADR-001 / ADR-008 / DOMAIN_MODEL / TERMINOLOGY performed
+→ native online Anonymous deferred as Future Design Task
 ~~~

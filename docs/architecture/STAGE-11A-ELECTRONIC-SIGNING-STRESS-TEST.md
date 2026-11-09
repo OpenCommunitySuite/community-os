@@ -1,6 +1,6 @@
 # Stage 11A — Electronic Signing stress-test
 
-**Статус:** Working analysis / stress-test completed / reviewed in BP-SIGN-001 Round 1 / not normative  
+**Статус:** Completed analysis / reviewed in BP-SIGN-001 Round 1 / conclusions accepted for Stage 11A / not normative  
 **Основание:** ADR-004/005/009/010/011/013 + `UKRAINE_ELECTRONIC_SIGNING_LEGAL_ANALYSIS.md`  
 **Цель:** проверить, достаточно ли существующего понятия `Signing` ADR-009 и требуется ли самостоятельная identity-bearing `Signing Evidence`.
 
@@ -435,10 +435,13 @@ Stage 11A не решает это преждевременно и не созд
 
 ## 8. Следующий шаг
 
-Draft `BP-SIGN-001 — Electronic Document Signing` подготовлен, прошёл independent multi-review Round 1 и point-fix adjudication.
+`BP-SIGN-001 — Electronic Document Signing` подготовлен, прошёл independent multi-review Round 1, point-fix adjudication и final consistency/readiness check.
 
-Дальше:
+Stage 11A принят как текущая рабочая предметная основа.
 
-1. final consistency/readiness check Stage 11A;
-2. решение владельца проекта о принятии/merge;
-3. затем Stage 11B remote participation/electronic voting, начиная с unresolved documentless signed-action boundary и pilot legal/governance profile.
+Дальнейшая работа относится к Stage 11B remote participation/electronic voting, где отдельно решаются:
+
+1. unresolved documentless signed-action boundary;
+2. pilot legal/governance profile;
+3. mixed paper/electronic voting;
+4. native online Anonymous Voting и иные Stage 11B-specific вопросы.

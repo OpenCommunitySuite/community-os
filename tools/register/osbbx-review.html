@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+  <title>Перевірка власників OSBBX</title>
+  <style>
+    body { font: 1rem system-ui, sans-serif; margin: 2rem auto; padding: 0 1rem; max-width: 76rem; color: #18232d; }
+    p { max-width: 72ch; }
+    .scroll { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; vertical-align: top; padding: .55rem; border-bottom: 1px solid #d9e2e9; }
+    input:not([type=file]) { width: 100%; min-width: 8rem; box-sizing: border-box; }
+    input, button { font: inherit; padding: .35rem; }
+    .repeat { background: #fff3cf; }
+    #status { min-height: 1.5em; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Перевірка власників OSBBX</h1>
+    <p>Відкрийте JSON-перегляд реєстру. Для кожного рядка введіть перевірене ім’я та ключ власника.
+       Використовуйте однаковий ключ лише після перевірки, що ділянки належать одній особі.</p>
+    <p>Дані залишаються в цій вкладці. Збережіть CSV рішень перед закриттям сторінки.</p>
+    <label for="source">JSON-перегляд OSBBX</label>
+    <input id="source" type="file" accept=".json,application/json">
+    <p id="status" role="status" aria-live="polite"></p>
+    <p><button id="download" type="button" disabled>Зберегти CSV рішень</button></p>
+    <div class="scroll">
+      <table id="register" hidden>
+        <caption>Рядки для перевірки</caption>
+        <thead><tr>
+          <th scope="col">Рядок</th><th scope="col">Ділянка</th><th scope="col">Рахунок</th>
+          <th scope="col">Запис у джерелі</th><th scope="col">Ключ власника</th><th scope="col">Перевірене ім’я</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </main>
+  <script>
+    const source = document.querySelector('#source');
+    const register = document.querySelector('#register');
+    const body = register.querySelector('tbody');
+    const status = document.querySelector('#status');
+    const download = document.querySelector('#download');
+    let rows = [];
+    let loadVersion = 0;
+
+    function readCandidates(data) {
+      const candidates = data?.Candidates;
+      if (!Array.isArray(candidates) || !candidates.length ||
+          candidates.some(row => !Number.isInteger(row?.Row) ||
+            !['PlotNumber', 'AccountNumber', 'OwnerName'].every(field => typeof row[field] === 'string') ||
+            !Array.isArray(row.Issues) || !row.Issues.includes('owner-presentation-requires-review') ||
+            row.PlotAction !== 'create' || row.AccountAction !== 'create')) {
+        throw new Error('Потрібен JSON-перегляд OSBBX без конфліктів номерів ділянок і рахунків.');
+      }
+      return candidates;
+    }
+
+    function updateStatus() {
+      const names = new Map();
+      let complete = 0;
+      let conflict = false;
+      for (const { key, name } of rows) {
+        const ownerKey = key.value.trim();
+        const ownerName = name.value.trim();
+        if (!ownerKey || !ownerName) continue;
+        complete++;
+        if (names.has(ownerKey) && names.get(ownerKey) !== ownerName) conflict = true;
+        names.set(ownerKey, ownerName);
+      }
+      status.textContent = `Заповнено ${complete} з ${rows.length}.` +
+        (conflict ? ' Один ключ має різні імена. Перевірте рішення.' : '');
+      download.disabled = !rows.length || complete !== rows.length || conflict;
+    }
+
+    source.addEventListener('change', async () => {
+      const version = ++loadVersion;
+      const file = source.files[0];
+      rows = [];
+      body.replaceChildren();
+      register.hidden = true;
+      download.disabled = true;
+      status.textContent = '';
+      if (!file) return;
+      try {
+        if (file.size > 4_000_000) throw new Error('Файл перевищує 4 МБ.');
+        const data = JSON.parse(await file.text());
+        if (version !== loadVersion) return;
+        const candidates = readCandidates(data);
+        rows = candidates.map(candidate => {
+          const row = body.insertRow();
+          const repeated = candidate.Issues.includes('owner-name-repeated-in-workbook');
+          row.classList.toggle('repeat', repeated);
+          for (const value of [candidate.Row, candidate.PlotNumber, candidate.AccountNumber, candidate.OwnerName]) {
+            row.insertCell().textContent = value;
+          }
+          if (repeated) row.cells[3].append(' (повторюється)');
+          const fields = ['Ключ власника', 'Перевірене ім’я'].map(label => {
+            const input = document.createElement('input');
+            input.setAttribute('aria-label', `${label}, рядок ${candidate.Row}`);
+            row.insertCell().append(input);
+            return input;
+          });
+          return { candidate, key: fields[0], name: fields[1] };
+        });
+        register.hidden = false;
+        updateStatus();
+      } catch (error) {
+        if (version !== loadVersion) return;
+        status.textContent = error instanceof SyntaxError ? 'Файл не є коректним JSON.' : error.message;
+      }
+    });
+
+    body.addEventListener('input', updateStatus);
+    download.addEventListener('click', () => {
+      const quote = value => '"' + value.replaceAll('"', '""') + '"';
+      const lines = rows.map(({ candidate, key, name }) =>
+        [candidate.PlotNumber, key.value.trim(), name.value.trim(), candidate.AccountNumber].map(quote).join(','));
+      const csv = ['plot_number,owner_key,owner_name,account_number', ...lines].join('\r\n') + '\r\n';
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'decisions.csv';
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+  </script>
+</body>
+</html>

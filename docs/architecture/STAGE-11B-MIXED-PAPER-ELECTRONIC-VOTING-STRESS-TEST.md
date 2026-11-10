@@ -1,23 +1,23 @@
-# этап 11Б — Mixed бумажный/электронный голосование проверка на сложных сценариях
+# Stage 11B — Mixed paper/electronic voting stress-test
 
-**Статус:** Проверка завершена; выводы включены в принятый BP-GOV-001; документ не нормативный  
+**Статус:** Completed stress-test / conclusions incorporated into accepted BP-GOV-001 / not normative  
 **Пилот:** Садівниче товариство «ЕКСПРЕС»  
-**Связанный этап:** этап 11Б — Дистанционное участие и электронное голосование  
-**Цель:** проверить смешанную процедуру, в которой одна голосование допускает электронно подписанное волеизъявление и бумажные бюллетени с собственноручной подписью без раздвоения предметной модели голос.
+**Связанный этап:** Stage 11B — Remote Participation and Electronic Voting  
+**Цель:** проверить смешанную процедуру, в которой одна Voting допускает электронно подписанное волеизъявление и бумажные бюллетени с собственноручной подписью без раздвоения предметной модели Vote.
 
 ## 0. Принятые проектные выводы
 
-Для дальнейшего этап 11Б зафиксированы следующие требования.
+Для дальнейшего Stage 11B зафиксированы следующие требования.
 
-1. На предметном уровне формальное голосование поддерживает два основных режима прозрачности выбора:
-   - **открытое голосование (открытое голосование)** — связь `Subject/Voting Right ↔ позиция` допустима и исторически объяснима;
-   - **анонимное голосование (анонимное голосование)** — Community OS может знать факт участия/реализации Право голоса, но не должна связывать конкретного участника с содержанием его выбора там, где выбор обрабатывается самой системой.
+1. На предметном уровне формальное Voting поддерживает два основных режима прозрачности выбора:
+   - **открытое голосование (Open Voting)** — связь `Subject/Voting Right ↔ Position` допустима и исторически объяснима;
+   - **анонимное голосование (Anonymous Voting)** — Community OS может знать факт участия/реализации Voting Right, но не должна связывать конкретного участника с содержанием его выбора там, где выбор обрабатывается самой системой.
 
-   В этой модели «анонимность» относится прежде всего к **Position/choice**, а не обязательно к самому факту участия. правовой профиль может использовать юридический термин «тайное голосование» для процедуры, которая маппится на этот режим.
+   В этой модели «анонимность» относится прежде всего к **Position/choice**, а не обязательно к самому факту участия. Legal profile может использовать юридический термин «тайное голосование» для процедуры, которая маппится на этот режим.
 
-2. **голосование со смешанными способами подачи обязательно поддерживается:** одна голосование может одновременно иметь через интернет и вне системы каналы без создания нескольких голосование identities.
+2. **Mixed voting обязательно поддерживается:** одна Voting может одновременно иметь online и offline каналы без создания нескольких Voting identities.
 
-3. **вне системы сведения могут вноситься уполномоченными администраторами/членами комиссии.** Data-entry operator не становится voter/right implementer.
+3. **Offline сведения могут вноситься уполномоченными администраторами/членами комиссии.** Data-entry operator не становится voter/right implementer.
 
 4. Community OS **не определяет и не исполняет физическую процедуру обеспечения анонимности offline-части голосования**. За пределами её предметной ответственности остаются, в частности:
    - форма и физическое изготовление бумажных бюллетеней;
@@ -29,128 +29,128 @@
 
    Community OS может хранить результаты и подтверждающие документы этих действий, но не становится владельцем самой внешней организационной процедуры.
 
-5. Community OS должна принимать **полный результат offline-части**, достаточный для построения общего результата голосование со смешанными способами подачи.
+5. Community OS должна принимать **полный результат offline-части**, достаточный для построения общего результата mixed Voting.
 
-   Для открытый вне системы канал это может быть набор отдельный голос факты, введённых оператором.
+   Для open offline channel это может быть набор individual Vote facts, введённых оператором.
 
-   Для анонимный вне системы канал Community OS **не должна искусственно создавать Subject-linked отдельный голоса по каждому бумажному бюллетеню**. Вместо этого комиссия/уполномоченный оператор передаёт полный результат подсчёта офлайн-части, который Community OS фиксирует как самостоятельный исторически значимый факт со своей identity, источником и историей исправлений. Уже этот факт используется как вход общего расчёт согласно ADR-008.
+   Для anonymous offline channel Community OS **не должна искусственно создавать Subject-linked individual Votes по каждому бумажному бюллетеню**. Вместо этого комиссия/уполномоченный оператор передаёт полный результат подсчёта офлайн-части, который Community OS фиксирует как самостоятельный исторически значимый факт со своей identity, источником и историей исправлений. Уже этот факт используется как вход общего Calculation согласно ADR-008.
 
-6. подтверждение для вне системы части различается по режиму:
-   - **открытый вне системы голос** — к отдельный голос можно приложить фото/скан бумажного бюллетеня с выбором и собственноручной подписью;
-   - **анонимный участие вне системы** — можно приложить фото/скан заверенного списка/реестра выдачи бюллетеней либо иного документа с подписью/подтверждением вручения бюллетеня, доказывающего участие владельца или допустимого представителя без раскрытия выбора;
-   - **результат подсчёта анонимный offline-части** — самостоятельная запись с итоговыми числами; для подтверждения к ней может быть приложен фото/скан подписанного протокола/итогового документа счётной комиссии.
+6. Evidence для offline части различается по режиму:
+   - **open offline Vote** — к individual Vote можно приложить фото/скан бумажного бюллетеня с выбором и собственноручной подписью;
+   - **anonymous offline participation** — можно приложить фото/скан заверенного списка/реестра выдачи бюллетеней либо иного документа с подписью/подтверждением вручения бюллетеня, доказывающего участие владельца или допустимого представителя без раскрытия выбора;
+   - **результат подсчёта anonymous offline-части** — самостоятельная запись с итоговыми числами; для подтверждения к ней может быть приложен фото/скан подписанного протокола/итогового документа счётной комиссии.
 
 7. Физические оригиналы бумажных подтверждающих документов сохраняются вне Community OS согласно applicable retention/legal profile. Community OS хранит digital copies и provenance/links, но digital copy не заменяет physical original автоматически.
 
-8. анонимное электронное голосование средствами самой Community OS, если будет реализован Community OS, является отдельной этап 11Б design task: техническая реализация не должна сохранять восстанавливаемую связь `субъект ↔ выбор`. Это отличается от внешней физической процедуры обеспечения анонимности offline-части, которая остаётся вне компетенции Community OS.
+8. Native online Anonymous Voting, если будет реализован Community OS, является отдельной Stage 11B design task: техническая реализация не должна сохранять восстанавливаемую связь `Subject ↔ choice`. Это отличается от внешней физической процедуры обеспечения анонимности offline-части, которая остаётся вне компетенции Community OS.
 
-9. **Неформальный опрос (Survey)** должен быть доступен пользователю как менее формальный способ собрать мнения без обязательной электронной подписи. Однако в предметной модели он **не становится третьим типом голосование**, поскольку Stage 10 уже зафиксировал `Survey ≠ голосование` и `Survey Response ≠ голос`. На продуктовом/UI-уровне допустимо предлагать рядом три сценария: `открытое голосование`, `анонимное голосование`, `Informal Survey`. Survey использует собственную Communications semantics и не входит автоматически в формальный Calculation/Established результат.
+9. **Неформальный опрос (Survey)** должен быть доступен пользователю как менее формальный способ собрать мнения без обязательной электронной подписи. Однако в предметной модели он **не становится третьим типом Voting**, поскольку Stage 10 уже зафиксировал `Survey ≠ Voting` и `Survey Response ≠ Vote`. На продуктовом/UI-уровне допустимо предлагать рядом три сценария: `Open Voting`, `Anonymous Voting`, `Informal Survey`. Survey использует собственную Communications semantics и не входит автоматически в формальный Calculation/Established Result.
 
-## 0.1. Эмпирический первое внедрение case — собрание 24.10.2026
+## 0.1. Эмпирический pilot case — собрание 24.10.2026
 
 Отдельный reference analysis:
 
 `../references/PILOT_ST_EXPRESS_MEETING_2026-10-24_REFERENCE_ANALYSIS.md`
 
-Предоставленные реальные документы пилотного СТ дают обязательные проверочные сценарии для настоящего проверка на сложных сценариях:
+Предоставленные реальные документы пилотного СТ дают обязательные проверочные сценарии для настоящего stress-test:
 
-1. **Physical присутствие ≠ участие ≠ признанный позиция.**
+1. **Physical presence ≠ participation ≠ recognized Position.**
 
    Дополнительное фактическое уточнение пилота:
 
    ~~~text
    members = 340
    physically present at meeting ≈ 60
-   бюллетени handed to present participants
+   ballots handed to present participants
    some voted, some did not
-   board later personally delivered бюллетени to other gardeners
-   протокол registered/participated = 181
-   признанный positions per each вопрос = 139
+   board later personally delivered ballots to other gardeners
+   protocol registered/participated = 181
+   recognized positions per each question = 139
    ~~~
 
-   Следовательно, одно голосование может продолжаться после очной части собрания через последующий paper/offline collection period.
+   Следовательно, одно Voting может продолжаться после очной части собрания через последующий paper/offline collection period.
 
    Community OS не должна автоматически считать:
-   - `physical присутствие = участие`;
-   - `участие = получение бюллетеня`;
-   - `получение бюллетеня = голос`;
-   - разницу `181 - 139 = 42` как `Воздержались`, rejected голоса, missing бюллетени или non-participation.
+   - `physical presence = participation`;
+   - `participation = ballot receipt`;
+   - `ballot receipt = Vote`;
+   - разницу `181 - 139 = 42` как `Воздержались`, rejected Votes, missing ballots или non-participation.
 
-   Причина каждого расхождения должна следовать только из реальных process/evidence data и применимое правило.
+   Причина каждого расхождения должна следовать только из реальных process/evidence data и applicable rule.
 
-2. **One signed бумажный бюллетень may formalize several голоса.**
+2. **One signed paper ballot may formalize several Votes.**
 
-   Реальный опросный лист содержит ФИО, Plot number, одну подпись и семь вопросы с отдельными `ТАК / НІ / УТР.`.
+   Реальный опросный лист содержит ФИО, Plot number, одну подпись и семь Questions с отдельными `ТАК / НІ / УТР.`.
 
    ~~~text
-   one signed бумажный документ
-   → голос for вопрос 1
-   → голос for вопрос 2
+   one signed paper Document
+   → Vote for Question 1
+   → Vote for Question 2
    → ...
-   → голос for вопрос 7
+   → Vote for Question 7
    ~~~
 
-   Поэтому `1 ballot/document/file = 1 голос` запрещено как universal assumption.
+   Поэтому `1 ballot/document/file = 1 Vote` запрещено как universal assumption.
 
 3. **Agenda/question wording is historically significant.**
 
-   Уведомление, обсуждение, фактическая структура бюллетень и итоговый протокол не полностью совпадают. Изменение предложения во время обсуждения не меняет бюллетень автоматически.
+   Уведомление, обсуждение, фактическая структура ballot и итоговый протокол не полностью совпадают. Изменение предложения во время обсуждения не меняет ballot автоматически.
 
 4. **Ukrainian term `опитування` is ambiguous.**
 
-   В реальной formal procedure используются `письмове опитування` и `опитувальний лист (лист голосування)`. Поэтому product/UI terminology должна явно различать formal голосование и `Неформальне опитування / Survey`.
+   В реальной formal procedure используются `письмове опитування` и `опитувальний лист (лист голосування)`. Поэтому product/UI terminology должна явно различать formal Voting и `Неформальне опитування / Survey`.
 
-5. **первое внедрение правило `1 Plot = 1 голос` не подтверждён этим пакетом самостоятельно.**
+5. **Pilot rule `1 Plot = 1 Vote` не подтверждён этим пакетом самостоятельно.**
 
-   протокол counts members; бюллетень contains both member name and Plot number. Проверка требует реестра участников и заполненных бюллетень sheets.
+   Protocol counts members; ballot contains both member name and Plot number. Проверка требует реестра участников и заполненных ballot sheets.
 
 ## 1. Бизнес-потребность
 
-Часть участников пилотного СТ не готова пользоваться КЕП/Дія.Підпис или другими электронный подписание mechanisms.
+Часть участников пилотного СТ не готова пользоваться КЕП/Дія.Підпис или другими electronic signing mechanisms.
 
 Одновременно дистанционное электронное участие необходимо для собственников, которые отсутствуют физически, в том числе находятся за границей.
 
 Поэтому пилот должен поддерживать один и тот же Governance process через несколько допустимых каналов:
 
 ~~~text
-одно голосование
-→ common Правило голосования / rights снимок состояния / вопросы
-→ через интернет channels
-→ вне системы channels
-→ признанный отдельный голоса and/or признанный вне системы итог подсчёта входные данные
-→ one расчёт
-→ one Установленный результат
+one Voting
+→ common Voting Rule / rights snapshot / questions
+→ online channels
+→ offline channels
+→ recognized individual Votes and/or recognized offline tally inputs
+→ one Calculation
+→ one Established Result
 ~~~
 
-Mixed режим не является двумя голосованиями.
+Mixed mode не является двумя голосованиями.
 
 ## 2. Основной предметный инвариант
 
 ~~~text
-голос identity
-≠ подача канал
-≠ бюллетень medium
+Vote identity
+≠ submission channel
+≠ ballot medium
 ≠ data-entry operation
 ~~~
 
-Там, где процедура представляет отдельный голос как предметный факт, он остаётся фактом выражения позиции по конкретному Право голоса независимо от допустимого канала/formalization.
+Там, где процедура представляет individual Vote как предметный факт, он остаётся фактом выражения позиции по конкретному Voting Right независимо от допустимого канала/formalization.
 
-Для открытое голосование это обычно позволяет хранить отдельный голоса из через интернет и вне системы channels.
+Для open Voting это обычно позволяет хранить individual Votes из online и offline channels.
 
-Для анонимный вне системы голосование Community OS может принимать aggregate/offline итог подсчёта без создания отдельный Subject-linked голос факты по каждому бумажному бюллетеню.
+Для anonymous offline Voting Community OS может принимать aggregate/offline tally без создания individual Subject-linked Vote facts по каждому бумажному бюллетеню.
 
-Канал является provenance/formalization semantics, а не отдельным видом голос автоматически.
+Канал является provenance/formalization semantics, а не отдельным видом Vote автоматически.
 
-## 3. бумажный бюллетень
+## 3. Paper ballot
 
-Бумажный бюллетень может быть Document/Representation, связанной с Governance голосование.
+Бумажный бюллетень может быть Document/Representation, связанной с Governance Voting.
 
 Для открытого голосования он может содержать:
 
-- Community / голосование reference;
-- вопрос(s);
-- Право голоса / субъект identification according to procedure;
-- позиция(s);
+- Community / Voting reference;
+- Question(s);
+- Voting Right / Subject identification according to procedure;
+- position(s);
 - дату;
 - собственноручную подпись;
 - иные required реквизиты.
@@ -158,74 +158,74 @@ Mixed режим не является двумя голосованиями.
 При этом:
 
 ~~~text
-бумажный бюллетень документ
-≠ голос
+paper ballot Document
+≠ Vote
 
-handwritten подписание
-≠ голос
+handwritten Signing
+≠ Vote
 ~~~
 
-голос возникает/признаётся в Governance context согласно применимое правило голосования и admissibility semantics.
+Vote возникает/признаётся в Governance context согласно applicable Voting Rule и admissibility semantics.
 
-## 4. Handwritten подписание
+## 4. Handwritten Signing
 
-ADR-009 подписание не ограничено электронный signature.
+ADR-009 Signing не ограничено electronic signature.
 
-Для **открытый бумажный голосование** собственноручное подписание бумажного представление может быть исторически значимым подписание конкретного Document/Representation.
+Для **open paper Voting** собственноручное подписание бумажного Representation может быть исторически значимым Signing конкретного Document/Representation.
 
-Для **анонимный бумажный голосование** собственноручная подпись участника может относиться к отдельному participation/issuance register или иному подтверждающему документу, а не к бюллетень content.
+Для **anonymous paper Voting** собственноручная подпись участника может относиться к отдельному participation/issuance register или иному подтверждающему документу, а не к ballot content.
 
-Для бумажный подписание применимы те же фундаментальные границы:
+Для paper Signing применимы те же фундаментальные границы:
 
 ~~~text
-подписание
-≠ голос
+Signing
+≠ Vote
 ≠ Approval
 ≠ Registration
 ~~~
 
-Но evidence/validation semantics отличаются от электронный подписание:
+Но evidence/validation semantics отличаются от electronic Signing:
 
 - нет cryptographic validation;
 - нет certificate/trust-list semantics;
 - может требоваться визуальная/процедурная проверка подписи;
 - допустимость определяется paper-ballot/legal profile.
 
-этап 11Б не должен искусственно превращать handwritten signature в электронный signature.
+Stage 11B не должен искусственно превращать handwritten signature в electronic signature.
 
 ## 5. Scan/photo
 
-Для **открытый вне системы голос** scan/photo бумажного бюллетеня может использоваться как digital Representation/evidence для:
+Для **open offline Vote** scan/photo бумажного бюллетеня может использоваться как digital Representation/evidence для:
 
 - data entry;
-- дистанционный checking;
+- remote checking;
 - audit;
-- dispute рецензирование;
-- linking to признанный голос.
+- dispute review;
+- linking to recognized Vote.
 
-Для **анонимный вне системы голосование** Community OS обычно хранит scan/photo participation/issuance подтверждение и подсчёт protocol/result документ, а не персонально идентифицируемую копию бюллетень content.
+Для **anonymous offline Voting** Community OS обычно хранит scan/photo participation/issuance evidence и counting protocol/result document, а не персонально идентифицируемую копию ballot content.
 
 Но:
 
 ~~~text
 scan/photo
 ≠ physical original
-≠ электронный signature
-≠ new голос
+≠ electronic signature
+≠ new Vote
 ~~~
 
-Если бумажный original уже породил признанный голос, загрузка нескольких фотографий/сканов не создаёт несколько голоса.
+Если paper original уже породил recognized Vote, загрузка нескольких фотографий/сканов не создаёт несколько Votes.
 
 ## 6. Physical originals
 
-Community OS не заменяет физические оригиналы бумажных подтверждение автоматически.
+Community OS не заменяет физические оригиналы бумажных evidence автоматически.
 
-Для открытый вне системы голосование это прежде всего signed бюллетени. Для анонимный вне системы голосование это могут быть бюллетень sets, issuance/participation registers, подсчёт протокол и иные документы внешней процедуры.
+Для open offline Voting это прежде всего signed ballots. Для anonymous offline Voting это могут быть ballot sets, issuance/participation registers, counting protocol и иные документы внешней процедуры.
 
-Рабочий первое внедрение baseline:
+Рабочий pilot baseline:
 
 ~~~text
-бумажный голосование подтверждение used to support признанный результат
+paper voting evidence used to support recognized result
 → relevant physical originals retained externally
 → digital copies may supplement them
 → destruction only when applicable retention/legal profile permits
@@ -234,68 +234,68 @@ Community OS не заменяет физические оригиналы бу�
 
 Community OS хранит digital copies/provenance и, при необходимости, сведения о physical custody/location, но не управляет физическим архивом как обязательной собственной подсистемой.
 
-Настоящий проверка на сложных сценариях не устанавливает универсальный statutory retention period для всех Community types.
+Настоящий stress-test не устанавливает универсальный statutory retention period для всех Community types.
 
 ## 7. Custody and archive provenance
 
-Для значимого первоначально оформленный на бумаге подтверждение Community OS должна позволять зафиксировать/сослаться, где применимо, на:
+Для значимого paper-origin evidence Community OS должна позволять зафиксировать/сослаться, где применимо, на:
 
-- вид исходное подтверждение;
+- вид source evidence;
 - received/provided time;
 - digital copy/scan/photo;
 - источник/ответственного за предоставление;
 - physical custodian/location reference, если это ведётся в Community OS;
-- relation to голосование / голос / вне системы итог подсчёта / участие подтверждение;
+- relation to Voting / Vote / offline tally / participation evidence;
 - applicable retention rule/reference;
 - факт/основание последующего disposal, если он отражается системой.
 
-Это не означает, что Community OS обязана моделировать полный физический archive workflow и не доказывает необходимость universal `Physical Archive пункт` entity.
+Это не означает, что Community OS обязана моделировать полный физический archive workflow и не доказывает необходимость universal `Physical Archive Item` entity.
 
 Если document/archive use cases позднее покажут independent identity/lifecycle физического носителя, вопрос отдельной entity должен быть исследован отдельно.
 
 ## 8. Data-entry operator
 
-В mixed режим особенно важно разделять:
+В mixed mode особенно важно разделять:
 
 ~~~text
 voter / right implementer
-≠ person receiving бюллетень
-≠ подсчёт commission member
+≠ person receiving ballot
+≠ counting commission member
 ≠ data-entry operator
-≠ Учётная запись пользователя that records голос
+≠ User Account that records Vote
 ~~~
 
 Data entry является action of fixation/recognition of already expressed will, а не новым волеизъявлением оператора.
 
-Для открытый вне системы голос historical explainability может включать:
+Для open offline Vote historical explainability может включать:
 
-- источник бумажный бюллетень;
+- source paper ballot;
 - voter/right implementer;
 - recorder/operator;
-- полученный time;
+- received time;
 - entry/recognition time;
 - applicable rule/version;
-- validation/admissibility результат.
+- validation/admissibility result.
 
-Для анонимный вне системы contribution оператор фиксирует не выбор конкретного субъект, а участие подтверждение и/или сводный итог подсчёта from commission источник. В этом случае должны быть различимы recorder/operator, источник документ, entered сводный values и момент их признание.
+Для anonymous offline contribution оператор фиксирует не choice конкретного Subject, а participation evidence и/или aggregate tally from commission source. В этом случае должны быть различимы recorder/operator, source document, entered aggregate values и момент их recognition.
 
-## 9. подача time vs entry time
+## 9. Submission time vs entry time
 
 Для бумажного бюллетеня могут различаться:
 
 ~~~text
-бюллетень signed time
-бюллетень submitted/received time
+ballot signed time
+ballot submitted/received time
 scan time
 data-entry time
-domain признание time
+domain recognition time
 ~~~
 
-применимое правило голосования должна определять, какой момент используется для deadline/admissibility.
+Applicable Voting Rule должна определять, какой момент используется для deadline/admissibility.
 
-Нельзя автоматически считать data-entry time временем голос, если бумажный бюллетень был своевременно подан ранее.
+Нельзя автоматически считать data-entry time временем Vote, если paper ballot был своевременно подан ранее.
 
-## 10. Duplicate бумажный digitization
+## 10. Duplicate paper digitization
 
 Один бумажный бюллетень может быть:
 
@@ -307,175 +307,175 @@ domain признание time
 
 ~~~text
 multiple representations/evidence
-≠ multiple голоса
+≠ multiple Votes
 ~~~
 
-Duplicate признание должна опираться на ballot/Voting Right/provenance semantics, а не только на image hash.
+Duplicate recognition должна опираться на ballot/Voting Right/provenance semantics, а не только на image hash.
 
-## 11. бумажный + электронный подача for same Право голоса
+## 11. Paper + electronic submission for same Voting Right
 
-Если один Право голоса использован сначала на бумаге, а затем электронно, либо наоборот, это не создаёт автоматически два effective голоса.
+Если один Voting Right использован сначала на бумаге, а затем электронно, либо наоборот, это не создаёт автоматически два effective Votes.
 
 Policy должна определить:
 
 - разрешено ли изменение позиции;
-- до какого срок подачи;
-- считается ли новая подача replacement/change;
-- как ведётся голос history;
+- до какого deadline;
+- считается ли новая submission replacement/change;
+- как ведётся Vote history;
 - что происходит при конфликтующих позициях;
-- требуется ли отзыв/аннулирование предыдущего бюллетень подтверждение;
-- какой голос effective для расчёт.
+- требуется ли отзыв/аннулирование предыдущего ballot evidence;
+- какой Vote effective для Calculation.
 
-Historical original/previous голос не переписывается молча.
+Historical original/previous Vote не переписывается молча.
 
-## 12. Multiple Права голоса one субъект
+## 12. Multiple Voting Rights one Subject
 
-При первое внедрение правило «1 qualifying Plot = 1 Право голоса» один субъект может иметь несколько Права голоса.
+При pilot rule «1 qualifying Plot = 1 Voting Right» один Subject может иметь несколько Voting Rights.
 
-бумажный бюллетень может:
+Paper ballot может:
 
 - содержать позиции по нескольким Rights;
-- либо один бюллетень выпускаться на один Right.
+- либо один ballot выпускаться на один Right.
 
-Это profile/document-design выбор.
+Это profile/document-design choice.
 
 Независимо от формы:
 
 ~~~text
 one handwritten signature
-may formalize a бюллетень containing several Права голоса
+may formalize a ballot containing several Voting Rights
 ≠ several Subjects
 ~~~
 
-Каждая позиция должна быть однозначно сопоставима с соответствующим Право голоса.
+Каждая position должна быть однозначно сопоставима с соответствующим Voting Right.
 
 ## 13. Co-owners
 
-При нескольких co-owners одного Plot количество Права голоса и implementer semantics определяет применимое правило голосования.
+При нескольких co-owners одного Plot количество Voting Rights и implementer semantics определяет applicable Voting Rule.
 
-бумажный канал не решает этот вопрос и не меняет ADR-001.
+Paper channel не решает этот вопрос и не меняет ADR-001.
 
-Если разные Subjects имеют разные Права голоса, их signatures/ballots должны позволять отличить, кто реализовал какое право.
+Если разные Subjects имеют разные Voting Rights, их signatures/ballots должны позволять отличить, кто реализовал какое право.
 
-## 14. Invalid or incomplete бумажный входные данные
+## 14. Invalid or incomplete paper input
 
-Для **открытый вне системы голос** бумажный бюллетень может быть rejected/invalid, например из-за:
+Для **open offline Vote** бумажный ballot может быть rejected/invalid, например из-за:
 
 - отсутствия required voter signature, если она обязательна profile;
 - невозможности идентифицировать Voting/Voting Right;
 - неоднозначной позиции;
-- подача after срок подачи;
+- submission after deadline;
 - unauthorized representative;
-- incompatible бюллетень версия;
+- incompatible ballot version;
 - повреждения/неполноты;
 - иных profile-specific причин.
 
-Для **анонимный вне системы голосование** отсутствие подписи голосующего на самом бюллетень не является дефектом автоматически. Проверяются отдельно admissibility participation/issuance подтверждение и корректность сводный tally/source documents according to applicable profile.
+Для **anonymous offline Voting** отсутствие подписи голосующего на самом ballot не является дефектом автоматически. Проверяются отдельно admissibility participation/issuance evidence и корректность aggregate tally/source documents according to applicable profile.
 
-Rejected открытый бюллетень:
+Rejected open ballot:
 
 ~~~text
-≠ признанный голос
+≠ recognized Vote
 ~~~
 
-Rejected анонимный вне системы входные данные:
+Rejected anonymous offline input:
 
 ~~~text
-≠ признанный участие подтверждение / итог подсчёта входные данные
+≠ recognized participation evidence / tally input
 ~~~
 
 Если rejection предметно значим, source/evidence и reason должны быть traceable according to ADR-004/008/009.
 
-## 15. Lost physical original after признание
+## 15. Lost physical original after recognition
 
-Если digital copy существует, но relevant physical original после признание утрачен:
+Если digital copy существует, но relevant physical original после recognition утрачен:
 
-- ранее признанный открытый голос или анонимный вне системы tally/input не должны автоматически исчезать;
+- ранее recognized open Vote или anonymous offline tally/input не должны автоматически исчезать;
 - loss является отдельным material evidence/custody incident;
 - applicable legal/profile policy определяет последствия для evidentiary strength/validity;
 - history loss/correction/review должна сохраняться.
 
-Community OS не должна silent-rewrite historical голосование facts/results только потому, что archive state ухудшился позднее.
+Community OS не должна silent-rewrite historical voting facts/results только потому, что archive state ухудшился позднее.
 
-## 16. Physical original полученный after preliminary scan
+## 16. Physical original received after preliminary scan
 
-Для **открытый дистанционный бумажный голос** возможен flow:
+Для **open remote paper Vote** возможен flow:
 
 ~~~text
-participant signs бюллетень
-→ sends photo/scan for preliminary получение
+participant signs ballot
+→ sends photo/scan for preliminary receipt
 → original arrives later by mail/person
 ~~~
 
-Для анонимный процедура вне системы аналогичная доставка конкретного бюллетень с identifiable sender может противоречить требуемой анонимности и не моделируется Community OS как default flow.
+Для anonymous offline procedure аналогичная доставка конкретного ballot с identifiable sender может противоречить требуемой анонимности и не моделируется Community OS как default flow.
 
-Для открытый дистанционный бумажный case нужно различать:
+Для open remote paper case нужно различать:
 
 - preliminary copy/evidence;
 - required original;
 - provisional vs final admissibility if profile допускает;
-- actual получение срок подачи.
+- actual receipt deadline.
 
-Настоящий проверка на сложных сценариях не устанавливает, что photo alone достаточно для legally действительный голос; это legal/profile правило.
+Настоящий stress-test не устанавливает, что photo alone достаточно для legally valid Vote; это legal/profile rule.
 
-## 17. открытое голосование
+## 17. Open voting
 
-Для открытое голосование связь:
+Для open voting связь:
 
 ~~~text
-субъект / Право голоса
-↔ бюллетень позиция
-↔ handwritten/electronic подписание
+Subject / Voting Right
+↔ ballot position
+↔ handwritten/electronic Signing
 ~~~
 
 может быть допустимой и необходимой для auditability.
 
-Mixed канал здесь концептуально прост: identities остаются различимыми, а источник канал фиксируется provenance.
+Mixed channel здесь концептуально прост: identities остаются различимыми, а source channel фиксируется provenance.
 
-## 18. анонимное голосование
+## 18. Anonymous voting
 
-Для этап 11Б фиксируется граница:
+Для Stage 11B фиксируется граница:
 
 ~~~text
-участие / Право голоса realization
-≠ бюллетень выбор
+participation / Voting Right realization
+≠ ballot choice
 ~~~
 
-Community OS может знать и подтверждать, что конкретный Subject/Voting Right участвовал в анонимное голосование, но для анонимный результат не должна создавать сохраняемую связь с конкретной позиция.
+Community OS может знать и подтверждать, что конкретный Subject/Voting Right участвовал в anonymous Voting, но для anonymous result не должна создавать сохраняемую связь с конкретной Position.
 
-### 18.1. вне системы анонимное голосование — внешний physical procedure
+### 18.1. Offline anonymous voting — external physical procedure
 
 Физическая процедура обеспечения тайны остаётся за пределами Community OS.
 
 Community OS **не управляет**:
 
-- формой/печатью бумажного бюллетень;
+- формой/печатью бумажного ballot;
 - физической выдачей/вручением бюллетеня;
-- sealed бюллетень box;
+- sealed ballot box;
 - физическим подсчётом;
 - работой комиссии;
 - процедурой подписания бумажного протокола.
 
 Community OS принимает полный результат этой внешней процедуры и допустимые подтверждающие документы.
 
-### 18.2. вне системы анонимный участие подтверждение
+### 18.2. Offline anonymous participation evidence
 
 Для подтверждения участия без раскрытия выбора к Voting/participation records может быть приложен digital copy:
 
 - заверенного списка/реестра выдачи бюллетеней;
-- receipt/attendance/issuance документ;
-- иного допустимого документа, показывающего, что субъект или допустимый представитель получил/реализовал право участия.
+- receipt/attendance/issuance document;
+- иного допустимого документа, показывающего, что Subject или допустимый представитель получил/реализовал право участия.
 
-Такой подтверждение:
+Такой evidence:
 
 ~~~text
-proves участие / выдача
-≠ proves бюллетень выбор
+proves participation / issuance
+≠ proves ballot choice
 ~~~
 
 ### 18.3. Результат подсчёта анонимной offline-части
 
-Для анонимный бумажный канал Community OS не создаёт отдельный Subject-linked голос по каждому анонимному бумажному бюллетеню.
+Для anonymous paper channel Community OS не создаёт отдельный Subject-linked Vote по каждому анонимному бумажному бюллетеню.
 
 Вместо этого вводится самостоятельный исторически значимый факт **«Результат подсчёта офлайн-части»**.
 
@@ -487,128 +487,128 @@ proves участие / выдача
 - количество `Против`;
 - количество `Воздержался`, если такой вариант предусмотрен;
 - количество недействительных/неучтённых бюллетеней where applicable;
-- иные счётные показатели, требуемые Правило голосования;
+- иные счётные показатели, требуемые Voting Rule;
 - кто внёс сведения в Community OS;
 - когда сведения были внесены/признаны;
 - какой внешний документ/протокол является источником;
-- приложенный scan/photo источник документ;
+- приложенный scan/photo source document;
 - историю исправлений/замен и их основание.
 
 Базовая цепочка:
 
 ~~~text
-external/offline подсчёт by commission
-→ Результат подсчёта вне системы
+external/offline counting by commission
+→ Result of Offline Count
 → evidence/protocol
-→ расчёт
-→ Установленный результат
+→ Calculation
+→ Established Result
 ~~~
 
 Сам протокол комиссии остаётся Document/Representation и **не является** этим предметным фактом автоматически:
 
 ~~~text
-подсчёт протокол документ
-≠ Результат подсчёта вне системы
-≠ расчёт
-≠ Установленный результат
+counting protocol Document
+≠ Result of Offline Count
+≠ Calculation
+≠ Established Result
 ~~~
 
 Если комиссия или оператор обнаружили ошибку, исходная запись не переписывается молча. Исправленный результат должен быть исторически связан с первоначальным и иметь объяснимое основание согласно ADR-004.
 
-Одна голосование может иметь более одного такого результата, если подсчёт вне системы фактически разделён на несколько независимых областей/комиссий/мест и применимое правило допускает их последующее объединение.
+Одна Voting может иметь более одного такого результата, если offline counting фактически разделён на несколько независимых областей/комиссий/мест и применимое правило допускает их последующее объединение.
 
-Для открытый вне системы голосование такой результат может использоваться как дополнительный итог/сверка, но отдельный признанные голоса остаются самостоятельными фактами и не заменяются агрегатом.
+Для open offline Voting такой результат может использоваться как дополнительный итог/сверка, но individual recognized Votes остаются самостоятельными фактами и не заменяются агрегатом.
 
-### 18.4. через интернет анонимное голосование
+### 18.4. Online anonymous voting
 
-Если Community OS сама обеспечивает через интернет анонимное голосование, техническая анонимность выбора уже не является внешней физической процедурой и должна быть обеспечена самой системой.
+Если Community OS сама обеспечивает online anonymous Voting, техническая анонимность выбора уже не является внешней физической процедурой и должна быть обеспечена самой системой.
 
-Минимальный неизменяемое правило:
+Минимальный invariant:
 
 ~~~text
 Community OS may know:
-субъект / Право голоса participated
+Subject / Voting Right participated
 
 Community OS must not retain:
-субъект / Право голоса → анонимный позиция
+Subject / Voting Right → anonymous Position
 ~~~
 
-Конкретный credential/cryptographic протокол остаётся отдельной этап 11Б design task. Новый universal `анонимный голос Token` сейчас не вводится.
+Конкретный credential/cryptographic protocol остаётся отдельной Stage 11B design task. Новый universal `Anonymous Vote Token` сейчас не вводится.
 
-## 19. подсчёт and результат
+## 19. Counting and result
 
-голосование со смешанными способами подачи должна сформировать **один полный расчёт / Установленный результат** из всех допустимых каналов.
+Mixed Voting должна сформировать **один полный Calculation / Established Result** из всех допустимых каналов.
 
-Для открытый channels расчёт может использовать отдельный признанные голоса.
+Для open channels Calculation может использовать individual recognized Votes.
 
-Для анонимный вне системы канал расчёт использует один или несколько признанных **результатов подсчёта офлайн-части** как самостоятельные исторически объяснимые входы согласно ADR-008, без восстановления отдельный Subject-linked голоса.
+Для anonymous offline channel Calculation использует один или несколько признанных **результатов подсчёта офлайн-части** как самостоятельные исторически объяснимые входы согласно ADR-008, без восстановления individual Subject-linked Votes.
 
 ~~~text
-через интернет открытый голоса ───────────────┐
-вне системы открытый голоса ──────────────┤
-через интернет анонимный aggregate/input ────────────────┤
-подсчёт вне системы результат(s) ──────────────────────────┼→ расчёт → Установленный результат
-other allowed входные данные ────────────┘
+online open Votes ───────────────┐
+offline open Votes ──────────────┤
+online anonymous aggregate/input ────────────────┤
+offline count result(s) ──────────────────────────┼→ Calculation → Established Result
+other allowed inputs ────────────┘
 ~~~
 
-расчёт должен позволять объяснить:
+Calculation должен позволять объяснить:
 
 - какие каналы участвовали;
-- какие отдельный голоса использованы;
+- какие individual Votes использованы;
 - какие результаты подсчёта офлайн-части использованы;
-- их источник и происхождение сведений и history/correction context;
-- применимую Правило голосования версия;
+- их source/provenance и history/correction context;
+- применимую Voting Rule version;
 - exclusions/corrections where relevant.
 
-расчёт не должен суммировать:
+Calculation не должен суммировать:
 
 - число файлов;
 - число scans;
-- число внешняя служба callbacks;
-- число бумажный Documents.
+- число provider callbacks;
+- число paper Documents.
 
-Для анонимный вне системы части система считает признанные итоговые значения комиссии, а не пытается восстановить связь анонимный бюллетень с Право голоса.
+Для anonymous offline части система считает признанные итоговые значения комиссии, а не пытается восстановить связь anonymous ballot с Voting Right.
 
 ## 20. Audit/challenge package
 
-При споре о легитимности голосование со смешанными способами подачи должно быть возможно собрать explainable package, включающий where applicable:
+При споре о легитимности mixed Voting должно быть возможно собрать explainable package, включающий where applicable:
 
-- Правило голосования версия;
-- rights снимок состояния;
+- Voting Rule version;
+- rights snapshot;
 - agenda/question versions;
-- через интернет голос history;
-- вне системы открытый голоса and their бюллетень подтверждение;
-- источник канал;
-- scan/photo открытый бумажный бюллетень;
-- signed/certified ballot-issuance/participation register for анонимный вне системы part;
-- one or more результаты подсчёта вне системы;
-- counting-commission протокол or other источник документ for each such результат;
+- online Vote history;
+- offline open Votes and their ballot evidence;
+- source channel;
+- scan/photo open paper ballot;
+- signed/certified ballot-issuance/participation register for anonymous offline part;
+- one or more results of offline count;
+- counting-commission protocol or other source document for each such result;
 - recorder/data-entry operator actions;
 - rejection/correction history;
-- расчёт;
-- Установленный результат;
+- Calculation;
+- Established Result;
 - protocol/Document.
 
 Community OS хранит digital evidence/provenance, но не обязана владеть physical anonymous-voting procedure.
 
-Это не означает universal `голосование подтверждение Package` entity.
+Это не означает universal `Voting Evidence Package` entity.
 
 ## 21. Legal/reference signals
 
-Current Ukrainian document-management правила for organizations require the material carrier and recording method of a management документ to preserve the документ during its established retention period.
+Current Ukrainian document-management rules for organizations require the material carrier and recording method of a management document to preserve the document during its established retention period.
 
-For ОСББ, the current model charter explicitly requires бумажный survey sheets to be numbered, bound and stored by the board or another authorized person; электронный survey sheets are stored in a form that allows integrity verification.
+For ОСББ, the current model charter explicitly requires paper survey sheets to be numbered, bound and stored by the board or another authorized person; electronic survey sheets are stored in a form that allows integrity verification.
 
-These are strong signals in favor of preserving бумажный originals in a mixed-voting profile, but the ОСББ правило is not automatically a legal правило for the первое внедрение ST.
+These are strong signals in favor of preserving paper originals in a mixed-voting profile, but the ОСББ rule is not automatically a legal rule for the pilot ST.
 
 Current official sources:
 
 - https://zakon.rada.gov.ua/go/z0736-15
 - https://zakon.rada.gov.ua/go/z0061-24
 
-## 21.1. Informal Survey as adjacent product режим
+## 21.1. Informal Survey as adjacent product mode
 
-Уточнено пользовательское требование: кроме формальных Open/Anonymous голосование нужен менее формальный **опрос**, который по умолчанию не требует КЕП/Дія.Підпис.
+Уточнено пользовательское требование: кроме формальных Open/Anonymous Voting нужен менее формальный **опрос**, который по умолчанию не требует КЕП/Дія.Підпис.
 
 Это требование уже поддерживается Stage 10:
 
@@ -622,13 +622,13 @@ Informal Survey
 и сохраняет границу:
 
 ~~~text
-Survey ≠ голосование
-Survey Response ≠ голос
-survey aggregation ≠ голосование расчёт
-≠ Установленный результат
+Survey ≠ Voting
+Survey Response ≠ Vote
+survey aggregation ≠ Voting Calculation
+≠ Established Result
 ~~~
 
-Поэтому формулировка «опрос как тип голосования» принимается **на продуктовом уровне выбора сценария**, но не буквально в предметная модель.
+Поэтому формулировка «опрос как тип голосования» принимается **на продуктовом уровне выбора сценария**, но не буквально в domain model.
 
 Рекомендуемый пользовательский выбор:
 
@@ -639,106 +639,106 @@ survey aggregation ≠ голосование расчёт
 - неформальный опрос
 ~~~
 
-Survey policy может определять identified/anonymous response режим, multiplicity и admissibility без формирования голосование Rights/snapshot, если это не требуется его собственной семантикой.
+Survey policy может определять identified/anonymous response mode, multiplicity и admissibility без формирования Voting Rights/snapshot, если это не требуется его собственной семантикой.
 
-Отсутствие обязательной электронной подписи является нормальным default для Survey, но конкретный Survey policy может потребовать дополнительное подтверждение ответа. Это не превращает Survey Response в голос.
+Отсутствие обязательной электронной подписи является нормальным default для Survey, но конкретный Survey policy может потребовать дополнительное подтверждение ответа. Это не превращает Survey Response в Vote.
 
-## 22. фундаментальная сущность check
+## 22. Fundamental entity check
 
-Проверка на сложных сценариях does **not** currently justify:
+Stress-test does **not** currently justify:
 
-- `бумажный голос` entity;
-- `электронный голос` entity;
-- `Physical Archive пункт` entity;
-- `голос Import` entity;
-- `бюллетень Scan` entity;
-- `голосование со смешанными способами подачи` as a separate голосование subtype;
-- fundamental отдельный `анонимный вне системы голос` records created from анонимный бумажный бюллетени.
+- `Paper Vote` entity;
+- `Electronic Vote` entity;
+- `Physical Archive Item` entity;
+- `Vote Import` entity;
+- `Ballot Scan` entity;
+- `Mixed Voting` as a separate Voting subtype;
+- fundamental individual `Anonymous Offline Vote` records created from anonymous paper ballots.
 
-При этом **отдельный имеющий собственную предметную идентичность факт «Результат подсчёта офлайн-части» теперь обоснован и принят для этап 11Б**.
+При этом **отдельный identity-bearing факт «Результат подсчёта офлайн-части» теперь обоснован и принят для Stage 11B**.
 
 Причины:
 
-- он существует до общего расчёт;
+- он существует до общего Calculation;
 - может быть использован несколькими пересчётами;
-- имеет собственный источник и происхождение сведений;
-- может быть исправлен/заменён независимо от общего расчёт;
-- один голосование может иметь несколько таких результатов;
+- имеет собственный source/provenance;
+- может быть исправлен/заменён независимо от общего Calculation;
+- один Voting может иметь несколько таких результатов;
 - его история нужна для доказуемости итогового результата.
 
-Это не новый предметный контекст и не universal platform-wide сводный entity. Ownership остаётся в Governance context, а точная нормативная формулировка должна быть закреплена в BP этап 11Б.
+Это не новый bounded context и не universal platform-wide aggregate entity. Ownership остаётся в Governance context, а точная нормативная формулировка должна быть закреплена в BP Stage 11B.
 
 Working model:
 
 ~~~text
-голосование
-+ Правило голосования
-+ Права голоса
-+ отдельный голос where applicable
-+ Результат подсчёта вне системы 0..N
+Voting
++ Voting Rule
++ Voting Rights
++ individual Vote where applicable
++ Result of Offline Count 0..N
 + Documents/Representations/Signings
 + provenance
-→ расчёт
-→ Установленный результат
+→ Calculation
+→ Established Result
 ~~~
 
 ## 23. Candidate invariants
 
-1. голосование has two principal choice-visibility modes: открытый and анонимный.
-2. одно голосование may accept several online/offline submission/formalization channels.
-3. голос identity is not канал identity.
-4. первоначально оформленный на бумаге открытый голос is not converted into a new электронный голос during data entry.
-5. бумажный бюллетень документ ≠ голос.
-6. Handwritten подписание ≠ голос.
+1. Voting has two principal choice-visibility modes: Open and Anonymous.
+2. One Voting may accept several online/offline submission/formalization channels.
+3. Vote identity is not channel identity.
+4. Paper-origin open Vote is not converted into a new electronic Vote during data entry.
+5. Paper ballot Document ≠ Vote.
+6. Handwritten Signing ≠ Vote.
 7. Scan/photo ≠ physical original.
-8. Scan/photo ≠ электронный signature.
-9. Multiple scans ≠ multiple голоса.
+8. Scan/photo ≠ electronic signature.
+9. Multiple scans ≠ multiple Votes.
 10. Data-entry operator ≠ voter/right implementer.
 11. Submission/receipt time ≠ data-entry time automatically.
-12. бумажный + электронный submissions for one Право голоса require explicit conflict/change semantics where отдельный голос identity exists.
-13. открытый вне системы голоса may be entered individually with бюллетень подтверждение.
-14. анонимный вне системы results are recorded as one or more имеющий собственную предметную идентичность Результаты подсчёта вне системы without creating Subject-linked отдельный голоса.
-15. анонимный участие подтверждение ≠ анонимный выбор подтверждение.
-16. расчёт may combine отдельный голоса and исторически объяснимый Результаты подсчёта вне системы where allowed by Правило голосования.
-17. Community OS does not own physical вне системы secrecy mechanics; it stores results/evidence/provenance.
-18. Physical originals remain субъект to внешний applicable retention/archive правила; digital copies do not replace them automatically.
-19. анонимное электронное голосование средствами самой Community OS must not retain a recoverable Subject/Voting Right → позиция link.
-20. голосование со смешанными способами подачи does not require a new голосование subtype or new голос entity.
+12. Paper + electronic submissions for one Voting Right require explicit conflict/change semantics where individual Vote identity exists.
+13. Open offline Votes may be entered individually with ballot evidence.
+14. Anonymous offline results are recorded as one or more identity-bearing Results of Offline Count without creating Subject-linked individual Votes.
+15. Anonymous participation evidence ≠ anonymous choice evidence.
+16. Calculation may combine individual Votes and historically explainable Results of Offline Count where allowed by Voting Rule.
+17. Community OS does not own physical offline secrecy mechanics; it stores results/evidence/provenance.
+18. Physical originals remain subject to external applicable retention/archive rules; digital copies do not replace them automatically.
+19. Native online Anonymous Voting must not retain a recoverable Subject/Voting Right → Position link.
+20. Mixed Voting does not require a new Voting subtype or new Vote entity.
 
-## 24. результат
+## 24. Result
 
-Mixed бумажный/электронный голосование fits the existing Community OS architecture without new fundamental Vote/channel entities.
+Mixed paper/electronic voting fits the existing Community OS architecture without new fundamental Vote/channel entities.
 
-принято этап 11Б direction:
+Accepted Stage 11B direction:
 
-- открытый and анонимный are the two principal formal голосование visibility modes;
-- online/offline channels may coexist within одно голосование;
-- administrators may enter вне системы results with explicit attribution;
-- открытый вне системы канал can create отдельный голос факты backed by бюллетень scans/photos;
-- анонимный вне системы канал contributes one or more имеющий собственную предметную идентичность Результаты подсчёта вне системы plus participation/counting подтверждение, without Subject-linked бюллетень choices;
-- physical secrecy procedure remains внешний to Community OS;
-- Community OS must be able to combine all признанный online/offline входные данные into one complete результат;
-- physical originals remain внешний archival подтверждение; Community OS stores digital copies/provenance;
-- анонимное электронное голосование средствами самой Community OS remains a dedicated design problem because the system itself must prevent retained субъект↔выбор linkage.
+- Open and Anonymous are the two principal formal Voting visibility modes;
+- online/offline channels may coexist within one Voting;
+- administrators may enter offline results with explicit attribution;
+- open offline channel can create individual Vote facts backed by ballot scans/photos;
+- anonymous offline channel contributes one or more identity-bearing Results of Offline Count plus participation/counting evidence, without Subject-linked ballot choices;
+- physical secrecy procedure remains external to Community OS;
+- Community OS must be able to combine all recognized online/offline inputs into one complete result;
+- physical originals remain external archival evidence; Community OS stores digital copies/provenance;
+- native online Anonymous Voting remains a dedicated design problem because the system itself must prevent retained Subject↔choice linkage.
 
-## 25. результат after этап 11Б consolidation
+## 25. Result after Stage 11B consolidation
 
-Findings настоящего проверка на сложных сценариях включены в принято `BP-GOV-001` и нормативную синхронизацию ADR-001 / ADR-008 / DOMAIN_MODEL / TERMINOLOGY.
+Findings настоящего stress-test включены в accepted `BP-GOV-001` и нормативную синхронизацию ADR-001 / ADR-008 / DOMAIN_MODEL / TERMINOLOGY.
 
-В границы первой нормативной версии и первого внедрения зафиксировано:
+В first normative / first-pilot scope зафиксировано:
 
-- оформленный документом электронный бюллетень в виде подписанного документа — для открытое голосование;
-- анонимное голосование — физический/вне системы сторона фиксации выбора + Реализация права голоса + Результат подсчёта вне системы;
-- анонимное электронное голосование средствами самой Community OS — задача дальнейшего проектирования;
-- Результат подсчёта вне системы имеет самостоятельную identity, question-local границы и исправление или замена history;
-- Open/Anonymous режим не смешивается внутри одной голосование.
+- document-backed signed electronic ballot — для Open Voting;
+- Anonymous Voting — physical/offline choice-side + Voting Right Exercise + Result of Offline Count;
+- native online Anonymous Voting — Future Design Task;
+- Result of Offline Count имеет самостоятельную identity, question-local scope и correction/replacement history;
+- Open/Anonymous mode не смешивается внутри одной Voting.
 
-Перед реализацией остаются первое внедрение profile/legal decisions:
+Перед реализацией остаются pilot profile/legal decisions:
 
 1. exact presence/quorum semantics;
-2. бумажный/электронный conflict/change policy;
-3. legal/profile validation `1 Plot = 1 голос`;
-4. retention/physical-original правила;
-5. анонимный consumption moment/reissue/privacy-scope правила.
+2. paper/electronic conflict/change policy;
+3. legal/profile validation `1 Plot = 1 Vote`;
+4. retention/physical-original rules;
+5. anonymous consumption moment/reissue/privacy-scope rules.
 
-Эти открытые вопросы не отменяют завершённость настоящего архитектурного проверка на сложных сценариях.
+Эти открытые вопросы не отменяют завершённость настоящего архитектурного stress-test.

@@ -55,6 +55,11 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
             () => register.CreateAsync(otherCommunity, owner, null, "1", "A-1", cancellationToken));
         Assert.Equal(PostgresErrorCodes.ForeignKeyViolation, foreignOwner.SqlState);
 
+        var correctionMigration = await File.ReadAllTextAsync(
+            Path.Combine(AppContext.BaseDirectory, "002_ownership_correction.sql"), cancellationToken);
+        await using var upgrade = source.CreateCommand(correctionMigration);
+        await upgrade.ExecuteNonQueryAsync(cancellationToken);
+
         var entries = await register.ListAsync(community, cancellationToken);
         Assert.Collection(entries,
             first => Assert.Equal((owner, "1", "A-1"), (first.OwnerId, first.PlotNumber, first.AccountNumber)),
@@ -62,6 +67,32 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Empty(await register.ListAsync(otherCommunity, cancellationToken));
         await using var count = source.CreateCommand("SELECT count(*) FROM community_register.subject");
         Assert.Equal(1L, await count.ExecuteScalarAsync(cancellationToken));
+
+        var plot = entries[0];
+        var correctOwner = await register.CreateAsync(community, null, "Correct owner", "3", "A-3", cancellationToken);
+        var foreignSubject = await register.CreateAsync(otherCommunity, null, "Foreign owner", "1", "A-1", cancellationToken);
+        var wrongCommunity = await Assert.ThrowsAsync<PostgresException>(() => register.CorrectOwnerAsync(
+            community, plot.PlotId, plot.OwnershipRevision, foreignSubject, "Test", cancellationToken));
+        Assert.Equal(PostgresErrorCodes.ForeignKeyViolation, wrongCommunity.SqlState);
+
+        Assert.True(await register.CorrectOwnerAsync(community, plot.PlotId, plot.OwnershipRevision,
+            correctOwner, "Incorrect initial entry", cancellationToken));
+        Assert.False(await register.CorrectOwnerAsync(community, plot.PlotId, plot.OwnershipRevision,
+            owner, "Stale command", cancellationToken));
+
+        var corrected = (await register.ListAsync(community, cancellationToken))[0];
+        Assert.Equal(correctOwner, corrected.OwnerId);
+        Assert.Equal(plot.AccountNumber, corrected.AccountNumber);
+        Assert.NotEqual(plot.OwnershipRevision, corrected.OwnershipRevision);
+        await using var history = source.CreateCommand("""
+            SELECT previous_subject_id, corrected_subject_id, reason
+            FROM community_register.ownership_correction
+            """);
+        await using var reader = await history.ExecuteReaderAsync(cancellationToken);
+        Assert.True(await reader.ReadAsync(cancellationToken));
+        Assert.Equal((owner, correctOwner, "Incorrect initial entry"),
+            (reader.GetGuid(0), reader.GetGuid(1), reader.GetString(2)));
+        Assert.False(await reader.ReadAsync(cancellationToken));
     }
 
 }

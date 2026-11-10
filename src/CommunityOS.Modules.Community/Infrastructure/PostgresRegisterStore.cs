@@ -33,10 +33,34 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
         await transaction.CommitAsync(cancellationToken);
     }
 
+    public async Task<bool> CorrectOwnerAsync(Guid communityId, Guid plotId, Guid revision, Guid ownerId,
+        string reason, CancellationToken cancellationToken)
+    {
+        await using var command = dataSource.CreateCommand("""
+            WITH corrected AS (
+                UPDATE community_register.ownership
+                SET subject_id = @owner, revision = uuidv7()
+                WHERE community_id = @community AND plot_id = @plot
+                    AND revision = @revision AND subject_id <> @owner
+                RETURNING OLD.subject_id AS previous_subject_id
+            )
+            INSERT INTO community_register.ownership_correction
+                (community_id, plot_id, previous_revision, previous_subject_id, corrected_subject_id, reason)
+            SELECT @community, @plot, @revision, previous_subject_id, @owner, @reason
+            FROM corrected;
+            """);
+        command.Parameters.AddWithValue("community", communityId);
+        command.Parameters.AddWithValue("plot", plotId);
+        command.Parameters.AddWithValue("revision", revision);
+        command.Parameters.AddWithValue("owner", ownerId);
+        command.Parameters.AddWithValue("reason", reason);
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+    }
+
     public async Task<IReadOnlyList<RegisterEntry>> ListAsync(Guid communityId, CancellationToken cancellationToken)
     {
         await using var command = dataSource.CreateCommand("""
-            SELECT s.id, p.id, s.display_name, p.number, a.number
+            SELECT s.id, p.id, s.display_name, p.number, a.number, o.revision
             FROM community_register.plot p
             JOIN community_register.ownership o ON (o.community_id, o.plot_id) = (p.community_id, p.id)
             JOIN community_register.subject s ON (s.community_id, s.id) = (o.community_id, o.subject_id)
@@ -50,7 +74,7 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
         while (await reader.ReadAsync(cancellationToken))
         {
             entries.Add(new RegisterEntry(communityId, reader.GetGuid(0), reader.GetGuid(1),
-                reader.GetString(2), reader.GetString(3), reader.GetString(4)));
+                reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetGuid(5)));
         }
 
         return entries;

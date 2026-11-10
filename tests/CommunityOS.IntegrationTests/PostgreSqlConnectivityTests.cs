@@ -1,3 +1,5 @@
+using CommunityOS.Modules.Platform.Application;
+using CommunityOS.Modules.Platform.Infrastructure;
 using CommunityOS.Modules.Community.Application.Register;
 using CommunityOS.Modules.Community.Infrastructure;
 using Npgsql;
@@ -181,5 +183,36 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Equal(PostgresErrorCodes.InsufficientPrivilege, rejected.SqlState);
         await transaction.RollbackAsync(token);
         Assert.Equal(0L, await unscoped.ExecuteScalarAsync(token));
+    }
+
+    [Fact]
+    public async Task Community_Reservation_Replays_Only_The_Same_Creator_And_Request()
+    {
+        var token = TestContext.Current.CancellationToken;
+        await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
+        var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "001_community_reservation.sql"), token);
+        await using var migration = source.CreateCommand(sql);
+        await migration.ExecuteNonQueryAsync(token);
+        var provisioning = new CommunityProvisioning(new PostgresCommunityReservationStore(source));
+        var creator = Guid.CreateVersion7();
+        var administrator = Guid.CreateVersion7();
+        var request = Guid.CreateVersion7();
+
+        var results = await Task.WhenAll(
+            provisioning.ReserveAsync(creator, request, administrator, "Test community", token),
+            provisioning.ReserveAsync(creator, request, administrator, "Test community", token));
+        var first = Assert.IsType<CommunityReservation>(results[0]);
+        Assert.Equal(first, results[1]);
+        Assert.NotEqual(Guid.Empty, first.CommunityId);
+        Assert.NotEqual(Guid.Empty, first.OperationId);
+
+        Assert.Null(await provisioning.ReserveAsync(creator, request, Guid.CreateVersion7(), "Test community", token));
+        Assert.Null(await provisioning.ReserveAsync(creator, request, administrator, "Different community", token));
+        var separate = Assert.IsType<CommunityReservation>(
+            await provisioning.ReserveAsync(Guid.CreateVersion7(), request, administrator, "Test community", token));
+        Assert.NotEqual(first.CommunityId, separate.CommunityId);
+
+        await using var count = source.CreateCommand("SELECT count(*) FROM platform_provisioning.community_reservation");
+        Assert.Equal(2L, await count.ExecuteScalarAsync(token));
     }
 }

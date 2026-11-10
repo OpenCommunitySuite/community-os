@@ -14,6 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../../src/CommunityOS.Modules.Platform/CommunityOS.Modules.Platform.csproj" />
     <ProjectReference Include="..\..\src\CommunityOS.Web\CommunityOS.Web.csproj" />
     <ProjectReference Include="..\..\src\CommunityOS.Worker\CommunityOS.Worker.csproj" />
     <ProjectReference Include="..\..\src\CommunityOS.Modules.Community\CommunityOS.Modules.Community.csproj" />

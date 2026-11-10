@@ -16,7 +16,8 @@ public class ModuleBoundaryTests
         .LoadAssemblies(
             WebAssembly,
             WorkerAssembly,
-            typeof(Modules.Community.Infrastructure.CommunityModule).Assembly)
+            typeof(Modules.Community.Infrastructure.CommunityModule).Assembly,
+            typeof(Modules.Platform.Application.CommunityProvisioning).Assembly)
         .Build();
 
     private const string DomainNamespace = @"^CommunityOS\.Modules\.[^.]+\.Domain(\..+)?$";

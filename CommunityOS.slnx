@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/CommunityOS.Modules.Community/CommunityOS.Modules.Community.csproj" />
+    <Project Path="src/CommunityOS.Modules.Platform/CommunityOS.Modules.Platform.csproj" />
     <Project Path="src/CommunityOS.Web/CommunityOS.Web.csproj" />
     <Project Path="src/CommunityOS.Worker/CommunityOS.Worker.csproj" />
   </Folder>

@@ -15,6 +15,9 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/CommunityOS.Modules.Community/CommunityOS.Modules.Community.csproj" />
+    <ProjectReference Include="../../src/CommunityOS.Modules.Platform/CommunityOS.Modules.Platform.csproj" />
+    <None Include="../../src/CommunityOS.Modules.Platform/Infrastructure/Migrations/001_community_reservation.sql"
+          Link="001_community_reservation.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/001_manual_register.sql"
           Link="001_manual_register.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/002_ownership_correction.sql"

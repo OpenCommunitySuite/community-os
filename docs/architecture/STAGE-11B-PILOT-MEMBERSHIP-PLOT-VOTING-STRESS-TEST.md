@@ -1,9 +1,9 @@
-# Stage 11B — Pilot stress-test: Membership ↔ Plot ↔ Voting Right
+# этап 11Б — Проверка на сценариях первого внедрения: Membership ↔ Plot ↔ Право голоса
 
-**Статус:** Completed architecture stress-test / normative membership clarification incorporated / pilot legal-profile validation remains open / not normative  
+**Статус:** Архитектурная проверка завершена; уточнения о членстве учтены; правовая проверка правил первого внедрения остаётся открытой; документ не нормативный  
 **Пилот:** Садівниче товариство «ЕКСПРЕС»  
-**Связанный этап:** Stage 11B — Remote Participation and Electronic Voting  
-**Цель:** проверить, как фактическая практика «1 участок = 1 голос» соотносится с Membership model Community OS и нужен ли новый fundamental concept для повторных заявлений/приёмов одного Subject.
+**Связанный этап:** этап 11Б — Дистанционное участие и электронное голосование  
+**Цель:** проверить, как фактическая практика «1 участок = 1 голос» соотносится с Membership model Community OS и нужен ли новый фундаментальное понятие для повторных заявлений/приёмов одного субъект.
 
 ## 1. Источники и степень достоверности
 
@@ -49,40 +49,40 @@
 
 Это создаёт потенциальное противоречие с локальной практикой «одно физическое лицо = несколько членств/голосов», если именно эти нормы применимы к пилотному СТ.
 
-Настоящий stress-test **не разрешает юридический спор**, а определяет модель Community OS так, чтобы она не искажала факты и не зашивала спорную квалификацию.
+Настоящий проверка на сложных сценариях **не разрешает юридический спор**, а определяет модель Community OS так, чтобы она не искажала факты и не зашивала спорную квалификацию.
 
 ## 2. Проблема моделирования
 
 Нельзя эквивалентно считать:
 
 ~~~text
-Subject
+субъект
 = Membership
 = Plot
-= Voting Right
+= Право голоса
 ~~~
 
 Нужно сохранить минимум четыре разных уровня:
 
 ~~~text
-Subject
+субъект
 │
 ├─ Ownership / Use → Plot
 │
 └─ Membership → Community
 
-Voting Rule
+Правило голосования
 → evaluates Membership / Plot / other bases
-→ creates Voting Rights
+→ creates Права голоса
 
-Voting Right
-→ implemented by Subject
-→ Vote
+Право голоса
+→ implemented by субъект
+→ голос
 ~~~
 
-Ключевой вопрос stress-test:
+Ключевой вопрос проверка на сложных сценариях:
 
-> Повторное заявление/решение о приёме одного Subject относительно второго/третьего участка создаёт новое Membership, новый historical admission fact/basis либо только ещё одно основание для Voting Right?
+> Повторное заявление/решение о приёме одного субъект относительно второго/третьего участка создаёт новое Membership, новый historical admission fact/basis либо только ещё одно основание для Право голоса?
 
 ## 3. Working distinction
 
@@ -92,57 +92,57 @@ Voting Right
 Membership
 ≠ Membership application
 ≠ admission/approval action
-≠ admission basis
+≠ admission основание
 ≠ Ownership
-≠ Voting Right
+≠ Право голоса
 ~~~
 
-**Membership** остаётся историческим отношением Subject ↔ Community.
+**Membership** остаётся историческим отношением субъект ↔ Community.
 
 Письменное заявление, решение правления и утверждение собранием — исторически различимые сведения/действия, способные быть основаниями возникновения/подтверждения Membership.
 
-Несколько таких действий по одному Subject не должны автоматически:
+Несколько таких действий по одному субъект не должны автоматически:
 
 - создавать несколько Subjects;
 - создавать несколько User Accounts;
-- создавать несколько Voting Rights;
+- создавать несколько Права голоса;
 - доказывать наличие нескольких юридически самостоятельных Membership.
 
 Но Community OS не должна терять эту историю только потому, что её юридическая квалификация спорна.
 
-## 4. Сценарий A — один Subject, три участка, три заявления
+## 4. Сценарий A — один субъект, три участка, три заявления
 
 Фактический пример:
 
 ~~~text
-Subject A
+субъект A
 ├─ owns Plot 15
 ├─ owns Plot 27
 └─ owns Plot 83
 
 historical records:
-├─ Application/Admission basis A15
-├─ Application/Admission basis A27
-└─ Application/Admission basis A83
+├─ Application/Admission основание A15
+├─ Application/Admission основание A27
+└─ Application/Admission основание A83
 ~~~
 
 ### Возможная юридическая интерпретация 1 — один Member
 
 ~~~text
-Subject A
+субъект A
 → one Membership in Community
 → three historical admission/basis records
 ~~~
 
-Если applicable Voting Rule = «1 member = 1 vote»:
+Если применимое правило голосования = «1 member = 1 голос»:
 
 ~~~text
-A → 1 Voting Right
+A → 1 Право голоса
 ~~~
 
 ### Возможная локальная интерпретация 2 — участок создаёт отдельное право
 
-Даже без утверждения «A является тремя разными членами» Voting Rule может использовать смешанное основание:
+Даже без утверждения «A является тремя разными членами» Правило голосования может использовать смешанное основание:
 
 ~~~text
 active Membership
@@ -158,7 +158,7 @@ active Membership
 → VR-83
 ~~~
 
-Один Subject A является реализатором трёх разных Voting Rights.
+Один субъект A является реализатором трёх разных Права голоса.
 
 ### Вывод
 
@@ -167,24 +167,24 @@ active Membership
 ADR-001 уже допускает:
 
 ~~~text
-one Subject → multiple Voting Rights
+one субъект → multiple Права голоса
 ~~~
 
 ## 5. Сценарий B — два совладельца одного участка
 
 ~~~text
-Subject A ─┐
+субъект A ─┐
            ├─ Ownership → Plot 20
-Subject B ─┘
+субъект B ─┘
 ~~~
 
-Возможные rules:
+Возможные правила:
 
 ### Object-based
 
 ~~~text
-Plot 20 → one Voting Right
-→ one applicable implementer according to rule
+Plot 20 → one Право голоса
+→ one applicable implementer according to правило
 ~~~
 
 ### Member-based
@@ -202,17 +202,17 @@ Membership B → VR-B
 
 ~~~text
 co-ownership
-≠ multiple Voting Rights automatically
+≠ multiple Права голоса automatically
 ~~~
 
-Количество прав определяет Voting Rule.
+Количество прав определяет Правило голосования.
 
 ## 6. Сценарий C — собственник участка не является членом
 
 ~~~text
-Subject C
+субъект C
 → Ownership Plot 30
-→ no recognized Membership
+→ no признанный Membership
 ~~~
 
 Устав пилота связывает право голоса с членством.
@@ -222,10 +222,10 @@ Subject C
 ~~~text
 Ownership alone
 ≠ Membership
-≠ Voting Right automatically
+≠ Право голоса automatically
 ~~~
 
-Если в будущем применяется иной legal profile, где собственники голосуют независимо от членства, это будет другая Voting Rule, а не изменение Subject/Object model.
+Если в будущем применяется иной правовой профиль, где собственники голосуют независимо от членства, это будет другая Правило голосования, а не изменение Subject/Object model.
 
 ## 7. Сценарий D — член СТ без текущего участка
 
@@ -246,23 +246,23 @@ Ownership ended
 
 если применимые правила не определяют такое последствие.
 
-Для Voting:
+Для голосование:
 
-- member-based rule может продолжать давать право до прекращения Membership;
-- object-based/mixed rule может не сформировать право без qualifying Plot;
-- решение должно быть объяснимо применимой Voting Rule и snapshot.
+- member-based правило может продолжать давать право до прекращения Membership;
+- object-based/mixed правило может не сформировать право без qualifying Plot;
+- решение должно быть объяснимо применимой Правило голосования и снимок состояния.
 
 ## 8. Сценарий E — продажа одного из трёх участков
 
 До продажи:
 
 ~~~text
-Subject A
+субъект A
 Membership M
 Plots 15, 27, 83
 ~~~
 
-При object-based/mixed pilot rule:
+При object-based/mixed первое внедрение правило:
 
 ~~~text
 VR-15
@@ -273,14 +273,14 @@ VR-83
 После продажи Plot 27:
 
 - Ownership A→27 прекращается;
-- историческое admission/application basis A27 не удаляется;
+- историческое admission/application основание A27 не удаляется;
 - Membership A↔Community не обязано прекращаться;
-- будущий Voting snapshot может сформировать только VR-15 и VR-83, если rule требует current qualifying Ownership;
+- будущий голосование снимок состояния может сформировать только VR-15 и VR-83, если правило требует current qualifying Ownership;
 - ранее существовавшие VR/Vote не переписываются.
 
 ### Вывод
 
-Наличие нескольких admission/basis records не требует нескольких Membership lifecycle только для того, чтобы корректно уменьшить количество будущих object-based Voting Rights.
+Наличие нескольких admission/basis records не требует нескольких Membership жизненный цикл только для того, чтобы корректно уменьшить количество будущих object-based Права голоса.
 
 ## 9. Сценарий F — наследование
 
@@ -296,26 +296,26 @@ Inheritance / Ownership acquired
 → Membership automatically
 ~~~
 
-без profile-specific rule.
+без profile-specific правило.
 
 Безопасная модель:
 
 ~~~text
 Inheritance / Ownership
-→ separate fact
+→ separate факт
 
 Application / admission / approval where required
-→ Membership recognition
+→ Membership признание
 
 Membership
-→ possible basis for future Voting Right
+→ possible основание for future Право голоса
 ~~~
 
 Неоднозначность устава должна сохраняться как legal/profile issue, а не разрешаться техническим default.
 
 ## 10. Сценарий G — повторное заявление уже действующего Member
 
-Если Subject уже имеет Membership и подаёт ещё одно заявление относительно нового Plot, возможны разные предметные интерпретации:
+Если субъект уже имеет Membership и подаёт ещё одно заявление относительно нового Plot, возможны разные предметные интерпретации:
 
 1. заявление является дополнительным **основанием/историческим admission record** существующего Membership;
 2. локальное правило считает его отдельной scoped membership-position;
@@ -326,16 +326,16 @@ Community OS не должна выбирать один вариант толь
 
 Для импорта необходимо сохранять:
 
-- Subject;
+- субъект;
 - Plot;
 - Application/Document;
 - board decision;
 - assembly approval;
 - relevant dates;
 - claimed/effective relation to Membership;
-- source/provenance.
+- источник и происхождение сведений.
 
-## 11. Требуется ли новая fundamental entity Membership Admission?
+## 11. Требуется ли новая фундаментальная сущность Membership Admission?
 
 ### Аргументы за
 
@@ -349,24 +349,24 @@ Admission имеет собственные:
 - возможный отказ/correction;
 - historical provenance.
 
-### Аргументы против fundamental entity сейчас
+### Аргументы против фундаментальная сущность сейчас
 
 Однако:
 
 - заявление уже может быть Document/Appeal depending on semantics;
-- решение правления/собрания уже может быть Management Decision;
+- решение правления/собрания уже может быть Управленческое решение;
 - Membership является итоговым историческим отношением;
 - «основание Membership» уже допускается текущей моделью;
 - несколько оснований не требуют отдельной top-level entity только ради хранения;
-- пока не доказан независимый lifecycle Membership Admission вне соответствующих Documents/Decisions/Membership;
-- Stage 11B не должен создавать общий Membership Workflow ради одного спорного pilot pattern.
+- пока не доказан независимый жизненный цикл Membership Admission вне соответствующих Documents/Decisions/Membership;
+- этап 11Б не должен создавать общий Membership Workflow ради одного спорного первое внедрение pattern.
 
 ### Рабочий вывод
 
 ~~~text
-Membership Admission / Membership Basis
+Membership Admission / Membership основание
 is semantically relevant
-but new fundamental entity is NOT justified yet.
+but new фундаментальная сущность is NOT justified yet.
 ~~~
 
 Нужен отдельный membership/admission business process позднее, если потребуется полноценно моделировать:
@@ -376,26 +376,26 @@ application
 → board decision
 → assembly approval
 → effective Membership
-→ refusal / correction / termination
+→ refusal / исправление / termination
 ~~~
 
-Для Stage 11B достаточно ссылаться на historically recognized Membership и его основания.
+Для этап 11Б достаточно ссылаться на historically признанный Membership и его основания.
 
-## 12. Требуется ли разрешить несколько Membership одного Subject в одном Community?
+## 12. Требуется ли разрешить несколько Membership одного субъект в одном Community?
 
 **Universal prohibition вводить не следует.**
 
 Текущая модель не должна утверждать:
 
 ~~~text
-Subject + Community → exactly one Membership forever
+субъект + Community → exactly one Membership forever
 ~~~
 
 потому что существуют:
 
 - повторное вступление после прекращения;
 - historical Membership periods;
-- потенциальные local scoped membership semantics.
+- потенциальные местный scoped membership semantics.
 
 Но также нельзя утверждать:
 
@@ -404,49 +404,49 @@ multiple applications
 → multiple simultaneous legal Memberships automatically
 ~~~
 
-Рабочий invariant:
+Рабочий неизменяемое правило:
 
-> несколько Membership relation instances одного Subject в одном Community допустимы моделью только если concrete community/legal profile признаёт их самостоятельную предметную identity и независимый lifecycle; сами по себе несколько заявлений этого не доказывают.
+> несколько Membership relation instances одного субъект в одном Community допустимы моделью только если concrete community/legal profile признаёт их самостоятельную предметную identity и независимый жизненный цикл; сами по себе несколько заявлений этого не доказывают.
 
 Для пилота до legal resolution предпочтительно:
 
 ~~~text
-one Subject
-+ historically explainable Membership
+one субъект
++ исторически объяснимый Membership
 + multiple application/admission/basis records
 + multiple Plot relations
-+ Voting Rule derives applicable Voting Rights
++ Правило голосования derives applicable Права голоса
 ~~~
 
 ## 13. Влияние на электронное голосование
 
 При фактической модели «1 участок = 1 голос» электронное голосование **не требует нескольких User Accounts или нескольких подписей как разных лиц**.
 
-Один Subject может реализовать несколько Voting Rights:
+Один субъект может реализовать несколько Права голоса:
 
 ~~~text
-Subject A
+субъект A
 → VR-15
 → VR-27
 → VR-83
 ~~~
 
-Electronic ballot должен однозначно показывать, по каким Voting Rights выражается позиция.
+электронный бюллетень должен однозначно показывать, по каким Права голоса выражается позиция.
 
 Например:
 
 ~~~text
-Question Q1
+вопрос Q1
 
 VR-15 / Plot 15 → ЗА
 VR-27 / Plot 27 → ПРОТИВ
 VR-83 / Plot 83 → ВОЗДЕРЖАЛСЯ
 
-signed by Subject A
-via accepted electronic signing mechanism
+signed by субъект A
+via принято электронный подписание mechanism
 ~~~
 
-Signing подтверждает acting Subject и exact ballot data, но не создаёт дополнительные Voting Rights.
+подписание подтверждает acting субъект и exact бюллетень data, но не создаёт дополнительные Права голоса.
 
 ## 14. Юридический риск пилота
 
@@ -454,53 +454,53 @@ Signing подтверждает acting Subject и exact ballot data, но не 
 
 ~~~text
 reported/current ST practice
-→ one qualifying Plot / repeated admission → one vote per Plot
+→ one qualifying Plot / repeated admission → один голос per Plot
 
 charter wording
-→ each Member has one vote
+→ each Member has один голос
 
 Law "On Cooperation", if applicable
-→ one Member = one vote
+→ one Member = один голос
 ~~~
 
-Следовательно «1 участок = 1 голос» остаётся важным фактическим pilot requirement, но его **legal basis must be verified separately**.
+Следовательно «1 участок = 1 голос» остаётся важным фактическим требование первого внедрения, но его **legal основание must be verified separately**.
 
 Community OS должна уметь воспроизвести фактическую модель, но не должна маскировать её как бесспорно законную.
 
-## 15. Нормативные последствия stress-test
+## 15. Нормативные последствия проверка на сложных сценариях
 
 На этом этапе:
 
-- **не требуется** новый Subject concept;
-- **не требуется** дублировать Subject на каждый Plot;
-- **не требуется** создавать User Account на каждое «членство»;
+- **не требуется** новый субъект concept;
+- **не требуется** дублировать субъект на каждый Plot;
+- **не требуется** создавать Учётная запись пользователя на каждое «членство»;
 - **не требуется** fundamental Membership Admission entity;
 - **не требуется** fundamental Membership Slot / Membership Unit entity;
 - **не требуется** менять ADR-001;
-- existing Voting Right model уже поддерживает несколько прав, реализуемых одним Subject;
+- existing Право голоса model уже поддерживает несколько прав, реализуемых одним субъект;
 - existing Membership model в целом достаточен, если сохраняются multiple historical grounds/admission records and applicability;
 - возможная самостоятельная identity нескольких simultaneous Memberships остаётся profile-specific и не выводится из количества заявлений;
-- pilot «1 участок = 1 голос» следует моделировать Voting Rule, а не количеством копий Subject/Membership;
-- legal validity конкретного pilot Voting Rule остаётся открытым legal/profile question.
+- первое внедрение «1 участок = 1 голос» следует моделировать Правило голосования, а не количеством копий Subject/Membership;
+- legal validity конкретного первое внедрение Правило голосования остаётся открытым legal/profile вопрос.
 
 ## 16. Нормативный результат
 
 Минимальное уточнение Membership уже включено в DOMAIN_MODEL/TERMINOLOGY:
 
-> Membership может иметь несколько исторически значимых оснований/актов признания; наличие нескольких оснований одного Subject не создаёт автоматически несколько Memberships или Voting Rights. Один Subject может иметь несколько Membership relation instances в одном Community только если их самостоятельность следует из concrete community/legal semantics.
+> Membership может иметь несколько исторически значимых оснований/актов признания; наличие нескольких оснований одного субъект не создаёт автоматически несколько Memberships или Права голоса. Один субъект может иметь несколько Membership relation instances в одном Community только если их самостоятельность следует из concrete community/legal semantics.
 
 Это не создаёт fundamental Membership Admission / Membership Slot / Membership Unit.
 
-## 17. Оставшийся pilot legal-profile вопрос
+## 17. Оставшийся первое внедрение legal-profile вопрос
 
-Архитектурный stress-test завершён, но legal/profile ambiguity сохраняется:
+Архитектурный проверка на сложных сценариях завершён, но legal/profile ambiguity сохраняется:
 
 ~~~text
-charter wording: 1 member = 1 vote
+charter wording: 1 member = 1 голос
 vs
-reported pilot practice: 1 plot = 1 vote
+reported первое внедрение practice: 1 plot = 1 голос
 ~~~
 
-Community OS строит Voting Rights из applicable versioned Voting Rule, а не из количества заявлений, аккаунтов или копий Subject/Membership.
+Community OS строит Права голоса из applicable versioned Правило голосования, а не из количества заявлений, аккаунтов или копий Subject/Membership.
 
-До production use legally significant voting требуется focused legal-profile validation пилотного СТ. Этот вопрос не требует изменения universal domain model, пока не появятся новые юридически подтверждённые semantics.
+До production use legally significant голосование требуется focused legal-profile validation пилотного СТ. Этот вопрос не требует изменения universal предметная модель, пока не появятся новые юридически подтверждённые semantics.

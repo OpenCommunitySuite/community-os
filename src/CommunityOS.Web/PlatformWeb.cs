@@ -27,7 +27,7 @@ internal static class PlatformWeb
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(http =>
                 HttpMethods.IsPost(http.Request.Method) &&
-                http.Request.Path.Value?.TrimEnd('/').ToLowerInvariant() is "/platform/login" or "/platform/recover"
+                http.Request.Path.Value?.TrimEnd('/').ToLowerInvariant() is "/platform/login" or "/platform/recover" or "/platform/recovery-request"
                     ? RateLimitPartition.GetFixedWindowLimiter(http.Request.Path.Value!.TrimEnd('/').ToLowerInvariant(), _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 20,
@@ -68,6 +68,8 @@ internal static class PlatformWeb
         });
         app.UseRateLimiter();
         var accounts = new PlatformAuthenticationStore(dataSource);
+        var delivery = app.Configuration["RecoveryDelivery:Key"] is { Length: > 0 } key
+            ? new RecoveryDeliveryStore(dataSource, RecoveryDeliveryStore.ReadKey(key)) : null;
 
 
 
@@ -127,6 +129,16 @@ internal static class PlatformWeb
             return Results.Ok(new { AccountId = credential.Id });
         }).RequireRateLimiting("platform-password");
 
+        routes.MapPost("/recovery-request", async (RecoveryRequest input, CancellationToken token) =>
+        {
+            if (delivery is null)
+            {
+                return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+            }
+
+            await delivery.RequestAsync(input.Login, token);
+            return Results.Accepted();
+        });
         routes.MapPost("/recover", async (RecoveryInput input, HttpContext http, CancellationToken token) =>
         {
             var recovery = new PlatformPasswordRecovery(dataSource);
@@ -271,6 +283,57 @@ internal static class PlatformWeb
         Console.Error.WriteLine("Recovery code could not be issued.");
         return 1;
     }
+    public static async Task<int> ManageRecoveryChannelAsync(string[] args)
+    {
+        if (args.Length < 2 || !Guid.TryParse(args[1], out var account) || account == Guid.Empty ||
+            Environment.GetEnvironmentVariable("RecoveryDelivery__ChannelOperatorDatabase") is not { Length: > 0 } connection)
+        {
+            return ChannelUsage();
+        }
+
+        string? channel = null;
+        string? destination = null;
+        if (args is ["confirm", _, "email" or "telegram"] && Console.IsInputRedirected)
+        {
+            channel = args[2];
+            destination = (await Console.In.ReadLineAsync())?.Trim();
+            if (destination is not { Length: > 0 and <= 320 } ||
+                (channel == "email" && (!System.Net.Mail.MailAddress.TryCreate(destination, out var address) ||
+                    address.Address != destination)) ||
+                (channel == "telegram" && (!long.TryParse(destination, System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture, out var chatId) || chatId <= 0)))
+            {
+                return ChannelUsage();
+            }
+        }
+        else if (args is not ["revoke", _])
+        {
+            return ChannelUsage();
+        }
+
+        try
+        {
+            await using var source = NpgsqlDataSource.Create(connection);
+            var changed = await new RecoveryChannelOperator(source).SetAsync(account, channel, destination, default);
+            if (changed)
+            {
+                return 0;
+            }
+        }
+        catch (NpgsqlException)
+        {
+            // Never print provider destinations or SQL diagnostics.
+        }
+
+        Console.Error.WriteLine("Recovery channel could not be changed.");
+        return 1;
+    }
+
+    private static int ChannelUsage()
+    {
+        Console.Error.WriteLine("Use platform-recovery-channel confirm <account-id> <email|telegram> with the verified destination on stdin, or revoke <account-id>.");
+        return 2;
+    }
     private static CookieOptions CookieOptions() => new()
     {
         HttpOnly = true,
@@ -279,6 +342,7 @@ internal static class PlatformWeb
         Path = "/",
     };
 
+    private sealed record RecoveryRequest(string? Login);
     private sealed record RecoveryInput(string? Login, string? Code, string? NewPassword);
     private sealed record LoginInput(string? Login, string? Password);
     private sealed record CreateInput(Guid RequestId, Guid AdministratorAccountId, string? DisplayName);

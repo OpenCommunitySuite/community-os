@@ -20,6 +20,12 @@ if (args is ["platform-recovery", .. var recoveryArgs])
     return;
 }
 
+if (args is ["platform-recovery-channel", .. var channelArgs])
+{
+    Environment.ExitCode = await PlatformWeb.ManageRecoveryChannelAsync(channelArgs);
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCommunityModule();

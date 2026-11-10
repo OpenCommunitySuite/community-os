@@ -9,6 +9,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../CommunityOS.Modules.Platform/CommunityOS.Modules.Platform.csproj" />
     <ProjectReference Include="..\CommunityOS.Modules.Community\CommunityOS.Modules.Community.csproj" />
   </ItemGroup>
 

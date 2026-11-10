@@ -399,4 +399,80 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
             """);
         Assert.Equal(5L, await audit.ExecuteScalarAsync(token));
     }
+
+    [Fact]
+    public async Task Recovery_Delivery_Retries_The_Same_Code_And_Revocation_Invalidates_It()
+    {
+        var token = TestContext.Current.CancellationToken;
+        await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
+        foreach (var file in new[] { "001_community_reservation.sql", "005_platform_authentication.sql",
+                     "006_password_recovery.sql", "007_recovery_delivery.sql" })
+        {
+            var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
+            await using var migration = source.CreateCommand(sql);
+            await migration.ExecuteNonQueryAsync(token);
+        }
+
+        var accounts = new PlatformAuthenticationStore(source);
+        var password = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(24));
+        var account = await accounts.AddAccountAsync("mail-user", password, false, token);
+        var telegramAccount = await accounts.AddAccountAsync("telegram-user", password, false, token);
+        await accounts.AddAccountAsync("no-channel", password, false, token);
+        var bindings = new RecoveryChannelOperator(source);
+        Assert.True(await bindings.SetAsync(account, "email", "synthetic@example.invalid", token));
+        Assert.True(await bindings.SetAsync(telegramAccount, "telegram", "123456", token));
+        var store = new RecoveryDeliveryStore(source, System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+        var email = new RecordingRecoveryTransport(RecoveryDeliveryOutcome.Retry);
+        var telegram = new RecordingRecoveryTransport(RecoveryDeliveryOutcome.Sent);
+        var processor = new RecoveryDeliveryProcessor(store, new Dictionary<string, IRecoveryTransport>
+        {
+            ["email"] = email,
+            ["telegram"] = telegram,
+        });
+
+        await store.RequestAsync("unknown", token);
+        await store.RequestAsync("no-channel", token);
+        Assert.False(await processor.ProcessOneAsync(token));
+        await Task.WhenAll(store.RequestAsync("mail-user", token), store.RequestAsync("mail-user", token));
+        Assert.True(await processor.ProcessOneAsync(token));
+        Assert.False(await processor.ProcessOneAsync(token));
+        await using var ready = source.CreateCommand("""
+            UPDATE platform_provisioning.recovery_delivery SET available_at = clock_timestamp();
+            """);
+        await ready.ExecuteNonQueryAsync(token);
+        Assert.True(await processor.ProcessOneAsync(token));
+        Assert.Equal(2, email.Messages.Count);
+        Assert.Equal(email.Messages[0], email.Messages[1]);
+        Assert.Equal("synthetic@example.invalid", email.Messages[0].Destination);
+
+        await store.RequestAsync("telegram-user", token);
+        Assert.True(await processor.ProcessOneAsync(token));
+        Assert.Equal("123456", Assert.Single(telegram.Messages).Destination);
+
+        var recovery = new PlatformPasswordRecovery(source);
+        var newPassword = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(24));
+        Assert.True(await bindings.SetAsync(account, null, null, token));
+        Assert.False(await recovery.ConsumeAsync("mail-user", email.Messages[0].Code, newPassword, token));
+        Assert.True(await recovery.ConsumeAsync("telegram-user", telegram.Messages[0].Code, newPassword, token));
+        await store.RequestAsync("telegram-user", token);
+        Assert.False(await processor.ProcessOneAsync(token));
+
+        await using var audit = source.CreateCommand("""
+            SELECT count(*) FROM platform_provisioning.platform_auth_security_event
+            WHERE delivery_channel IN ('email', 'telegram') AND event_kind IN
+                ('recovery-delivery-sent', 'recovery-delivery-retry');
+            """);
+        Assert.Equal(3L, await audit.ExecuteScalarAsync(token));
+    }
+
+    private sealed class RecordingRecoveryTransport(RecoveryDeliveryOutcome firstOutcome) : IRecoveryTransport
+    {
+        public List<(string Destination, string Code)> Messages { get; } = [];
+
+        public Task<RecoveryDeliveryOutcome> SendAsync(string destination, string code, CancellationToken token)
+        {
+            Messages.Add((destination, code));
+            return Task.FromResult(Messages.Count == 1 ? firstOutcome : RecoveryDeliveryOutcome.Sent);
+        }
+    }
 }

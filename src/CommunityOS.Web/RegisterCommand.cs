@@ -36,12 +36,18 @@ internal static class RegisterCommand
 
                     Console.Error.WriteLine("Ownership was not corrected. Refresh the register and check the plot and owner.");
                     return 1;
+                case ["preview-import", var file]:
+                    var rows = RegisterCsv.Read(file);
+                    var current = await register.ListAsync(communityId, default);
+                    var preview = RegisterImportPreview.Create(rows, current);
+                    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(preview));
+                    return preview.CanProceed ? 0 : 1;
                 case ["list"]:
                     var entries = await register.ListAsync(communityId, default);
                     Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(entries));
                     return 0;
                 default:
-                    Console.Error.WriteLine("register add-new <name> <plot> <account> | add-existing <owner-id> <plot> <account> | correct-owner <plot-id> <revision> <owner-id> <reason> | list");
+                    Console.Error.WriteLine("register add-new <name> <plot> <account> | add-existing <owner-id> <plot> <account> | correct-owner <plot-id> <revision> <owner-id> <reason> | preview-import <file.csv> | list");
                     return 2;
             }
         }
@@ -51,6 +57,21 @@ internal static class RegisterCommand
                 ? "A plot or account with this number already exists."
                 : "The owner does not exist in this community.");
             return 1;
+        }
+        catch (Microsoft.VisualBasic.FileIO.MalformedLineException exception)
+        {
+            Console.Error.WriteLine($"Malformed CSV at line {exception.LineNumber}.");
+            return 2;
+        }
+        catch (FormatException exception)
+        {
+            Console.Error.WriteLine(exception.Message);
+            return 2;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Text.DecoderFallbackException)
+        {
+            Console.Error.WriteLine("The CSV could not be read as UTF-8.");
+            return 2;
         }
         catch (ArgumentException exception)
         {

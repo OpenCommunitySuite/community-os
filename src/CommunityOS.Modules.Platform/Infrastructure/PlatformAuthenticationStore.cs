@@ -100,7 +100,7 @@ public sealed class PlatformAuthenticationStore(NpgsqlDataSource dataSource)
             JOIN platform_provisioning.platform_account a ON a.id = s.account_id
             WHERE s.token_digest = @digest AND s.expires_at > clock_timestamp()
                 AND s.revoked_at IS NULL AND a.disabled_at IS NULL AND a.can_create_community
-            FOR SHARE OF s, a;
+            FOR SHARE OF a;
             """, connection, transaction);
         authorization.Parameters.AddWithValue("digest", digest);
         if (await authorization.ExecuteScalarAsync(token) is not Guid actor)
@@ -120,11 +120,24 @@ public sealed class PlatformAuthenticationStore(NpgsqlDataSource dataSource)
         }
 
         await using var current = new NpgsqlCommand("""
-            SELECT EXISTS (SELECT 1 FROM platform_provisioning.platform_session
-                WHERE token_digest = @digest AND expires_at > clock_timestamp());
+            SELECT true FROM platform_provisioning.platform_session
+            WHERE token_digest = @digest AND account_id = @actor AND revoked_at IS NULL
+                AND expires_at > clock_timestamp()
+            FOR SHARE;
             """, connection, transaction);
         current.Parameters.AddWithValue("digest", digest);
+        current.Parameters.AddWithValue("actor", actor);
         if (await current.ExecuteScalarAsync(token) is not true)
+        {
+            return denied;
+        }
+
+        await using var deadline = new NpgsqlCommand("""
+            SELECT expires_at > clock_timestamp() FROM platform_provisioning.platform_session
+            WHERE token_digest = @digest;
+            """, connection, transaction);
+        deadline.Parameters.AddWithValue("digest", digest);
+        if (await deadline.ExecuteScalarAsync(token) is not true)
         {
             return denied;
         }

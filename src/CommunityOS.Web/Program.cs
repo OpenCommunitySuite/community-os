@@ -14,6 +14,12 @@ if (args is ["platform-account", .. var accountArgs])
     return;
 }
 
+if (args is ["platform-recovery", .. var recoveryArgs])
+{
+    Environment.ExitCode = await PlatformWeb.IssueRecoveryAsync(recoveryArgs);
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCommunityModule();

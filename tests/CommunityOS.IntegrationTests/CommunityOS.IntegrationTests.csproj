@@ -21,6 +21,8 @@
           Link="002_ownership_correction.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/003_register_import.sql"
           Link="003_register_import.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/004_register_community_scope.sql"
+          Link="004_register_community_scope.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

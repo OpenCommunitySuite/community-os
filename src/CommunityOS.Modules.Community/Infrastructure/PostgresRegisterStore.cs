@@ -9,6 +9,7 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await SetCommunityScopeAsync(connection, transaction, entry.CommunityId, cancellationToken);
         await InsertEntryAsync(connection, transaction, entry, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
@@ -42,7 +43,10 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
     public async Task<bool> CorrectOwnerAsync(Guid communityId, Guid plotId, Guid revision, Guid ownerId,
         string reason, CancellationToken cancellationToken)
     {
-        await using var command = dataSource.CreateCommand("""
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await SetCommunityScopeAsync(connection, transaction, communityId, cancellationToken);
+        await using var command = new NpgsqlCommand("""
             WITH corrected AS (
                 UPDATE community_register.ownership
                 SET subject_id = @owner, revision = uuidv7()
@@ -54,13 +58,15 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
                 (community_id, plot_id, previous_revision, previous_subject_id, corrected_subject_id, reason)
             SELECT @community, @plot, @revision, previous_subject_id, @owner, @reason
             FROM corrected;
-            """);
+            """, connection, transaction);
         command.Parameters.AddWithValue("community", communityId);
         command.Parameters.AddWithValue("plot", plotId);
         command.Parameters.AddWithValue("revision", revision);
         command.Parameters.AddWithValue("owner", ownerId);
         command.Parameters.AddWithValue("reason", reason);
-        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+        var changed = await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+        await transaction.CommitAsync(cancellationToken);
+        return changed;
     }
 
     public async Task<RegisterImportResult> ApplyImportAsync(RegisterImportPlan plan, string confirmedBy,
@@ -69,6 +75,7 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
         ArgumentException.ThrowIfNullOrWhiteSpace(confirmedBy);
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await SetCommunityScopeAsync(connection, transaction, plan.CommunityId, cancellationToken);
         await using var batch = new NpgsqlCommand("""
             INSERT INTO community_register.register_import (community_id, plan_id, confirmed_by)
             VALUES (@community, @plan, @operator)
@@ -113,7 +120,10 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
     public async Task<RegisterImportReceipt?> FindImportReceiptAsync(Guid communityId, string planId,
         CancellationToken cancellationToken)
     {
-        await using var command = dataSource.CreateCommand("""
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await SetCommunityScopeAsync(connection, transaction, communityId, cancellationToken);
+        await using var command = new NpgsqlCommand("""
             SELECT b.confirmed_by, b.recorded_at, i.source_row, p.id, p.number, i.subject_id, a.id, a.number
             FROM community_register.register_import b
             JOIN community_register.register_import_item i USING (community_id, plan_id)
@@ -121,7 +131,7 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
             JOIN community_register.personal_account a ON (a.community_id, a.plot_id) = (p.community_id, p.id)
             WHERE b.community_id = @community AND b.plan_id = @plan
             ORDER BY i.source_row;
-            """);
+            """, connection, transaction);
         command.Parameters.AddWithValue("community", communityId);
         command.Parameters.AddWithValue("plan", planId);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -145,11 +155,13 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
     public async Task<IReadOnlyList<RegisterEntry>> ListAsync(Guid communityId, CancellationToken cancellationToken)
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
-        return await ReadEntriesAsync(connection, null, communityId, cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await SetCommunityScopeAsync(connection, transaction, communityId, cancellationToken);
+        return await ReadEntriesAsync(connection, transaction, communityId, cancellationToken);
     }
 
     private static async Task<IReadOnlyList<RegisterEntry>> ReadEntriesAsync(NpgsqlConnection connection,
-        NpgsqlTransaction? transaction, Guid communityId, CancellationToken cancellationToken)
+        NpgsqlTransaction transaction, Guid communityId, CancellationToken cancellationToken)
     {
         await using var command = new NpgsqlCommand("""
             SELECT s.id, p.id, s.display_name, p.number, a.number, o.revision
@@ -170,5 +182,15 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
         }
 
         return entries;
+    }
+
+    private static async Task SetCommunityScopeAsync(NpgsqlConnection connection, NpgsqlTransaction transaction,
+        Guid communityId, CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfEqual(communityId, Guid.Empty);
+        await using var command = new NpgsqlCommand(
+            "SELECT set_config('community_os.community_id', @community, true);", connection, transaction);
+        command.Parameters.AddWithValue("community", communityId.ToString("D"));
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 }

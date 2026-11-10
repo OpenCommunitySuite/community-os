@@ -101,20 +101,37 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
     {
         var token = TestContext.Current.CancellationToken;
         await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
-        foreach (var file in new[] { "001_manual_register.sql", "002_ownership_correction.sql", "003_register_import.sql" })
+        foreach (var file in new[] { "001_manual_register.sql", "002_ownership_correction.sql", "003_register_import.sql", "004_register_community_scope.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
             await migration.ExecuteNonQueryAsync(token);
         }
 
-        var store = new PostgresRegisterStore(source);
+        await using var permissions = source.CreateCommand("""
+            CREATE ROLE register_test_runtime NOSUPERUSER NOBYPASSRLS;
+            GRANT USAGE ON SCHEMA community_register TO register_test_runtime;
+            GRANT SELECT, INSERT ON ALL TABLES IN SCHEMA community_register TO register_test_runtime;
+            GRANT UPDATE (subject_id, revision) ON community_register.ownership TO register_test_runtime;
+            """);
+        await permissions.ExecuteNonQueryAsync(token);
+
+        var runtimeConnection = new NpgsqlConnectionStringBuilder(_postgres.GetConnectionString())
+        {
+            Options = "-c role=register_test_runtime",
+            MaxPoolSize = 1,
+            NoResetOnClose = true,
+        };
+        await using var runtime = NpgsqlDataSource.Create(runtimeConnection.ConnectionString);
+        await using var concurrentRuntime = NpgsqlDataSource.Create(runtimeConnection.ConnectionString);
+        var store = new PostgresRegisterStore(runtime);
+        var concurrentStore = new PostgresRegisterStore(concurrentRuntime);
         var community = Guid.CreateVersion7();
         var plan = RegisterImportPlan.Create(community,
             [new(2, "1", "S-1", "Pilot owner", "0001"), new(3, "2", "S-1", "Pilot owner", "0002")]);
         Assert.True(plan.Preview([]).CanProceed);
         var results = await Task.WhenAll(store.ApplyImportAsync(plan, "operator", token),
-            store.ApplyImportAsync(plan, "operator", token));
+            concurrentStore.ApplyImportAsync(plan, "operator", token));
         Assert.Contains(RegisterImportResult.Applied, results);
         Assert.Contains(RegisterImportResult.AlreadyApplied, results);
         var entries = await store.ListAsync(community, token);
@@ -142,5 +159,27 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Null(await store.FindImportReceiptAsync(community, conflicting.Id, token));
         await using var count = source.CreateCommand("SELECT count(*) FROM community_register.register_import_item");
         Assert.Equal(2L, await count.ExecuteScalarAsync(token));
+
+        await using var connection = await runtime.OpenConnectionAsync(token);
+        await using var role = new NpgsqlCommand("SELECT current_user", connection);
+        Assert.Equal("register_test_runtime", await role.ExecuteScalarAsync(token));
+        await using var unscoped = new NpgsqlCommand("SELECT count(*) FROM community_register.register_import_item", connection);
+        Assert.Equal(0L, await unscoped.ExecuteScalarAsync(token));
+        await using var transaction = await connection.BeginTransactionAsync(token);
+        await using var scope = new NpgsqlCommand(
+            "SELECT set_config('community_os.community_id', @scope, true);", connection, transaction);
+        scope.Parameters.AddWithValue("scope", Guid.CreateVersion7().ToString("D"));
+        await scope.ExecuteNonQueryAsync(token);
+        Assert.Equal(0L, await unscoped.ExecuteScalarAsync(token));
+
+        await using var wrongCommunity = new NpgsqlCommand("""
+            INSERT INTO community_register.subject (community_id, id, display_name)
+            VALUES (@community, uuidv7(), 'Cross-scope attempt');
+            """, connection, transaction);
+        wrongCommunity.Parameters.AddWithValue("community", community);
+        var rejected = await Assert.ThrowsAsync<PostgresException>(() => wrongCommunity.ExecuteNonQueryAsync(token));
+        Assert.Equal(PostgresErrorCodes.InsufficientPrivilege, rejected.SqlState);
+        await transaction.RollbackAsync(token);
+        Assert.Equal(0L, await unscoped.ExecuteScalarAsync(token));
     }
 }

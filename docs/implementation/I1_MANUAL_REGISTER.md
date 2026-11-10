@@ -1,8 +1,8 @@
 # Ручной реестр I‑1
 
-Команды предназначены для локальной проверки на синтетических данных в отдельной PostgreSQL. Перед запуском примените `src/CommunityOS.Modules.Community/Infrastructure/Migrations/001_manual_register.sql`, `002_ownership_correction.sql` и `003_register_import.sql` из того же каталога по порядку к этой базе отдельной учётной записью с правом создавать схему. Учётной записи команд реестра нужны `USAGE` на схему и `SELECT` и `INSERT` на её таблицы, а также `UPDATE (subject_id, revision)` на `community_register.ownership`.
+Команды предназначены для локальной проверки на синтетических данных в отдельной PostgreSQL. Перед запуском примените `src/CommunityOS.Modules.Community/Infrastructure/Migrations/001_manual_register.sql`, `002_ownership_correction.sql`, `003_register_import.sql` и `004_register_community_scope.sql` из того же каталога по порядку к этой базе отдельной учётной записью с правом создавать схему. Учётной записи команд реестра нужны `USAGE` на схему и `SELECT` и `INSERT` на её таблицы, а также `UPDATE (subject_id, revision)` на `community_register.ownership`.
 
-Задайте `COMMUNITYOS_REGISTER_DATABASE` со строкой подключения и `COMMUNITYOS_REGISTER_COMMUNITY` с UUID тестового сообщества в текущем сеансе. Используйте отдельные учётные данные для тестовой базы.
+Задайте `COMMUNITYOS_REGISTER_DATABASE` со строкой подключения и `COMMUNITYOS_REGISTER_COMMUNITY` с UUID тестового сообщества в текущем сеансе. Используйте отдельную учётную запись без `SUPERUSER` и `BYPASSRLS`. Команды берут сообщество из локальной конфигурации и устанавливают его в PostgreSQL только на время транзакции. Защита строк ограничивает запросы этим сообществом. Доступ к самой команде и её конфигурации должен оставаться у доверенного оператора.
 
 ```powershell
 $owner = dotnet run --project src/CommunityOS.Web -- register add-new "Тестовый собственник" "1" "A-1"

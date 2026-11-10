@@ -95,4 +95,39 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.False(await reader.ReadAsync(cancellationToken));
     }
 
+
+    [Fact]
+    public async Task Confirmed_Import_Is_Atomic_And_Replay_Safe()
+    {
+        var token = TestContext.Current.CancellationToken;
+        await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
+        foreach (var file in new[] { "001_manual_register.sql", "002_ownership_correction.sql", "003_register_import.sql" })
+        {
+            var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
+            await using var migration = source.CreateCommand(sql);
+            await migration.ExecuteNonQueryAsync(token);
+        }
+
+        var store = new PostgresRegisterStore(source);
+        var community = Guid.CreateVersion7();
+        var plan = RegisterImportPlan.Create(community,
+            [new(2, "1", "S-1", "Pilot owner", "0001"), new(3, "2", "S-1", "Pilot owner", "0002")]);
+        Assert.True(plan.Preview([]).CanProceed);
+        var results = await Task.WhenAll(store.ApplyImportAsync(plan, "operator", token),
+            store.ApplyImportAsync(plan, "operator", token));
+        Assert.Contains(RegisterImportResult.Applied, results);
+        Assert.Contains(RegisterImportResult.AlreadyApplied, results);
+        var entries = await store.ListAsync(community, token);
+        Assert.Equal(2, entries.Count);
+        Assert.Equal(entries[0].OwnerId, entries[1].OwnerId);
+        Assert.Equal("0001", entries[0].AccountNumber);
+
+        var conflicting = RegisterImportPlan.Create(community,
+            [new(2, "3", "S-2", "Other", "0003"), new(3, "4", "S-2", "Other", "0002")]);
+        Assert.True(conflicting.Preview([]).CanProceed);
+        Assert.Equal(RegisterImportResult.Conflicts, await store.ApplyImportAsync(conflicting, "operator", token));
+        Assert.Equal(2, (await store.ListAsync(community, token)).Count);
+        await using var count = source.CreateCommand("SELECT count(*) FROM community_register.register_import_item");
+        Assert.Equal(2L, await count.ExecuteScalarAsync(token));
+    }
 }

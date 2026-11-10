@@ -17,7 +17,8 @@ internal static class RegisterCommand
         try
         {
             await using var dataSource = NpgsqlDataSource.Create(connectionString);
-            var register = new ManualRegister(new PostgresRegisterStore(dataSource));
+            var store = new PostgresRegisterStore(dataSource);
+            var register = new ManualRegister(store);
             switch (args)
             {
                 case ["add-new", var name, var plot, var account]:
@@ -36,20 +37,41 @@ internal static class RegisterCommand
 
                     Console.Error.WriteLine("Ownership was not corrected. Refresh the register and check the plot and owner.");
                     return 1;
-                case ["preview-import", var file]:
-                    var rows = Path.GetExtension(file).Equals(".xlsx", StringComparison.OrdinalIgnoreCase)
-                        ? OsbbxOwnersWorkbook.Read(file)
-                        : RegisterCsv.Read(file);
+                case ["preview-import", var file, .. var resolution] when resolution.Length <= 1:
+                    var plan = ReadImportPlan(communityId, file, resolution.SingleOrDefault());
                     var current = await register.ListAsync(communityId, default);
-                    var preview = RegisterImportPreview.Create(rows, current);
-                    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(preview));
+                    var preview = plan.Preview(current);
+                    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        PlanId = preview.CanProceed ? plan.Id : null,
+                        preview.CanProceed,
+                        preview.Candidates,
+                    }));
                     return preview.CanProceed ? 0 : 1;
+                case ["apply-import", var importFile, var planId, .. var decisions] when decisions.Length <= 1:
+                    var reviewed = ReadImportPlan(communityId, importFile, decisions.SingleOrDefault());
+                    if (!string.Equals(reviewed.Id, planId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        Console.Error.WriteLine("The input differs from the reviewed plan. Run preview-import again.");
+                        return 1;
+                    }
+
+                    var confirmedBy = Environment.GetEnvironmentVariable("COMMUNITYOS_REGISTER_OPERATOR");
+                    if (string.IsNullOrWhiteSpace(confirmedBy))
+                    {
+                        Console.Error.WriteLine("Set COMMUNITYOS_REGISTER_OPERATOR to the confirming operator's identifier.");
+                        return 2;
+                    }
+
+                    var result = await store.ApplyImportAsync(reviewed, confirmedBy, default);
+                    Console.WriteLine(result);
+                    return result == RegisterImportResult.Conflicts ? 1 : 0;
                 case ["list"]:
                     var entries = await register.ListAsync(communityId, default);
                     Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(entries));
                     return 0;
                 default:
-                    Console.Error.WriteLine("register add-new <name> <plot> <account> | add-existing <owner-id> <plot> <account> | correct-owner <plot-id> <revision> <owner-id> <reason> | preview-import <file.csv|file.xlsx> | list");
+                    Console.Error.WriteLine("register add-new <name> <plot> <account> | add-existing <owner-id> <plot> <account> | correct-owner <plot-id> <revision> <owner-id> <reason> | preview-import <file> [decisions.csv] | apply-import <file> <plan-id> [decisions.csv] | list");
                     return 2;
             }
         }
@@ -92,5 +114,47 @@ internal static class RegisterCommand
             Console.Error.WriteLine("The register database operation failed.");
             return 1;
         }
+    }
+
+    private static RegisterImportPlan ReadImportPlan(Guid communityId, string file, string? decisions)
+    {
+        if (!Path.GetExtension(file).Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+        {
+            if (decisions is not null)
+            {
+                throw new FormatException("A separate decisions CSV is only supported for OSBBX workbooks.");
+            }
+
+            return RegisterImportPlan.Create(communityId, RegisterCsv.Read(file));
+        }
+
+        var source = OsbbxOwnersWorkbook.Read(file);
+        if (decisions is null)
+        {
+            return RegisterImportPlan.Create(communityId, source);
+        }
+
+        var resolved = RegisterCsv.Read(decisions);
+        var byPlot = resolved.ToLookup(row => row.PlotNumber, StringComparer.Ordinal);
+        if (source.Count != resolved.Count ||
+            source.Select(row => row.PlotNumber).Distinct(StringComparer.Ordinal).Count() != source.Count)
+        {
+            throw new FormatException("The decisions CSV must contain exactly one row for each workbook plot.");
+        }
+
+        var rows = new List<RegisterImportRow>(source.Count);
+        foreach (var original in source)
+        {
+            if (original.PlotNumber.Length == 0 || original.AccountNumber.Length == 0 ||
+                byPlot[original.PlotNumber].ToArray() is not [var decision] ||
+                decision.AccountNumber != original.AccountNumber)
+            {
+                throw new FormatException($"The decisions do not match the plot and account in workbook row {original.Row}.");
+            }
+
+            rows.Add(decision with { Row = original.Row });
+        }
+
+        return RegisterImportPlan.Create(communityId, rows, source);
     }
 }

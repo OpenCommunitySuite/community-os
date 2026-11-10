@@ -9,6 +9,13 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await InsertEntryAsync(connection, transaction, entry, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private static async Task InsertEntryAsync(NpgsqlConnection connection, NpgsqlTransaction transaction,
+        RegisterEntry entry, CancellationToken cancellationToken)
+    {
         await using var command = new NpgsqlCommand("""
             INSERT INTO community_register.subject (community_id, id, display_name)
             SELECT @community, @owner, @name WHERE @name <> '';
@@ -30,7 +37,6 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
         command.Parameters.AddWithValue("account", Guid.CreateVersion7());
         command.Parameters.AddWithValue("account_number", entry.AccountNumber);
         await command.ExecuteNonQueryAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task<bool> CorrectOwnerAsync(Guid communityId, Guid plotId, Guid revision, Guid ownerId,
@@ -57,9 +63,63 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
         return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
 
+    public async Task<RegisterImportResult> ApplyImportAsync(RegisterImportPlan plan, string confirmedBy,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(confirmedBy);
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await using var batch = new NpgsqlCommand("""
+            INSERT INTO community_register.register_import (community_id, plan_id, confirmed_by)
+            VALUES (@community, @plan, @operator)
+            ON CONFLICT DO NOTHING;
+            """, connection, transaction);
+        batch.Parameters.AddWithValue("community", plan.CommunityId);
+        batch.Parameters.AddWithValue("plan", plan.Id);
+        batch.Parameters.AddWithValue("operator", confirmedBy.Trim());
+        if (await batch.ExecuteNonQueryAsync(cancellationToken) == 0)
+        {
+            return RegisterImportResult.AlreadyApplied;
+        }
+
+        var current = await ReadEntriesAsync(connection, transaction, plan.CommunityId, cancellationToken);
+        if (!plan.Preview(current).CanProceed)
+        {
+            return RegisterImportResult.Conflicts;
+        }
+
+        await using var item = new NpgsqlCommand("""
+            INSERT INTO community_register.register_import_item (community_id, plan_id, source_row, plot_id, subject_id)
+            VALUES (@community, @plan, @row, @plot, @subject);
+            """, connection, transaction);
+        item.Parameters.AddWithValue("community", plan.CommunityId);
+        item.Parameters.AddWithValue("plan", plan.Id);
+        var row = item.Parameters.AddWithValue("row", 0);
+        var plot = item.Parameters.AddWithValue("plot", Guid.Empty);
+        var subject = item.Parameters.AddWithValue("subject", Guid.Empty);
+        foreach (var (sourceRow, entry) in plan.CreateEntries())
+        {
+            await InsertEntryAsync(connection, transaction, entry, cancellationToken);
+            row.Value = sourceRow;
+            plot.Value = entry.PlotId;
+            subject.Value = entry.OwnerId;
+            await item.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return RegisterImportResult.Applied;
+    }
+
     public async Task<IReadOnlyList<RegisterEntry>> ListAsync(Guid communityId, CancellationToken cancellationToken)
     {
-        await using var command = dataSource.CreateCommand("""
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        return await ReadEntriesAsync(connection, null, communityId, cancellationToken);
+    }
+
+    private static async Task<IReadOnlyList<RegisterEntry>> ReadEntriesAsync(NpgsqlConnection connection,
+        NpgsqlTransaction? transaction, Guid communityId, CancellationToken cancellationToken)
+    {
+        await using var command = new NpgsqlCommand("""
             SELECT s.id, p.id, s.display_name, p.number, a.number, o.revision
             FROM community_register.plot p
             JOIN community_register.ownership o ON (o.community_id, o.plot_id) = (p.community_id, p.id)
@@ -67,7 +127,7 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
             JOIN community_register.personal_account a ON (a.community_id, a.plot_id) = (p.community_id, p.id)
             WHERE p.community_id = @community
             ORDER BY p.number, s.id;
-            """);
+            """, connection, transaction);
         command.Parameters.AddWithValue("community", communityId);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var entries = new List<RegisterEntry>();

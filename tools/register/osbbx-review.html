@@ -11,8 +11,8 @@
     .scroll { overflow-x: auto; }
     table { border-collapse: collapse; width: 100%; }
     th, td { text-align: left; vertical-align: top; padding: .55rem; border-bottom: 1px solid #d9e2e9; }
-    input:not([type=file]) { width: 100%; min-width: 8rem; box-sizing: border-box; }
-    input, button { font: inherit; padding: .35rem; }
+    td input { width: 100%; min-width: 8rem; box-sizing: border-box; }
+    input, button, select { font: inherit; padding: .35rem; }
     .repeat { background: #fff3cf; }
     #status { min-height: 1.5em; }
   </style>
@@ -30,6 +30,18 @@
        <label for="open-draft">Відкрити чернетку</label>
        <input id="open-draft" type="file" accept=".json,application/json" disabled>
        <button id="download" type="button" disabled>Зберегти CSV рішень</button></p>
+    <fieldset id="filters" hidden>
+      <legend>Пошук і фільтри</legend>
+      <label for="search">Ділянка, рахунок, ім’я або ключ</label>
+      <input id="search" type="search">
+      <label for="mode">Показати</label>
+      <select id="mode">
+        <option value="all">Усі рядки</option>
+        <option value="unfinished">Незаповнені</option>
+        <option value="repeated">Повторювані записи у джерелі</option>
+        <option value="conflicts">Ключі з різними іменами</option>
+      </select>
+    </fieldset>
     <div class="scroll">
       <table id="register" hidden>
         <caption>Рядки для перевірки</caption>
@@ -49,6 +61,9 @@
     const download = document.querySelector('#download');
     const saveDraft = document.querySelector('#save-draft');
     const openDraft = document.querySelector('#open-draft');
+    const filters = document.querySelector('#filters');
+    const search = document.querySelector('#search');
+    const mode = document.querySelector('#mode');
     let sourceId = null;
     let rows = [];
     let loadVersion = 0;
@@ -67,21 +82,40 @@
 
     function updateStatus() {
       const names = new Map();
+      const conflicts = new Set();
       let complete = 0;
-      let conflict = false;
       for (const { key, name } of rows) {
         const ownerKey = key.value.trim();
         const ownerName = name.value.trim();
         if (!ownerKey || !ownerName) continue;
         complete++;
-        if (names.has(ownerKey) && names.get(ownerKey) !== ownerName) conflict = true;
+        if (names.has(ownerKey) && names.get(ownerKey) !== ownerName) conflicts.add(ownerKey);
         names.set(ownerKey, ownerName);
       }
-      status.textContent = `Заповнено ${complete} з ${rows.length}.` +
-        (conflict ? ' Один ключ має різні імена. Перевірте рішення.' : '');
-      download.disabled = !rows.length || complete !== rows.length || conflict;
+
+      const query = search.value.trim().toLocaleLowerCase('uk');
+      let visible = 0;
+      for (const { candidate, row, repeated, key, name } of rows) {
+        const ownerKey = key.value.trim();
+        const hasConflict = conflicts.has(ownerKey);
+        const matchesMode = mode.value === 'all' ||
+          (mode.value === 'unfinished' && (!ownerKey || !name.value.trim())) ||
+          (mode.value === 'repeated' && repeated) ||
+          (mode.value === 'conflicts' && hasConflict);
+        const matchesQuery = [candidate.PlotNumber, candidate.AccountNumber, candidate.OwnerName, ownerKey, name.value]
+          .some(value => value.toLocaleLowerCase('uk').includes(query));
+        row.hidden = !(matchesMode && matchesQuery) && !row.contains(document.activeElement);
+        if (!row.hidden) visible++;
+      }
+
+      status.textContent = `Заповнено ${complete} з ${rows.length}. Показано ${visible}.` +
+        (conflicts.size ? ' Один ключ має різні імена. Перевірте рішення.' : '');
+      download.disabled = !rows.length || complete !== rows.length || conflicts.size > 0;
     }
 
+    search.addEventListener('input', updateStatus);
+    mode.addEventListener('change', updateStatus);
+    body.addEventListener('focusout', () => setTimeout(updateStatus, 0));
     source.addEventListener('change', async () => {
       const version = ++loadVersion;
       const file = source.files[0];
@@ -90,7 +124,9 @@
       openDraft.value = "";
       saveDraft.disabled = openDraft.disabled = true;
       body.replaceChildren();
-      register.hidden = true;
+      register.hidden = filters.hidden = true;
+      search.value = "";
+      mode.value = "all";
       download.disabled = true;
       status.textContent = '';
       if (!file) return;
@@ -115,10 +151,10 @@
             row.insertCell().append(input);
             return input;
           });
-          return { candidate, key: fields[0], name: fields[1] };
+          return { candidate, row, repeated, key: fields[0], name: fields[1] };
         });
         sourceId = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
-        register.hidden = false;
+        register.hidden = filters.hidden = false;
         saveDraft.disabled = openDraft.disabled = false;
         updateStatus();
       } catch (error) {

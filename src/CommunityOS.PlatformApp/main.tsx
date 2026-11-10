@@ -9,7 +9,7 @@ const messages = {
     create: 'Створити й призначити', newRequest: 'Новий ідентифікатор запиту',
     check: 'Перевірка призначення та журналу', community: 'Спільнота', operation: 'Операція',
     assignment: 'Перевірити мій доступ', events: 'Показати журнал', revoke: 'Відкликати призначення',
-    recovery: 'Відновлення доступу', code: 'Одноразовий код', newPassword: 'Новий пароль', reset: 'Змінити пароль',
+    recovery: 'Відновлення доступу', code: 'Одноразовий код', newPassword: 'Новий пароль', reset: 'Змінити пароль', requestCode: 'Запросити код', requestAccepted: 'Якщо доступний підтверджений канал, код буде надіслано.',
     failed: 'Не вдалося виконати запит.',
   },
   ru: {
@@ -19,7 +19,7 @@ const messages = {
     create: 'Создать и назначить', newRequest: 'Новый идентификатор запроса',
     check: 'Проверка назначения и журнала', community: 'Сообщество', operation: 'Операция',
     assignment: 'Проверить мой доступ', events: 'Показать журнал', revoke: 'Отозвать назначение',
-    recovery: 'Восстановление доступа', code: 'Одноразовый код', newPassword: 'Новый пароль', reset: 'Сменить пароль',
+    recovery: 'Восстановление доступа', code: 'Одноразовый код', newPassword: 'Новый пароль', reset: 'Сменить пароль', requestCode: 'Запросить код', requestAccepted: 'Если доступен подтверждённый канал, код будет отправлен.',
     failed: 'Не удалось выполнить запрос.',
   },
 };
@@ -51,6 +51,11 @@ function App() {
       const text = await response.text();
       const data: unknown = text && response.headers.get('content-type')?.includes('application/json')
         ? JSON.parse(text) : null;
+      if (path === "/recovery-request" && response.status === 202) {
+        setResult(t.requestAccepted);
+        return null;
+      }
+
       setResult(String(response.status) + (data === null ? '' : '\n' + JSON.stringify(data, null, 2)));
       return response.ok ? data as T | null : null;
     } catch {
@@ -106,6 +111,14 @@ function App() {
         <label>{t.login} <input id="account-login" name="login" required maxLength={128} autoComplete="username" /></label>
         <label>{t.password} <input id="code" name="password" type="password" required maxLength={256} autoComplete="current-password" /></label>
         <button>{t.signIn}</button>
+      </form>
+      <form id="recovery-request" onSubmit={event => {
+        event.preventDefault();
+        const input = new FormData(event.currentTarget);
+        void call('/recovery-request', 'POST', { login: input.get('login') });
+      }}>
+        <label>{t.login} <input name="login" required maxLength={128} autoComplete="username" /></label>
+        <button>{t.requestCode}</button>
       </form>
       <form id="recover" onSubmit={recover}>
         <fieldset>

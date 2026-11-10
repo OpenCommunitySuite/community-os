@@ -1,5 +1,4 @@
 using ArchUnitNET.Domain;
-using ArchUnitNET.Fluent.Slices;
 using ArchUnitNET.Loader;
 using ArchUnitNET.xUnitV3;
 using Xunit;
@@ -17,7 +16,8 @@ public class ModuleBoundaryTests
         .LoadAssemblies(
             WebAssembly,
             WorkerAssembly,
-            typeof(Modules.Community.Infrastructure.CommunityModule).Assembly)
+            typeof(Modules.Community.Infrastructure.CommunityModule).Assembly,
+            typeof(Modules.Platform.Application.CommunityProvisioning).Assembly)
         .Build();
 
     private const string DomainNamespace = @"^CommunityOS\.Modules\.[^.]+\.Domain(\..+)?$";
@@ -56,10 +56,20 @@ public class ModuleBoundaryTests
     [Fact]
     public void Functional_Modules_Do_Not_Depend_On_Each_Other()
     {
-        var rule = SliceRuleDefinition.Slices()
-            .Matching("CommunityOS.Modules.(*).**")
-            .Should().NotDependOnEachOther();
+        const string modulePattern = @"^CommunityOS\.Modules\.([^.]+)(?:\.|$)";
+        var modules = Architecture.Types
+            .Select(type => System.Text.RegularExpressions.Regex.Match(type.Namespace.FullName, modulePattern))
+            .Where(match => match.Success)
+            .Select(match => match.Groups[1].Value)
+            .Distinct();
 
-        rule.Check(Architecture);
+        foreach (var module in modules)
+        {
+            var prefix = @"^CommunityOS\.Modules\." + System.Text.RegularExpressions.Regex.Escape(module);
+            Types().That().ResideInNamespaceMatching(prefix + @"(?:\.|$)")
+                .Should().NotDependOnAny(Types().That().ResideInNamespaceMatching(
+                    @"^CommunityOS\.Modules\.(?!" + System.Text.RegularExpressions.Regex.Escape(module) + @"(?:\.|$))[^.]+"))
+                .Check(Architecture);
+        }
     }
 }

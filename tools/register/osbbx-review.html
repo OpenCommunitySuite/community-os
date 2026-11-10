@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+  <title>Перевірка власників OSBBX</title>
+  <style>
+    body { font: 1rem system-ui, sans-serif; margin: 2rem auto; padding: 0 1rem; max-width: 76rem; color: #18232d; }
+    p { max-width: 72ch; }
+    .scroll { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; vertical-align: top; padding: .55rem; border-bottom: 1px solid #d9e2e9; }
+    td input { width: 100%; min-width: 8rem; box-sizing: border-box; }
+    input, button, select { font: inherit; padding: .35rem; }
+    .repeat { background: #fff3cf; }
+    #status { min-height: 1.5em; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Перевірка власників OSBBX</h1>
+    <p>Відкрийте JSON-перегляд реєстру. Для кожного рядка введіть перевірене ім’я та ключ власника.
+       Використовуйте однаковий ключ лише після перевірки, що ділянки належать одній особі.</p>
+    <p>Дані залишаються в цій вкладці. Збережіть чернетку, щоб продовжити перевірку пізніше.</p>
+    <label for="source">JSON-перегляд OSBBX</label>
+    <input id="source" type="file" accept=".json,application/json">
+    <p id="status" role="status" aria-live="polite"></p>
+    <p><button id="save-draft" type="button" disabled>Зберегти чернетку</button>
+       <label for="open-draft">Відкрити чернетку</label>
+       <input id="open-draft" type="file" accept=".json,application/json" disabled>
+       <button id="download" type="button" disabled>Зберегти CSV рішень</button></p>
+    <fieldset id="filters" hidden>
+      <legend>Пошук і фільтри</legend>
+      <label for="search">Ділянка, рахунок, ім’я або ключ</label>
+      <input id="search" type="search">
+      <label for="mode">Показати</label>
+      <select id="mode">
+        <option value="all">Усі рядки</option>
+        <option value="unfinished">Незаповнені</option>
+        <option value="repeated">Повторювані записи у джерелі</option>
+        <option value="conflicts">Ключі з різними іменами</option>
+      </select>
+    </fieldset>
+    <div class="scroll">
+      <table id="register" hidden>
+        <caption>Рядки для перевірки</caption>
+        <thead><tr>
+          <th scope="col">Рядок</th><th scope="col">Ділянка</th><th scope="col">Рахунок</th>
+          <th scope="col">Запис у джерелі</th><th scope="col">Ключ власника</th><th scope="col">Перевірене ім’я</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </main>
+  <script>
+    const source = document.querySelector('#source');
+    const register = document.querySelector('#register');
+    const body = register.querySelector('tbody');
+    const status = document.querySelector('#status');
+    const download = document.querySelector('#download');
+    const saveDraft = document.querySelector('#save-draft');
+    const openDraft = document.querySelector('#open-draft');
+    const filters = document.querySelector('#filters');
+    const search = document.querySelector('#search');
+    const mode = document.querySelector('#mode');
+    let sourceId = null;
+    let rows = [];
+    let loadVersion = 0;
+
+    function readCandidates(data) {
+      const candidates = data?.Candidates;
+      if (!Array.isArray(candidates) || !candidates.length ||
+          candidates.some(row => !Number.isInteger(row?.Row) ||
+            !['PlotNumber', 'AccountNumber', 'OwnerName'].every(field => typeof row[field] === 'string') ||
+            !Array.isArray(row.Issues) || !row.Issues.includes('owner-presentation-requires-review') ||
+            row.PlotAction !== 'create' || row.AccountAction !== 'create')) {
+        throw new Error('Потрібен JSON-перегляд OSBBX без конфліктів номерів ділянок і рахунків.');
+      }
+      return candidates;
+    }
+
+    function updateStatus() {
+      const names = new Map();
+      const conflicts = new Set();
+      let complete = 0;
+      for (const { key, name } of rows) {
+        const ownerKey = key.value.trim();
+        const ownerName = name.value.trim();
+        if (!ownerKey || !ownerName) continue;
+        complete++;
+        if (names.has(ownerKey) && names.get(ownerKey) !== ownerName) conflicts.add(ownerKey);
+        names.set(ownerKey, ownerName);
+      }
+
+      const query = search.value.trim().toLocaleLowerCase('uk');
+      let visible = 0;
+      for (const { candidate, row, repeated, key, name } of rows) {
+        const ownerKey = key.value.trim();
+        const hasConflict = conflicts.has(ownerKey);
+        const matchesMode = mode.value === 'all' ||
+          (mode.value === 'unfinished' && (!ownerKey || !name.value.trim())) ||
+          (mode.value === 'repeated' && repeated) ||
+          (mode.value === 'conflicts' && hasConflict);
+        const matchesQuery = [candidate.PlotNumber, candidate.AccountNumber, candidate.OwnerName, ownerKey, name.value]
+          .some(value => value.toLocaleLowerCase('uk').includes(query));
+        row.hidden = !(matchesMode && matchesQuery) && !row.contains(document.activeElement);
+        if (!row.hidden) visible++;
+      }
+
+      status.textContent = `Заповнено ${complete} з ${rows.length}. Показано ${visible}.` +
+        (conflicts.size ? ' Один ключ має різні імена. Перевірте рішення.' : '');
+      download.disabled = !rows.length || complete !== rows.length || conflicts.size > 0;
+    }
+
+    search.addEventListener('input', updateStatus);
+    mode.addEventListener('change', updateStatus);
+    body.addEventListener('focusout', () => setTimeout(updateStatus, 0));
+    source.addEventListener('change', async () => {
+      const version = ++loadVersion;
+      const file = source.files[0];
+      sourceId = null;
+      rows = [];
+      openDraft.value = "";
+      saveDraft.disabled = openDraft.disabled = true;
+      body.replaceChildren();
+      register.hidden = filters.hidden = true;
+      search.value = "";
+      mode.value = "all";
+      download.disabled = true;
+      status.textContent = '';
+      if (!file) return;
+      try {
+        if (file.size > 4_000_000) throw new Error('Файл перевищує 4 МБ.');
+        const bytes = await file.arrayBuffer();
+        const digest = await crypto.subtle.digest("SHA-256", bytes);
+        const data = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+        if (version !== loadVersion) return;
+        const candidates = readCandidates(data);
+        rows = candidates.map(candidate => {
+          const row = body.insertRow();
+          const repeated = candidate.Issues.includes('owner-name-repeated-in-workbook');
+          row.classList.toggle('repeat', repeated);
+          for (const value of [candidate.Row, candidate.PlotNumber, candidate.AccountNumber, candidate.OwnerName]) {
+            row.insertCell().textContent = value;
+          }
+          if (repeated) row.cells[3].append(' (повторюється)');
+          const fields = ['Ключ власника', 'Перевірене ім’я'].map(label => {
+            const input = document.createElement('input');
+            input.setAttribute('aria-label', `${label}, рядок ${candidate.Row}`);
+            row.insertCell().append(input);
+            return input;
+          });
+          return { candidate, row, repeated, key: fields[0], name: fields[1] };
+        });
+        sourceId = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+        register.hidden = filters.hidden = false;
+        saveDraft.disabled = openDraft.disabled = false;
+        updateStatus();
+      } catch (error) {
+        if (version !== loadVersion) return;
+        status.textContent = error instanceof SyntaxError ? 'Файл не є коректним JSON.' : error.message;
+      }
+    });
+
+    function saveFile(content, type, filename) {
+      const url = URL.createObjectURL(new Blob([content], { type }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    saveDraft.addEventListener('click', () => {
+      const decisions = rows.map(({ candidate, key, name }) => ({
+        row: candidate.Row, key: key.value, name: name.value
+      }));
+      saveFile(JSON.stringify({ version: 1, sourceId, decisions }), 'application/json', 'osbbx-draft.json');
+    });
+
+    openDraft.addEventListener('change', async () => {
+      const version = loadVersion;
+      const file = openDraft.files[0];
+      openDraft.value = '';
+      if (!file || !sourceId) return;
+
+      try {
+        if (file.size > 4_000_000) throw new Error();
+        const draft = JSON.parse(await file.text());
+        if (version !== loadVersion) return;
+        if (draft?.version !== 1 || draft.sourceId !== sourceId ||
+            !Array.isArray(draft.decisions) || draft.decisions.length !== rows.length ||
+            rows.some(({ candidate }, index) => {
+              const decision = draft.decisions[index];
+              return decision?.row !== candidate.Row ||
+                typeof decision.key !== 'string' || typeof decision.name !== 'string';
+            })) {
+          throw new Error();
+        }
+
+        rows.forEach(({ key, name }, index) => {
+          key.value = draft.decisions[index].key;
+          name.value = draft.decisions[index].name;
+        });
+        updateStatus();
+      } catch {
+        if (version !== loadVersion) return;
+        updateStatus();
+        status.textContent += ' Чернетка пошкоджена або належить іншому файлу перегляду.';
+      }
+    });
+
+    body.addEventListener('input', updateStatus);
+    download.addEventListener('click', () => {
+      const quote = value => '"' + value.replaceAll('"', '""') + '"';
+      const lines = rows.map(({ candidate, key, name }) =>
+        [candidate.PlotNumber, key.value.trim(), name.value.trim(), candidate.AccountNumber].map(quote).join(','));
+      const csv = ['plot_number,owner_key,owner_name,account_number', ...lines].join('\r\n') + '\r\n';
+      saveFile(csv, 'text/csv;charset=utf-8', 'decisions.csv');
+    });
+  </script>
+</body>
+</html>

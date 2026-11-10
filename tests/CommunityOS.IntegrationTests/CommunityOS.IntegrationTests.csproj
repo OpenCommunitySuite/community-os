@@ -13,4 +13,25 @@
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="../../src/CommunityOS.Modules.Community/CommunityOS.Modules.Community.csproj" />
+    <ProjectReference Include="../../src/CommunityOS.Modules.Platform/CommunityOS.Modules.Platform.csproj" />
+    <None Include="../../src/CommunityOS.Modules.Platform/Infrastructure/Migrations/001_community_reservation.sql"
+          Link="001_community_reservation.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Platform/Infrastructure/Migrations/002_bootstrap_administrator.sql"
+          Link="002_bootstrap_administrator.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Platform/Infrastructure/Migrations/003_bootstrap_security_event.sql"
+          Link="003_bootstrap_security_event.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Platform/Infrastructure/Migrations/005_platform_authentication.sql"
+          Link="005_platform_authentication.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/001_manual_register.sql"
+          Link="001_manual_register.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/002_ownership_correction.sql"
+          Link="002_ownership_correction.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/003_register_import.sql"
+          Link="003_register_import.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/004_register_community_scope.sql"
+          Link="004_register_community_scope.sql" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -1,0 +1,73 @@
+name: Проверка технического каркаса
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bootstrap-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bootstrap:
+    name: Сборка, тесты и запуск
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Получить исходный код
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Установить закреплённую версию .NET SDK
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          global-json-file: global.json
+
+      - name: Восстановить зависимости по файлам блокировки
+        run: dotnet restore CommunityOS.slnx --locked-mode
+
+      - name: Собрать решение
+        run: dotnet build CommunityOS.slnx --no-restore
+
+      - name: Выполнить архитектурные и интеграционные тесты
+        run: dotnet test CommunityOS.slnx --no-restore
+
+      - name: Проверить Web API и health endpoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --no-build --no-restore --project src/CommunityOS.Web --urls http://127.0.0.1:5055 > web-smoke.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:5055/health/startup > /dev/null \
+              && curl -fsS http://127.0.0.1:5055/health/live > /dev/null \
+              && curl -fsS http://127.0.0.1:5055/health/ready > /dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$ready" -ne 1 ]]; then
+            cat web-smoke.log
+            exit 1
+          fi
+
+      - name: Проверить независимый запуск Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --no-build --no-restore --project src/CommunityOS.Worker > worker-smoke.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          sleep 3
+          if ! kill -0 "$pid" 2>/dev/null; then
+            cat worker-smoke.log
+            exit 1
+          fi

@@ -442,8 +442,8 @@ Stage 11B должен отдельно решить, требует ли так
 - такой результат существует независимо от Calculation, имеет собственный source/provenance и correction/replacement history; protocol Document ≠ result of offline count ≠ Calculation ≠ Established Result;
 - подтверждением anonymous offline participation может быть digital copy заверенного списка/реестра выдачи бюллетеней либо другого документа с подписью/подтверждением вручения бюллетеня; подтверждением каждого результата подсчёта — digital copy подписанного протокола/итогового документа комиссии;
 - relevant physical originals хранятся вне Community OS согласно applicable retention/legal profile; digital copies не заменяют physical originals автоматически;
-- по результатам independent multi-review принят **Option A**: native online Anonymous Voting исключён из first normative / first-pilot scope и перенесён в Future Design Task; первая версия Anonymous поддерживает external/physical offline choice procedure;
-- принят identity-bearing Governance concept **«Реализация права голоса / Voting Right Exercise»**: он фиксирует rule-defined факт расходования/использования конкретного Voting Right без обязательного хранения Position; сам по себе не утверждает Position, participation, quorum или counting effect; issuance/receipt создаёт Exercise только если applicable rule явно определяет это как consumption moment;
+- по результатам независимого рецензирования принят **вариант А**: анонимное электронное голосование, выполняемое самой Community OS, исключено из первой нормативной версии и первого внедрения и отложено для дальнейшего проектирования; первая версия поддерживает анонимный выбор посредством внешней физической процедуры вне системы;
+- принято самостоятельное предметное понятие **«Реализация права голоса» (Voting Right Exercise)**: согласно применимому правилу оно фиксирует признанное использование конкретного права голоса без обязательного сохранения выбранной позиции; само по себе не доказывает позицию, участие, кворум или влияние на подсчёт; выдача либо получение бюллетеня создаёт такой факт только тогда, когда правило прямо определяет соответствующее событие как момент использования права;
 - для Open Voting отдельный Voting Right Exercise не обязателен как дублирующая запись каждого Vote: recognized Vote уже может подтверждать реализацию права;
 - **Informal Survey** остаётся отдельным менее формальным сценарием без обязательной электронной подписи по умолчанию. На продуктовом/UI-уровне он может предлагаться рядом с Open/Anonymous Voting, но принятая Stage 10 граница сохраняется: `Survey ≠ Voting`, `Survey Response ≠ Vote`.
 
@@ -479,24 +479,24 @@ Stress-tests:
 
 **Результат Stage 11A:** final consistency/readiness check завершён без новых BLOCKER; Stage 11A принят. Full Round 2 не требуется, если не появляется generalized non-document Signing, новая fundamental evidence/validation/correction entity, новая Membership identity semantics или изменение Governance ownership.
 
-**Stage 11B:** independent multi-review BP-GOV-001 завершён и консолидирован. Все reviewers дали итог `ACCEPT AFTER POINT FIXES`; conceptual redesign не требуется. Принят Option A: native online Anonymous deferred. Point fixes применены.
+**Этап 11Б:** независимое рецензирование BP-GOV-001 завершено, выводы сведены. Все рецензенты рекомендовали принять документ после точечных исправлений. Пересмотр общей предметной концепции не требуется. Принят вариант А: собственное анонимное электронное голосование отложено. Точечные исправления внесены.
 
-Normative sync выполнена и смержена в PR #79:
+Согласование нормативных документов выполнено в объединённом запросе №79:
 
-- ADR-001 — Voting Right Exercise ≠ Vote, rule-defined recognition/effects, one effective realization;
-- ADR-008 — Result of Offline Count как question-local Calculation input, anonymous offline right-use/count separation, correction asymmetry;
-- DOMAIN_MODEL — Voting Right Exercise, Result of Offline Count, participation as rule-derived metric, multi-item Document→Vote mapping, anonymous privacy correlation constraints;
-- TERMINOLOGY — canonical terms и negative definitions.
+- ADR-001 — реализация права голоса не тождественна самому голосу; основания признания и последствия определяются правилом; не более одной действующей реализации на соответствующий момент;
+- ADR-008 — результат подсчёта офлайн-части как самостоятельные входные сведения для расчёта по одному вопросу; разделение использования права и анонимного подсчёта; ограничения исправления результата;
+- DOMAIN_MODEL — реализация права голоса, результат подсчёта офлайн-части, участие как вычисляемый показатель, связь пункта документа с отдельным голосом, защита от косвенного раскрытия анонимности;
+- TERMINOLOGY — нормативные определения и разграничения предметных понятий.
 
-First normative scope Stage 11B:
+Первая нормативная версия этапа 11Б поддерживает:
 
-- Open Voting: paper + document-backed signed electronic/remote formalization where rule permits;
-- Anonymous Voting: physical/offline choice procedure + Voting Right Exercise + Result of Offline Count;
-- native online Anonymous — Future Design Task;
-- direct documentless signed Vote — deferred;
-- pilot legal/profile questions (presence/quorum, 1 Plot=1 Vote, paper/electronic conflict/change, anonymous consumption moment/reissue/privacy scope) остаются profile-specific.
+- **открытое голосование** — бумажное и электронное оформление через подписанные документы, включая дистанционное участие, если его разрешает применимое правило;
+- **анонимное голосование** — физический выбор вне системы, самостоятельную фиксацию реализации права голоса и регистрацию результата подсчёта офлайн-части;
+- собственное анонимное электронное голосование — задача дальнейшего проектирования;
+- непосредственное подписание отдельного голоса без документа — отложенная возможность;
+- вопросы правового и организационного профиля первого внедрения (присутствие, кворум, «один участок — один голос», конфликты бумажной и электронной подачи, момент использования права, повторная выдача бюллетеня, минимальная анонимность) остаются открытыми для конкретного сообщества.
 
-**Результат Stage 11B:** PR #79 смержен. Следующая работа перед реализацией first-pilot voting — зафиксировать pilot legal/profile rules: presence/quorum, `1 Plot = 1 Vote`, paper/electronic conflict/change, anonymous consumption/reissue/privacy scope и physical-original retention. Native online Anonymous и direct documentless signed Vote остаются Future Design Tasks.
+**Результат этапа 11Б:** запрос №79 объединён с основной веткой. Следующий шаг перед реализацией голосования первого внедрения — установить правила присутствия и кворума, проверить правовую применимость принципа «один участок — один голос», определить порядок изменения голосов и разрешения конфликтов между способами подачи, момент использования права при анонимном голосовании и повторную выдачу бюллетеня, ограничения анонимности и сроки хранения бумажных оригиналов. Собственное анонимное электронное голосование и непосредственное подписание отдельного голоса без документа остаются задачами дальнейшего проектирования.
 
 ### Этап 12. Интеграция с BAS/BAF
 

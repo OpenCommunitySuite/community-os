@@ -27,8 +27,8 @@ internal static class PlatformWeb
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(http =>
                 HttpMethods.IsPost(http.Request.Method) &&
-                http.Request.Path.Value?.TrimEnd('/').Equals("/platform/login", StringComparison.OrdinalIgnoreCase) == true
-                    ? RateLimitPartition.GetFixedWindowLimiter("platform-login", _ => new FixedWindowRateLimiterOptions
+                http.Request.Path.Value?.TrimEnd('/').ToLowerInvariant() is "/platform/login" or "/platform/recover"
+                    ? RateLimitPartition.GetFixedWindowLimiter(http.Request.Path.Value!.TrimEnd('/').ToLowerInvariant(), _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 20,
                         Window = TimeSpan.FromMinutes(1),
@@ -127,6 +127,17 @@ internal static class PlatformWeb
             return Results.Ok(new { AccountId = credential.Id });
         }).RequireRateLimiting("platform-password");
 
+        routes.MapPost("/recover", async (RecoveryInput input, HttpContext http, CancellationToken token) =>
+        {
+            var recovery = new PlatformPasswordRecovery(dataSource);
+            if (!await recovery.ConsumeAsync(input.Login, input.Code, input.NewPassword, token))
+            {
+                return Results.BadRequest();
+            }
+
+            http.Response.Cookies.Delete(Cookie, CookieOptions());
+            return Results.NoContent();
+        }).RequireRateLimiting("platform-password");
         routes.MapPost("/logout", async (HttpContext http, CancellationToken token) =>
         {
             await accounts.RevokeSessionAsync(http.Request.Cookies[Cookie], token);
@@ -233,6 +244,33 @@ internal static class PlatformWeb
         }
     }
 
+    public static async Task<int> IssueRecoveryAsync(string[] args)
+    {
+        if (args is not ["issue", var id] || !Guid.TryParse(id, out var accountId) || accountId == Guid.Empty ||
+            Environment.GetEnvironmentVariable("Platform__RecoveryOperatorDatabase") is not { Length: > 0 } connection)
+        {
+            Console.Error.WriteLine("Use platform-recovery issue <account-id> with Platform__RecoveryOperatorDatabase.");
+            return 2;
+        }
+
+        try
+        {
+            await using var source = NpgsqlDataSource.Create(connection);
+            var code = await new PlatformPasswordRecovery(source).IssueAsync(accountId, default);
+            if (code is not null)
+            {
+                Console.WriteLine(code);
+                return 0;
+            }
+        }
+        catch (NpgsqlException)
+        {
+            // The diagnostic must not include credential material.
+        }
+
+        Console.Error.WriteLine("Recovery code could not be issued.");
+        return 1;
+    }
     private static CookieOptions CookieOptions() => new()
     {
         HttpOnly = true,
@@ -241,6 +279,7 @@ internal static class PlatformWeb
         Path = "/",
     };
 
+    private sealed record RecoveryInput(string? Login, string? Code, string? NewPassword);
     private sealed record LoginInput(string? Login, string? Password);
     private sealed record CreateInput(Guid RequestId, Guid AdministratorAccountId, string? DisplayName);
 }

@@ -9,6 +9,7 @@ const messages = {
     create: 'Створити й призначити', newRequest: 'Новий ідентифікатор запиту',
     check: 'Перевірка призначення та журналу', community: 'Спільнота', operation: 'Операція',
     assignment: 'Перевірити мій доступ', events: 'Показати журнал', revoke: 'Відкликати призначення',
+    recovery: 'Відновлення доступу', code: 'Одноразовий код', newPassword: 'Новий пароль', reset: 'Змінити пароль',
     failed: 'Не вдалося виконати запит.',
   },
   ru: {
@@ -18,6 +19,7 @@ const messages = {
     create: 'Создать и назначить', newRequest: 'Новый идентификатор запроса',
     check: 'Проверка назначения и журнала', community: 'Сообщество', operation: 'Операция',
     assignment: 'Проверить мой доступ', events: 'Показать журнал', revoke: 'Отозвать назначение',
+    recovery: 'Восстановление доступа', code: 'Одноразовый код', newPassword: 'Новый пароль', reset: 'Сменить пароль',
     failed: 'Не удалось выполнить запрос.',
   },
 };
@@ -68,6 +70,16 @@ function App() {
     void call('/login', 'POST', { login: input.get('login'), password });
   }
 
+  function recover(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const input = new FormData(form);
+    form.reset();
+    void call('/recover', 'POST', {
+      login: input.get('login'), code: input.get('code'), newPassword: input.get('newPassword'),
+    });
+  }
+
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const input = new FormData(event.currentTarget);
@@ -94,6 +106,15 @@ function App() {
         <label>{t.login} <input id="account-login" name="login" required maxLength={128} autoComplete="username" /></label>
         <label>{t.password} <input id="code" name="password" type="password" required maxLength={256} autoComplete="current-password" /></label>
         <button>{t.signIn}</button>
+      </form>
+      <form id="recover" onSubmit={recover}>
+        <fieldset>
+          <legend>{t.recovery}</legend>
+          <label>{t.login} <input name="login" required maxLength={128} autoComplete="username" /></label>
+          <label>{t.code} <input name="code" type="password" required maxLength={64} autoComplete="one-time-code" /></label>
+          <label>{t.newPassword} <input name="newPassword" type="password" required minLength={15} maxLength={256} autoComplete="new-password" /></label>
+          <button>{t.reset}</button>
+        </fieldset>
       </form>
       <button id="logout" type="button" onClick={() => void call('/logout', 'POST')}>{t.signOut}</button>
       <form id="create" onSubmit={create}>

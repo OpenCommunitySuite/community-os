@@ -336,4 +336,67 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         await expire.ExecuteNonQueryAsync(token);
         Assert.Null(await accounts.ResolveAssignedAccountAsync(ordinarySession, applied.CommunityId, token));
     }
+
+    [Fact]
+    public async Task Password_Recovery_Consumes_One_Code_And_Revokes_All_Sessions_Atomically()
+    {
+        var token = TestContext.Current.CancellationToken;
+        await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
+        foreach (var file in new[] { "001_community_reservation.sql", "005_platform_authentication.sql",
+                     "006_password_recovery.sql" })
+        {
+            var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
+            await using var migration = source.CreateCommand(sql);
+            await migration.ExecuteNonQueryAsync(token);
+        }
+
+        var accounts = new PlatformAuthenticationStore(source);
+        var recovery = new PlatformPasswordRecovery(source);
+        static string RandomPassword() => Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(20));
+        var oldPassword = RandomPassword();
+        var newPassword = RandomPassword();
+        var id = await accounts.AddAccountAsync("creator", oldPassword, true, token);
+        await accounts.AddAccountAsync("other", RandomPassword(), false, token);
+        var old = Assert.IsType<PlatformCredential>(await accounts.FindCredentialAsync("creator", token));
+        var firstSession = Assert.IsType<string>(await accounts.StartSessionAsync(old, token));
+        var secondSession = Assert.IsType<string>(await accounts.StartSessionAsync(old, token));
+        var firstCode = Assert.IsType<string>(await recovery.IssueAsync(id, token));
+        var code = Assert.IsType<string>(await recovery.IssueAsync(id, token));
+        Assert.False(await recovery.ConsumeAsync("creator", firstCode, newPassword, token));
+        Assert.False(await recovery.ConsumeAsync("other", code, newPassword, token));
+        Assert.False(await recovery.ConsumeAsync("creator", code, oldPassword, token));
+
+        await using var rejectAudit = source.CreateCommand("""
+            ALTER TABLE platform_provisioning.platform_auth_security_event
+            ADD CONSTRAINT test_reject_recovery CHECK (event_kind <> 'recovery-used');
+            """);
+        await rejectAudit.ExecuteNonQueryAsync(token);
+        await Assert.ThrowsAsync<PostgresException>(() => recovery.ConsumeAsync("creator", code, newPassword, token));
+        Assert.Equal(old, await accounts.FindCredentialAsync("creator", token));
+        Assert.True(await accounts.WithCreatorAsync(firstSession, null, (_, _, _) => Task.FromResult(true), false, token));
+        await using var restoreAudit = source.CreateCommand("""
+            ALTER TABLE platform_provisioning.platform_auth_security_event DROP CONSTRAINT test_reject_recovery;
+            """);
+        await restoreAudit.ExecuteNonQueryAsync(token);
+
+        var attempts = await Task.WhenAll(recovery.ConsumeAsync("creator", code, newPassword, token),
+            recovery.ConsumeAsync("creator", code, newPassword, token));
+        Assert.Single(attempts, result => result);
+        Assert.Null(await accounts.StartSessionAsync(old, token));
+        foreach (var previous in new[] { firstSession, secondSession })
+        {
+            Assert.False(await accounts.WithCreatorAsync(previous, null, (_, _, _) => Task.FromResult(true), false, token));
+        }
+
+        var current = Assert.IsType<PlatformCredential>(await accounts.FindCredentialAsync("creator", token));
+        Assert.False(await PlatformPassword.VerifyAsync(oldPassword, current.PasswordHash));
+        Assert.True(await PlatformPassword.VerifyAsync(newPassword, current.PasswordHash));
+        var fresh = Assert.IsType<string>(await accounts.StartSessionAsync(current, token));
+        Assert.True(await accounts.WithCreatorAsync(fresh, null, (_, _, _) => Task.FromResult(true), false, token));
+        await using var audit = source.CreateCommand("""
+            SELECT count(*) FROM platform_provisioning.platform_auth_security_event
+            WHERE event_kind IN ('recovery-issued', 'recovery-used', 'session-revoked');
+            """);
+        Assert.Equal(5L, await audit.ExecuteScalarAsync(token));
+    }
 }

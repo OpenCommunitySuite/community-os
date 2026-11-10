@@ -1,7 +1,7 @@
-# Stage 11B — Pilot requirement: дистанционное участие и подписанное электронное голосование
+# этап 11Б — Требование первого внедрения: дистанционное участие и подписанное электронное голосование
 
-**Статус:** Accepted product requirement / architecture incorporated into accepted BP-GOV-001; pilot legal/profile details remain open  
-**Связанный этап:** Stage 11B — Remote Participation and Electronic Voting  
+**Статус:** Требование принято; архитектурные положения включены в BP-GOV-001; правовые и организационные условия первого внедрения требуют уточнения  
+**Связанный этап:** этап 11Б — Дистанционное участие и электронное голосование  
 **Первое внедрение:** пилотное садовое товарищество (СТ)
 
 ## 1. Бизнес-проблема
@@ -14,7 +14,7 @@
 - часть владельцев находится за пределами Украины;
 - военное положение, перемещение людей и иные обстоятельства затрудняют очное присутствие;
 - критически важные решения по уставу/применимому праву должны приниматься коллективно;
-- очный формат не должен быть единственным техническим способом реализовать допустимое право участия/голоса, если legal profile допускает дистанционную форму.
+- очный формат не должен быть единственным техническим способом реализовать допустимое право участия/голоса, если правовой профиль допускает дистанционную форму.
 
 ## 2. Принятое продуктовое требование
 
@@ -26,13 +26,13 @@ Community OS должна поддерживать для первого пил�
 eligible owner / right implementer
 → receives agenda/materials
 → identifies/signs remotely
-→ submits a signed expression of will / Vote
-→ Community OS validates evidence and domain admissibility
-→ Vote is counted according to applicable Voting Rule
-→ evidence remains verifiable later
+→ submits a signed expression of will / голос
+→ Community OS validates подтверждение and предметная допустимость
+→ голос is counted according to применимое правило голосования
+→ подтверждение remains verifiable later
 ```
 
-Поддержка КЕП и provider mechanisms вроде Дія.Підпис является обязательным направлением для такого сценария.
+Поддержка КЕП и внешняя служба mechanisms вроде Дія.Підпис является обязательным направлением для такого сценария.
 
 ## 3. Ключевая правовая граница
 
@@ -41,14 +41,14 @@ eligible owner / right implementer
 Однако из этого **не следует автоматически**, что:
 
 ```text
-valid КЕП
-→ any remote meeting procedure is legally valid
-→ any signed payload is automatically a valid Vote
+действительный КЕП
+→ any дистанционный meeting procedure is legally действительный
+→ any signed payload is automatically a действительный голос
 ```
 
-Электронная подпись отвечает за подпись/идентификацию/целостность соответствующих electronic data в установленном законом объёме.
+Электронная подпись отвечает за подпись/идентификацию/целостность соответствующих электронный data в установленном законом объёме.
 
-Право участия, Voting Right, quorum, presence, procedure form и условия зачёта Vote определяются отдельно applicable governance/legal profile.
+Право участия, Право голоса, quorum, присутствие, procedure form и условия зачёта голос определяются отдельно applicable governance/legal profile.
 
 ## 4. Обязательная profile-driven модель
 
@@ -56,17 +56,17 @@ Community OS не должна hard-code один универсальный с�
 
 Legal/governance profile конкретного Community должен позволять определить:
 
-- кто имеет Participation Right;
-- кто имеет Voting Right;
+- кто имеет Право участия;
+- кто имеет Право голоса;
 - кто реализует конкретное право;
 - допустимо ли представительство;
 - что считается присутствием;
 - как определяется quorum/правомочность;
-- допускается ли remote synchronous participation;
-- допускается ли signed asynchronous ballot / written survey;
+- допускается ли дистанционный synchronous участие;
+- допускается ли signed asynchronous бюллетень / written survey;
 - допускается ли mixed procedure;
 - какой signature class необходим;
-- какой electronic document/ballot требуется;
+- какой электронный document/ballot требуется;
 - какие сроки подачи волеизъявления;
 - что происходит при повторной/изменённой подаче;
 - как формируется и устанавливается результат;
@@ -79,83 +79,83 @@ Legal/governance profile конкретного Community должен позв�
 ```text
 A. очное участие;
 B. удалённое синхронное участие;
-C. подписанное асинхронное электронное волеизъявление / ballot;
+C. подписанное асинхронное электронное волеизъявление / бюллетень;
 D. бумажный бюллетень с собственноручной подписью, если это допускает procedure/legal profile;
 E. смешанная процедура A+B;
 F. смешанная процедура A+B+C;
 G. смешанная процедура A+B+C+D where legally allowed.
 ```
 
-**Mixed voting является обязательной возможностью первого пилота.** Одна Voting не должна искусственно разбиваться на «бумажное» и «электронное» голосования только из-за разных каналов подачи позиции.
+**голосование со смешанными способами подачи является обязательной возможностью первого пилота.** Одна голосование не должна искусственно разбиваться на «бумажное» и «электронное» голосования только из-за разных каналов подачи позиции.
 
 ```text
-one Voting
-→ one Voting Rule / snapshot / set of Voting Rights
+одно голосование
+→ one Правило голосования / снимок состояния / set of Права голоса
 → several permitted submission/formalization channels
-→ Votes
-→ one Calculation / Established Result
+→ голоса
+→ one расчёт / Установленный результат
 ```
 
-Канал/форма подачи не создаёт отдельную identity Vote автоматически.
+Канал/форма подачи не создаёт отдельную identity голос автоматически.
 
-Для mixed Voting полный результат должен формироваться из всех признанных online/offline вкладов. При open offline channel это могут быть individual Votes; при anonymous offline channel — aggregate/offline tally без восстановления Subject-linked ballot choices.
+Для голосование со смешанными способами подачи полный результат должен формироваться из всех признанных online/offline вкладов. При открытый вне системы канал это могут быть отдельный голоса; при анонимный вне системы канал — aggregate/offline итог подсчёта без восстановления Subject-linked бюллетень choices.
 
 ### 5.0. Очная часть и последующий бумажный сбор голосов могут быть одной процедурой
 
-Реальный pilot case 24.10.2026 показывает:
+Реальный первое внедрение case 24.10.2026 показывает:
 
 ```text
 ≈60 physically present participants
-→ paper ballots distributed at meeting
+→ бумажный бюллетени distributed at meeting
 → some submit positions, some do not
-→ board later personally delivers ballots to other gardeners
-→ written offline participation continues after meeting
+→ board later personally delivers бюллетени to other gardeners
+→ written участие вне системы continues after meeting
 → final count/protocol
 ```
 
 Поэтому Community OS не должна hard-code:
 
 ```text
-physical presence
+physical присутствие
 =
-participation
+участие
 =
-ballot receipt
+получение бюллетеня
 =
-Vote
+голос
 ```
 
-И не должна считать момент окончания очной части автоматическим окончанием Voting.
+И не должна считать момент окончания очной части автоматическим окончанием голосование.
 
 Applicable rule/profile должен позволять отдельно определить:
 
 - период очной части;
 - период письменного/асинхронного сбора позиций;
-- что считается participation для конкретной процедуры;
-- что считается presence;
+- что считается участие для конкретной процедуры;
+- что считается присутствие;
 - какие факты участвуют в quorum;
-- deadline подачи ballot;
-- момент закрытия Voting.
+- срок подачи подачи бюллетень;
+- момент закрытия голосование.
 
-Одна Voting может объединять очную дискуссию и последующее paper/offline collection, если это допускает applicable rule.
+Одна голосование может объединять очную дискуссию и последующее paper/offline collection, если это допускает применимое правило.
 
-### 5.1. Paper-origin Vote
+### 5.1. первоначально оформленный на бумаге голос
 
 Для участника, который не использует электронную подпись, procedure profile может разрешить бумажный бюллетень с собственноручной подписью.
 
 Предметная цепочка:
 
 ```text
-Voting Right
-→ paper ballot Document / Representation
-→ handwritten Signing
-→ receipt / validation / admissibility check
-→ recognized Vote
-→ optional scan/photo/digital Representation
-→ electronic accounting/counting in Community OS
+Право голоса
+→ бумажный бюллетень документ / представление
+→ handwritten подписание
+→ получение / validation / admissibility check
+→ признанный голос
+→ optional scan/photo/digital представление
+→ электронный accounting/counting in Community OS
 ```
 
-После ввода в Community OS такой Vote **не становится «электронным голосом» по происхождению**. Это тот же domain Vote, полученный из paper-origin evidence и отражённый в системе.
+После ввода в Community OS такой голос **не становится «электронным голосом» по происхождению**. Это тот же domain голос, полученный из первоначально оформленный на бумаге подтверждение и отражённый в системе.
 
 ### 5.2. Scan/photo does not replace the physical original
 
@@ -163,20 +163,20 @@ Voting Right
 
 - может быть digital Representation/evidence, связанной с исходным бумажным документом;
 - обеспечивает оперативный просмотр, проверку и удалённый аудит;
-- не становится новой Vote;
-- не является electronic signature;
+- не становится новой голос;
+- не является электронный signature;
 - не превращает собственноручную подпись в КЕП;
 - не заменяет physical original автоматически.
 
-Для принятого paper-origin Vote физический оригинал бюллетеня должен сохраняться согласно applicable retention/archive policy.
+Для принятого первоначально оформленный на бумаге голос физический оригинал бюллетеня должен сохраняться согласно applicable retention/archive policy.
 
 Для пилота действует безопасный baseline:
 
 ```text
-accepted paper-origin Vote
+принято первоначально оформленный на бумаге голос
 → physical original retention required
 → destruction prohibited
-   until an explicit applicable retention rule
+   until an explicit applicable retention правило
    and authorized archive/disposal action allow it
 ```
 
@@ -186,12 +186,12 @@ Community OS должна позволять исторически опреде
 - ответственного хранителя/custodian;
 - физическое место хранения или архивную ссылку;
 - дату получения;
-- связь с Voting / Voting Right / Vote;
-- связь с scan/photo Representation;
+- связь с голосование / Право голоса / голос;
+- связь с scan/photo представление;
 - применимую retention policy;
 - факт и основание последующего перемещения/передачи/уничтожения, если оно когда-либо допустимо.
 
-Это не вводит universal `Physical Archive Item` entity автоматически; конкретная document/archive model уточняется отдельно.
+Это не вводит universal `Physical Archive пункт` entity автоматически; конкретная document/archive model уточняется отдельно.
 
 ### 5.3. Data entry does not make the operator the voter
 
@@ -204,8 +204,8 @@ voter / right implementer
 
 Должны быть различимы:
 
-- Subject, реализовавший Voting Right;
-- собственноручно подписанный source ballot;
+- субъект, реализовавший Право голоса;
+- собственноручно подписанный источник бюллетень;
 - лицо, принявшее/проверившее бюллетень;
 - User Account/Subject, выполнивший data entry;
 - момент фактической подачи/получения бюллетеня;
@@ -213,89 +213,89 @@ voter / right implementer
 
 Ввод данных оператором не является новым волеизъявлением от имени оператора.
 
-### 5.4. One Voting Right across several channels
+### 5.4. One Право голоса across several channels
 
-Если один и тот же Voting Right может быть реализован через электронный и бумажный каналы, applicable Voting Rule обязана определить conflict/change semantics.
+Если один и тот же Право голоса может быть реализован через электронный и бумажный каналы, применимое правило голосования обязана определить conflict/change semantics.
 
 Нельзя считать:
 
 ```text
-paper submission
+бумажный подача
 +
-electronic submission
+электронный подача
 =
-two independent Votes automatically
+two independent голоса automatically
 ```
 
 Нужно определить, где применимо:
 
 - разрешено ли изменение ранее поданной позиции;
 - до какого момента;
-- какая submission является effective;
+- какая подача является effective;
 - как определяется duplicate;
-- что считается correction;
+- что считается исправление;
 - что происходит при бумажном и электронном волеизъявлении с разными позициями;
 - как сохраняется история предыдущей позиции согласно ADR-001/004/008.
 
-### 5.5. Open vs anonymous voting
+### 5.5. открытый vs анонимное голосование
 
-Для Stage 11B фиксируются два основных режима прозрачности выбора:
+Для этап 11Б фиксируются два основных режима прозрачности выбора:
 
-- **Open Voting** — Community OS может хранить связь `Subject/Voting Right ↔ Position`;
-- **Anonymous Voting** — Community OS может хранить факт участия/реализации права, но не должна связывать конкретного Subject с его выбором там, где choice обрабатывается самой системой.
+- **открытое голосование** — Community OS может хранить связь `Subject/Voting Right ↔ позиция`;
+- **анонимное голосование** — Community OS может хранить факт участия/реализации права, но не должна связывать конкретного субъект с его выбором там, где выбор обрабатывается самой системой.
 
-В этой модели «анонимность» относится к choice/Position, а не обязательно к самому факту участия. Legal profile может использовать юридический термин «тайное голосование» для процедуры, которая маппится на Anonymous Voting.
+В этой модели «анонимность» относится к choice/Position, а не обязательно к самому факту участия. правовой профиль может использовать юридический термин «тайное голосование» для процедуры, которая маппится на анонимное голосование.
 
-Для **open offline Voting** допускается individual data entry с приложением scan/photo подписанного бумажного ballot.
+Для **открытый вне системы голосование** допускается отдельный data entry с приложением scan/photo подписанного бумажного бюллетень.
 
-Для **anonymous offline Voting** Community OS не владеет физической процедурой обеспечения анонимности и не определяет форму бюллетеня, урны, работу комиссии или физический подсчёт. Система принимает:
+Для **анонимный вне системы голосование** Community OS не владеет физической процедурой обеспечения анонимности и не определяет форму бюллетеня, урны, работу комиссии или физический подсчёт. Система принимает:
 
-- participation/issuance evidence без раскрытия выбора, например заверенный список/реестр выдачи бюллетеней либо другой документ с подтверждением вручения бюллетеня;
+- participation/issuance подтверждение без раскрытия выбора, например заверенный список/реестр выдачи бюллетеней либо другой документ с подтверждением вручения бюллетеня;
 - один или несколько самостоятельных **результатов подсчёта офлайн-части** со stable identity и историей;
-- при наличии — digital copy подписанного протокола/итогового документа комиссии как evidence каждого такого результата.
+- при наличии — digital copy подписанного протокола/итогового документа комиссии как подтверждение каждого такого результата.
 
-**Результат подсчёта офлайн-части** является отдельным исторически значимым Governance fact, а не просто набором чисел внутри общего Calculation.
-
-```text
-offline counting by commission
-→ Result of Offline Count
-→ Calculation
-→ Established Result
-```
-
-Он должен сохранять собственный source/provenance и correction/replacement history. Протокол комиссии является подтверждающим Document и не тождествен самому результату подсчёта.
-
-Для **native online Anonymous Voting** техническая невозможность восстановления `Subject/Voting Right → Position` является уже ответственностью Community OS и требует отдельного Stage 11B design.
-
-Для Anonymous Voting принят отдельный исторически значимый факт **«Реализация права голоса / Voting Right Exercise»**:
+**Результат подсчёта офлайн-части** является отдельным исторически значимым факт в области управления, а не просто набором чисел внутри общего расчёт.
 
 ```text
-Voting Right
-→ Voting Right Exercise
-
-Voting Right Exercise
-≠ Vote
-≠ Position
+подсчёт вне системы by commission
+→ Результат подсчёта вне системы
+→ расчёт
+→ Установленный результат
 ```
 
-Он фиксирует, что конкретное Voting Right было использовано допустимым реализатором, не сохраняя выбор. Это позволяет доказывать участие, учитывать представительство и обнаруживать попытку двойной реализации права между online/offline каналами без раскрытия Position.
+Он должен сохранять собственный источник и происхождение сведений и исправление или замена history. Протокол комиссии является подтверждающим документ и не тождествен самому результату подсчёта.
 
-Для Open Voting отдельная запись Voting Right Exercise не является обязательным дублированием каждого Vote: recognized Vote уже может подтверждать реализацию права.
+Для **анонимное электронное голосование средствами самой Community OS** техническая невозможность восстановления `Subject/Voting Right → позиция` является уже ответственностью Community OS и требует отдельного этап 11Б design.
+
+Для анонимное голосование принят отдельный исторически значимый факт **«Реализация права голоса / Реализация права голоса»**:
+
+```text
+Право голоса
+→ Реализация права голоса
+
+Реализация права голоса
+≠ голос
+≠ позиция
+```
+
+Он фиксирует, что конкретное Право голоса было использовано допустимым реализатором, не сохраняя выбор. Это позволяет доказывать участие, учитывать представительство и обнаруживать попытку двойной реализации права между online/offline каналами без раскрытия позиция.
+
+Для открытое голосование отдельная запись Реализация права голоса не является обязательным дублированием каждого голос: признанный голос уже может подтверждать реализацию права.
 
 Подробные stress-tests:
 
 - `STAGE-11B-MIXED-PAPER-ELECTRONIC-VOTING-STRESS-TEST.md`;
 - `STAGE-11B-ANONYMOUS-VOTING-RIGHT-EXERCISE-STRESS-TEST.md`.
 
-### 5.6. Informal Survey рядом с Voting
+### 5.6. Informal Survey рядом с голосование
 
 На продуктовом уровне Community OS должна предлагать менее формальный сценарий **«Неформальный опрос / Informal Survey»**, который по умолчанию не требует электронной подписи.
 
 При этом принятая Stage 10 граница сохраняется:
 
 ```text
-Survey ≠ Voting
-Survey Response ≠ Vote
+Survey ≠ голосование
+Survey Response ≠ голос
 ```
 
 Поэтому UI может предлагать пользователю рядом:
@@ -307,7 +307,7 @@ Survey Response ≠ Vote
 - неформальный опрос
 ```
 
-но Survey остаётся процессом Communications, а не третьим domain subtype Voting.
+но Survey остаётся процессом Communications, а не третьим domain subtype голосование.
 
 ## 6. Электронная подпись не создаёт право голоса
 
@@ -315,38 +315,38 @@ Survey Response ≠ Vote
 
 ```text
 КЕП / Дія.Підпис
-≠ Participation Right
-≠ Voting Right
-≠ Vote
+≠ Право участия
+≠ Право голоса
+≠ голос
 
-Signing
-≠ Vote
+подписание
+≠ голос
 
-valid cryptographic signature
-≠ sufficient domain admissibility
+действительный cryptographic signature
+≠ sufficient предметная допустимость
 ```
 
-Подпись подтверждает конкретные electronic data/действие в рамках применимой signing policy, но не создаёт ownership/member status/representation/voting entitlement.
+Подпись подтверждает конкретные электронный data/действие в рамках применимой подписание policy, но не создаёт ownership/member status/representation/voting entitlement.
 
-## 7. Vote и signed document остаются разными фактами
+## 7. голос и signed документ остаются разными фактами
 
-В зависимости от legal profile дистанционный Vote может требовать подписанного electronic ballot/survey sheet.
+В зависимости от правовой профиль дистанционный голос может требовать подписанного электронный ballot/survey sheet.
 
 Тогда:
 
 ```text
-Vote
-↔ Document / Revision / Representation
-↔ Signing
+голос
+↔ документ / Revision / представление
+↔ подписание
 ```
 
 Но:
 
 ```text
-Vote ≠ Document ≠ Signing
+голос ≠ документ ≠ подписание
 ```
 
-Если конкретный profile допускает electronic Vote без самостоятельного Document, Community OS не должна создавать фиктивный документ только ради переиспользования Signing model.
+Если конкретный profile допускает электронный голос без самостоятельного документ, Community OS не должна создавать фиктивный документ только ради переиспользования подписание model.
 
 ## 8. Пилотное правило «1 участок = 1 голос»
 
@@ -356,12 +356,12 @@ Vote ≠ Document ≠ Signing
 1 участок = 1 голос
 ```
 
-После анализа устава и уточнения фактической практики это правило сохраняется как **реально используемый pilot requirement**, но его юридическое основание остаётся предметом focused legal-profile validation.
+После анализа устава и уточнения фактической практики это правило сохраняется как **реально используемый требование первого внедрения**, но его юридическое основание остаётся предметом focused legal-profile validation.
 
 Сообщённая практика СТ такова:
 
 - владелец каждого участка подаёт отдельное заявление о принятии в члены относительно соответствующего участка;
-- один Subject с несколькими участками может иметь несколько таких заявлений/актов приёма;
+- один субъект с несколькими участками может иметь несколько таких заявлений/актов приёма;
 - внутри СТ это трактуется как «множественное членство» и фактически используется для получения отдельного голоса по каждому участку.
 
 Community OS не должна кодировать эту практику как:
@@ -381,81 +381,81 @@ three applications
 Рабочая модель пилота:
 
 ```text
-one Subject
-+ historically recognized Membership
+one субъект
++ historically признанный Membership
 + 0..N admission/application/basis records
 + 1..N qualifying Plots
-+ applicable Voting Rule
-→ 0..N Voting Rights
++ применимое правило голосования
+→ 0..N Права голоса
 ```
 
-При действующем фактическом правиле «1 участок = 1 голос» один Subject может быть реализатором нескольких Voting Rights — по одному на каждый qualifying Plot.
+При действующем фактическом правиле «1 участок = 1 голос» один субъект может быть реализатором нескольких Права голоса — по одному на каждый qualifying Plot.
 
-Это уже поддерживается ADR-001 и не требует дублирования Membership или User Account.
+Это уже поддерживается ADR-001 и не требует дублирования Membership или Учётная запись пользователя.
 
 Одновременно устав формулирует «каждый член имеет один голос», а Закон України «Про кооперацію», если применим к пилотному СТ, закрепляет принцип «один член кооператива = один голос». Поэтому несколько заявлений одного физического лица **не считаются Community OS достаточным доказательством нескольких юридически самостоятельных Membership**.
 
-До legally significant production use нужно проверить legal profile пилотного СТ и определить, является ли фактическая практика «множественного членства» юридически допустимым основанием нескольких голосов либо Voting Rule должен быть скорректирован.
+До legally significant production use нужно проверить правовой профиль пилотного СТ и определить, является ли фактическая практика «множественного членства» юридически допустимым основанием нескольких голосов либо Правило голосования должен быть скорректирован.
 
-Подробный stress-test зафиксирован в:
+Подробный проверка на сложных сценариях зафиксирован в:
 
 `STAGE-11B-PILOT-MEMBERSHIP-PLOT-VOTING-STRESS-TEST.md`.
 
-## 9. Минимальные evidence requirements
+## 9. Минимальные подтверждение requirements
 
 Для подписанного дистанционного волеизъявления должны быть исторически объяснимы, где применимо:
 
-- Governance Procedure / Question / Voting;
-- конкретное Voting Right;
-- right implementer / acting Subject;
-- representation basis if applicable;
-- Vote position;
-- exact signed electronic payload or Document Representation;
-- signature/provider evidence;
-- validation result;
+- Governance Procedure / вопрос / голосование;
+- конкретное Право голоса;
+- right implementer / acting субъект;
+- представление основание if applicable;
+- голос позиция;
+- exact signed электронный payload or документ представление;
+- signature/provider подтверждение;
+- validation результат;
 - signature class required vs actually validated;
 - submission/effective time;
-- applicable Voting Rule version;
-- link to counting/result calculation.
+- применимое правило голосования версия;
+- link to counting/result расчёт.
 
-Точный технический формат определяется после Stage 11A.
+Точный технический формат определяется после этап 11А.
 
 ## 10. Международный/зарубежный участник
 
 Нахождение владельца участка за пределами Украины не должно само по себе исключать его из дистанционного сценария.
 
-Архитектура должна позволять использовать допустимый remote signing mechanism и evidence provider, если он принимается applicable policy и может быть validated.
+Архитектура должна позволять использовать допустимый дистанционный подписание mechanism и подтверждение внешняя служба, если он принимается applicable policy и может быть validated.
 
-Конкретные правила признания иностранного/европейского electronic signature относятся к signing/legal profile, а не к Voting identity.
+Конкретные правила признания иностранного/европейского электронный signature относятся к signing/legal profile, а не к голосование identity.
 
-## 11. Что остаётся открытым до Stage 11B design
+## 11. Что остаётся открытым до этап 11Б design
 
 Нужно отдельно решить:
 
-- является ли remote signed Vote частью собрания или отдельным письменным/заочным опросом для конкретного profile;
+- является ли дистанционный signed голос частью собрания или отдельным письменным/заочным опросом для конкретного profile;
 - synchronous vs asynchronous deadlines;
 - quorum/presence semantics;
-- может ли signed ballot быть изменён/отозван;
+- может ли signed бюллетень быть изменён/отозван;
 - какая подача считается effective при нескольких submissions;
-- когда фиксируется snapshot прав;
-- требуется ли отдельный electronic voting sheet Document;
+- когда фиксируется снимок состояния прав;
+- требуется ли отдельный электронный голосование sheet документ;
 - какие signatures допустимы;
-- как подтверждается representation;
+- как подтверждается представление;
 - что должно войти в протокол;
 - какие current-law требования применимы именно к пилотному СТ.
 
 ## 12. Решение по этапам
 
 ```text
-Stage 11A
-→ electronic Document Signing semantics
-→ evidence / validation / recognition
+этап 11А
+→ электронный Подписание документа semantics
+→ подтверждение / validation / признание
 
-Stage 11B
-→ remote participation
-→ electronic Vote semantics
-→ link to Signing where required
-→ pilot ST legal/governance profile
+этап 11Б
+→ дистанционный участие
+→ электронный голос semantics
+→ link to подписание where required
+→ первое внедрение ST legal/governance profile
 ```
 
-Stage 11B является обязательным для первого пилота и не считается «будущей опцией».
+этап 11Б является обязательным для первого пилота и не считается «будущей опцией».

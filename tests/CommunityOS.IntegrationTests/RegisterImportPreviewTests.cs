@@ -37,4 +37,24 @@ public class RegisterImportPreviewTests
         });
         Assert.False(RegisterImportPreview.Create([], []).CanProceed);
     }
+
+    [Fact]
+    public void Preview_Leaves_Legacy_Owner_Presentations_Unresolved()
+    {
+        var preview = RegisterImportPreview.Create(
+            [new(2, "1", "", "Same name", "0001", true),
+             new(3, "2A", "", "Same name", "0002", true),
+             new(4, "3", "", "Current (former owner)", "0003", true)], []);
+
+        Assert.False(preview.CanProceed);
+        Assert.All(preview.Candidates, candidate =>
+        {
+            Assert.Equal("requires-decision", candidate.OwnerAction);
+            Assert.Equal("blocked", candidate.OwnershipAction);
+        });
+        Assert.Contains("owner-name-repeated-in-workbook", preview.Candidates[0].Issues);
+        Assert.DoesNotContain("owner-name-repeated-in-workbook", preview.Candidates[2].Issues);
+        Assert.Equal("0001", preview.Candidates[0].AccountNumber);
+    }
+
 }

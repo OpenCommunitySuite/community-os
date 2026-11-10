@@ -1,6 +1,6 @@
 namespace CommunityOS.Modules.Community.Application.Register;
 
-public sealed record RegisterImportRow(int Row, string PlotNumber, string OwnerKey, string OwnerName, string AccountNumber);
+public sealed record RegisterImportRow(int Row, string PlotNumber, string OwnerKey, string OwnerName, string AccountNumber, bool RequiresOwnerReview = false);
 
 public sealed record RegisterImportCandidate(int Row, string PlotNumber, string OwnerKey, string OwnerName, string AccountNumber,
     string PlotAction, string OwnerAction, string OwnershipAction, string AccountAction, string AccountLinkAction,
@@ -20,6 +20,8 @@ public sealed record RegisterImportPreview(bool CanProceed, IReadOnlyList<Regist
             .Select(group => group.Key).ToHashSet(StringComparer.Ordinal);
         var firstOwnerRows = rows.GroupBy(row => row.OwnerKey, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First().Row, StringComparer.Ordinal);
+        var repeatedNames = Duplicates(rows.Where(row => row.RequiresOwnerReview)
+            .Select(row => row.OwnerName));
         var candidates = new List<RegisterImportCandidate>(rows.Count);
 
         foreach (var row in rows)
@@ -28,7 +30,17 @@ public sealed record RegisterImportPreview(bool CanProceed, IReadOnlyList<Regist
             var plotAction = NumberAction(row.PlotNumber, duplicatePlots, occupiedPlots, "plot", issues);
             var accountAction = NumberAction(row.AccountNumber, duplicateAccounts, occupiedAccounts, "account", issues);
             var ownerAction = firstOwnerRows[row.OwnerKey] == row.Row ? "create" : "reuse-batch-owner";
-            if (row.OwnerKey.Length == 0 || row.OwnerName.Length == 0)
+            if (row.RequiresOwnerReview && row.OwnerName.Length > 0)
+            {
+                issues.Add("owner-presentation-requires-review");
+                if (repeatedNames.Contains(row.OwnerName))
+                {
+                    issues.Add("owner-name-repeated-in-workbook");
+                }
+
+                ownerAction = "requires-decision";
+            }
+            else if (row.OwnerKey.Length == 0 || row.OwnerName.Length == 0)
             {
                 issues.Add("owner-key-and-name-required");
                 ownerAction = "rejected";

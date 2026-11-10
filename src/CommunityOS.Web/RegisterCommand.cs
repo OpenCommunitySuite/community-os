@@ -37,7 +37,9 @@ internal static class RegisterCommand
                     Console.Error.WriteLine("Ownership was not corrected. Refresh the register and check the plot and owner.");
                     return 1;
                 case ["preview-import", var file]:
-                    var rows = RegisterCsv.Read(file);
+                    var rows = Path.GetExtension(file).Equals(".xlsx", StringComparison.OrdinalIgnoreCase)
+                        ? OsbbxOwnersWorkbook.Read(file)
+                        : RegisterCsv.Read(file);
                     var current = await register.ListAsync(communityId, default);
                     var preview = RegisterImportPreview.Create(rows, current);
                     Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(preview));
@@ -47,7 +49,7 @@ internal static class RegisterCommand
                     Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(entries));
                     return 0;
                 default:
-                    Console.Error.WriteLine("register add-new <name> <plot> <account> | add-existing <owner-id> <plot> <account> | correct-owner <plot-id> <revision> <owner-id> <reason> | preview-import <file.csv> | list");
+                    Console.Error.WriteLine("register add-new <name> <plot> <account> | add-existing <owner-id> <plot> <account> | correct-owner <plot-id> <revision> <owner-id> <reason> | preview-import <file.csv|file.xlsx> | list");
                     return 2;
             }
         }
@@ -63,6 +65,13 @@ internal static class RegisterCommand
             Console.Error.WriteLine($"Malformed CSV at line {exception.LineNumber}.");
             return 2;
         }
+        catch (Exception exception) when (exception is InvalidDataException or System.Xml.XmlException)
+        {
+            Console.Error.WriteLine(exception is System.Xml.XmlException xml
+                ? $"Invalid XLSX XML at line {xml.LineNumber}, position {xml.LinePosition}."
+                : "The XLSX workbook is invalid.");
+            return 2;
+        }
         catch (FormatException exception)
         {
             Console.Error.WriteLine(exception.Message);
@@ -70,7 +79,7 @@ internal static class RegisterCommand
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Text.DecoderFallbackException)
         {
-            Console.Error.WriteLine("The CSV could not be read as UTF-8.");
+            Console.Error.WriteLine("The import file could not be read.");
             return 2;
         }
         catch (ArgumentException exception)

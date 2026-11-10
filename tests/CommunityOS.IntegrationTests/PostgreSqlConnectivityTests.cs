@@ -221,7 +221,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
     {
         var token = TestContext.Current.CancellationToken;
         await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
-        foreach (var file in new[] { "001_community_reservation.sql", "002_bootstrap_administrator.sql" })
+        foreach (var file in new[] { "001_community_reservation.sql", "002_bootstrap_administrator.sql", "003_bootstrap_security_event.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -253,5 +253,26 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         await using var revokedBy = source.CreateCommand(
             "SELECT revoked_by_account_id FROM platform_provisioning.bootstrap_administrator");
         Assert.Equal(revoker, await revokedBy.ExecuteScalarAsync(token));
+        await using var audit = source.CreateCommand("""
+            SELECT event_kind, operation_id, community_id, administrator_account_id, initiating_account_id, recorded_at
+            FROM platform_provisioning.bootstrap_security_event
+            ORDER BY event_kind;
+            """);
+        await using var reader = await audit.ExecuteReaderAsync(token);
+        Assert.True(await reader.ReadAsync(token));
+        Assert.Equal("granted", reader.GetString(0));
+        Assert.Equal(reservation.OperationId, reader.GetGuid(1));
+        Assert.Equal(reservation.CommunityId, reader.GetGuid(2));
+        Assert.Equal(administrator, reader.GetGuid(3));
+        Assert.Equal(reservation.CreatorAccountId, reader.GetGuid(4));
+        Assert.Equal(granted.GrantedAtUtc, reader.GetDateTime(5));
+        Assert.True(await reader.ReadAsync(token));
+        Assert.Equal("revoked", reader.GetString(0));
+        Assert.Equal(reservation.OperationId, reader.GetGuid(1));
+        Assert.Equal(reservation.CommunityId, reader.GetGuid(2));
+        Assert.Equal(administrator, reader.GetGuid(3));
+        Assert.Equal(revoker, reader.GetGuid(4));
+        Assert.Equal(replay.RevokedAtUtc, reader.GetDateTime(5));
+        Assert.False(await reader.ReadAsync(token));
     }
 }

@@ -10,11 +10,20 @@ public sealed class PostgresBootstrapAdministratorStore(NpgsqlDataSource dataSou
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         await using var insert = new NpgsqlCommand("""
-            INSERT INTO platform_provisioning.bootstrap_administrator (operation_id)
-            SELECT operation_id
-            FROM platform_provisioning.community_reservation
-            WHERE operation_id = @operation
-            ON CONFLICT (operation_id) DO NOTHING;
+            WITH granted AS (
+                INSERT INTO platform_provisioning.bootstrap_administrator (operation_id)
+                SELECT operation_id
+                FROM platform_provisioning.community_reservation
+                WHERE operation_id = @operation
+                ON CONFLICT (operation_id) DO NOTHING
+                RETURNING operation_id, granted_at
+            )
+            INSERT INTO platform_provisioning.bootstrap_security_event
+                (operation_id, event_kind, community_id, administrator_account_id, initiating_account_id, recorded_at)
+            SELECT g.operation_id, 'granted', r.community_id, r.initial_administrator_account_id,
+                r.creator_account_id, g.granted_at
+            FROM granted g
+            JOIN platform_provisioning.community_reservation r USING (operation_id);
             """, connection, transaction);
         insert.Parameters.AddWithValue("operation", operationId);
         await insert.ExecuteNonQueryAsync(cancellationToken);
@@ -43,11 +52,18 @@ public sealed class PostgresBootstrapAdministratorStore(NpgsqlDataSource dataSou
         CancellationToken cancellationToken)
     {
         await using var command = dataSource.CreateCommand("""
-            UPDATE platform_provisioning.bootstrap_administrator a
-            SET revoked_at = clock_timestamp(), revoked_by_account_id = @revoker
-            FROM platform_provisioning.community_reservation r
-            WHERE a.operation_id = r.operation_id AND a.operation_id = @operation
-                AND r.community_id = @community AND a.revoked_at IS NULL;
+            WITH revoked AS (
+                UPDATE platform_provisioning.bootstrap_administrator a
+                SET revoked_at = clock_timestamp(), revoked_by_account_id = @revoker
+                FROM platform_provisioning.community_reservation r
+                WHERE a.operation_id = r.operation_id AND a.operation_id = @operation
+                    AND r.community_id = @community AND a.revoked_at IS NULL
+                RETURNING a.operation_id, r.community_id, r.initial_administrator_account_id, a.revoked_at
+            )
+            INSERT INTO platform_provisioning.bootstrap_security_event
+                (operation_id, event_kind, community_id, administrator_account_id, initiating_account_id, recorded_at)
+            SELECT operation_id, 'revoked', community_id, initial_administrator_account_id, @revoker, revoked_at
+            FROM revoked;
             """);
         command.Parameters.AddWithValue("community", communityId);
         command.Parameters.AddWithValue("operation", operationId);

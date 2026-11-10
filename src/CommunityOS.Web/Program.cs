@@ -18,6 +18,7 @@ builder.Services.AddHealthChecks()
     .AddCheck("ready", () => HealthCheckResult.Healthy(), tags: ["ready"]);
 
 var app = builder.Build();
+app.MapBootstrapRehearsal();
 
 app.MapHealthChecks("/health/startup", new HealthCheckOptions
 {

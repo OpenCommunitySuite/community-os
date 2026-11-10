@@ -70,4 +70,42 @@ public sealed class PostgresBootstrapAdministratorStore(NpgsqlDataSource dataSou
         command.Parameters.AddWithValue("revoker", revokerAccountId);
         return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
+
+    public async Task<bool> IsAssignedAsync(Guid communityId, Guid accountId, CancellationToken cancellationToken)
+    {
+        await using var command = dataSource.CreateCommand("""
+            SELECT EXISTS (
+                SELECT 1 FROM platform_provisioning.bootstrap_administrator a
+                JOIN platform_provisioning.community_reservation r USING (operation_id)
+                WHERE r.community_id = @community AND r.initial_administrator_account_id = @account
+                    AND a.revoked_at IS NULL
+            );
+            """);
+        command.Parameters.AddWithValue("community", communityId);
+        command.Parameters.AddWithValue("account", accountId);
+        return (bool)(await command.ExecuteScalarAsync(cancellationToken))!;
+    }
+
+    public async Task<BootstrapSecurityEvent[]> ReadEventsAsync(Guid communityId, CancellationToken cancellationToken)
+    {
+        await using var command = dataSource.CreateCommand("""
+            SELECT operation_id, event_kind, administrator_account_id, initiating_account_id, recorded_at
+            FROM platform_provisioning.bootstrap_security_event
+            WHERE community_id = @community
+            ORDER BY recorded_at, operation_id, event_kind;
+            """);
+        command.Parameters.AddWithValue("community", communityId);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var events = new List<BootstrapSecurityEvent>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            events.Add(new(reader.GetGuid(0), reader.GetString(1), reader.GetGuid(2), reader.GetGuid(3),
+                reader.GetDateTime(4)));
+        }
+
+        return events.ToArray();
+    }
 }
+
+public sealed record BootstrapSecurityEvent(Guid OperationId, string Kind, Guid AdministratorAccountId,
+    Guid InitiatingAccountId, DateTime RecordedAtUtc);

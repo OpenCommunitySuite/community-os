@@ -474,7 +474,8 @@
       "communityos.web": {
         "type": "Project",
         "dependencies": {
-          "CommunityOS.Modules.Community": "[1.0.0, )"
+          "CommunityOS.Modules.Community": "[1.0.0, )",
+          "CommunityOS.Modules.Platform": "[1.0.0, )"
         }
       },
       "communityos.worker": {

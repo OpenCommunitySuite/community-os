@@ -245,7 +245,11 @@ MQTT deferred; Resource Accounting работает без него. Future flow
 
 ## 15. Readiness to implement
 
-Implementation Baseline decisions Q1–Q12 и bootstrap decisions B1–B4 are accepted. Application implementation has not started. Следующий code-producing task — строго ограниченный Application Bootstrap из раздела 16; он фиксирует concrete servicing/package/image pins в repository configuration и создаёт только согласованный skeleton без business functionality.
+Implementation Baseline decisions Q1–Q12 и bootstrap decisions B1–B4 are accepted. На момент первоначального утверждения baseline следующий code-producing task был строго ограниченным Application Bootstrap из раздела 16; он должен был создать согласованный каркас без бизнес-функциональности.
+
+**Уточнение фактического состояния на 10.11.2026 (не изменение принятых технических решений):** в репозитории уже присутствуют Web/Worker hosts, Community Module, файлы закрепления зависимостей и architecture/integration tests; полноту реализации и успешность сборки и PostgreSQL smoke test требуется проверить отдельной воспроизводимой задачей. Следующая продуктовая цель — финансово-ресурсный контур первого пилота по [PILOT_FINANCE_FIRST_ROADMAP.md](PILOT_FINANCE_FIRST_ROADMAP.md), а не создание второго bootstrap.
+
+Принятая в разделе 13 последовательность **внешних интеграций** не требует их реализации раньше внутренних финансовых процессов: первоначальные ввод данных, банковские выписки, начисления и платежи должны работать без Telegram, API ПриватБанка, BAS или MQTT. Изменение этих технологических договорённостей по существу требует отдельного согласования.
 
 ## 16. Accepted bootstrap decisions B1–B4
 

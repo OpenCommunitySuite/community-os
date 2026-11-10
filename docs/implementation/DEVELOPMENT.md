@@ -63,3 +63,6 @@ Secrets, production credentials и real personal data запрещены в test
 ## 7. Первый implementation increment
 
 Первый code-producing increment — ограниченный **Application Bootstrap** согласно [B4](IMPLEMENTATION_BASELINE.md#b4-первый-application-bootstrap), не business vertical slice. Он создаёт только согласованные hosts, Community Functional Module и architecture/integration test boundaries; business functionality, domain schema и reliable-work engine в него не входят.
+
+**Актуализация на 10.11.2026:** перечисленные компоненты каркаса уже представлены в репозитории, но сборка и PostgreSQL integration smoke test должны быть отдельно подтверждены запуском в подходящем окружении. После этого разработка переходит к небольшим функциональным частям первого финансово-ресурсного внедрения согласно [PILOT_FINANCE_FIRST_ROADMAP.md](PILOT_FINANCE_FIRST_ROADMAP.md); первой предпосылке посвящена [задача I-0](https://github.com/OpenCommunitySuite/community-os/issues/85). Этот порядок не отменяет Documentation First и применимые критерии реализации/тестирования.
+

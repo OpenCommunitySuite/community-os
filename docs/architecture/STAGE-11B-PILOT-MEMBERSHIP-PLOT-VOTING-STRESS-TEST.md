@@ -1,8 +1,8 @@
-# Stage 11B — Pilot stress-test: Membership ↔ Plot ↔ Voting Right
+# Этап 11Б — Проверка первого внедрения: членство, участок и право голоса
 
-**Статус:** Completed architecture stress-test / normative membership clarification incorporated / pilot legal-profile validation remains open / not normative  
+**Статус:** Архитектурная проверка завершена; уточнения о членстве включены в нормативную модель; правовая проверка правил первого внедрения остаётся открытой; этот материал не является нормативным  
 **Пилот:** Садівниче товариство «ЕКСПРЕС»  
-**Связанный этап:** Stage 11B — Remote Participation and Electronic Voting  
+**Связанный этап:** 11Б — Дистанционное участие и электронное голосование  
 **Цель:** проверить, как фактическая практика «1 участок = 1 голос» соотносится с Membership model Community OS и нужен ли новый fundamental concept для повторных заявлений/приёмов одного Subject.
 
 ## 1. Источники и степень достоверности

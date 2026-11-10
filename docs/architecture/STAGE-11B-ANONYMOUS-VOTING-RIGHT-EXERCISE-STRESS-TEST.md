@@ -1,18 +1,18 @@
-# этап 11Б — Проверка на сложных сценариях: анонимность выбора и факт реализации права голоса
+# Stage 11B — Stress-test: анонимность выбора и факт реализации права голоса
 
-**Статус:** Проверка завершена; выводы отражены в принятом BP-GOV-001 и нормативных документах; документ не нормативный  
+**Статус:** Completed stress-test / concept incorporated into accepted BP-GOV-001 and normative synchronization / not normative  
 **Контекст:** Управление и коллективные процедуры  
 **Связанные решения:** ADR-001, ADR-004, ADR-005, ADR-008, ADR-010, ADR-011  
 **Связанные материалы:** `STAGE-11B-MIXED-PAPER-ELECTRONIC-VOTING-STRESS-TEST.md`
 
-## 1. Зачем нужен отдельный проверка на сложных сценариях
+## 1. Зачем нужен отдельный stress-test
 
 Для открытого голосования Community OS может хранить:
 
 ~~~text
-Право голоса
-→ голос
-→ позиция
+Voting Right
+→ Vote
+→ Position
 ~~~
 
 и потому система одновременно знает:
@@ -22,60 +22,60 @@
 - каким способом;
 - какой выбор сделан.
 
-Для анонимное голосование это недопустимо:
+Для Anonymous Voting это недопустимо:
 
 ~~~text
-Право голоса / субъект
-↔ позиция
+Voting Right / Subject
+↔ Position
 ~~~
 
 не должна сохраняться как восстанавливаемая связь.
 
 Но Community OS всё равно должна уметь доказать и проверить:
 
-- что конкретное Право голоса существовало;
+- что конкретное Voting Right существовало;
 - что оно было реализовано;
-- что один и тот же Право голоса не был использован одновременно через интернет и вне системы дважды;
+- что один и тот же Voting Right не был использован одновременно online и offline дважды;
 - кто был фактическим реализатором права, если это необходимо;
 - когда и через какой канал право было реализовано;
 - на каком основании участие признано допустимым;
-- какой документ/evidence подтверждает участие вне системы;
+- какой документ/evidence подтверждает offline participation;
 - как исправить ошибочно отмеченную реализацию.
 
 Поэтому возникает предметный вопрос:
 
-> достаточно ли состояния самого Право голоса либо нужен отдельный исторически значимый факт «Реализация права голоса»?
+> достаточно ли состояния самого Voting Right либо нужен отдельный исторически значимый факт «Реализация права голоса»?
 
-## 2. Почему голос не подходит
+## 2. Почему Vote не подходит
 
-ADR-001 определяет голос как:
+ADR-001 определяет Vote как:
 
 > факт выражения позиции по конкретному праву голоса.
 
 Следовательно:
 
 ~~~text
-голос
-→ Право голоса
-→ позиция
+Vote
+→ Voting Right
+→ Position
 ~~~
 
-Если сохранять такую связь для анонимное голосование, анонимность выбора исчезает.
+Если сохранять такую связь для Anonymous Voting, анонимность выбора исчезает.
 
 Удалять или разрывать связь после подачи также нельзя считать безопасным domain solution:
 
 - историческое действие становится трудно объяснить;
 - correction/reconciliation становятся непрозрачными;
 - можно случайно сохранить linkage в audit/history/read models;
-- предметная identity голос по ADR-001 изначально предполагает конкретное Право голоса.
+- предметная identity Vote по ADR-001 изначально предполагает конкретное Voting Right.
 
 Вывод:
 
-> существующий голос не следует использовать как «обезличенный контейнер» анонимный выбор.
+> существующий Vote не следует использовать как «обезличенный контейнер» anonymous choice.
 
-## 3. Почему одного состояния Право голоса недостаточно
+## 3. Почему одного состояния Voting Right недостаточно
 
-Можно было бы добавить к Право голоса состояние вроде:
+Можно было бы добавить к Voting Right состояние вроде:
 
 ~~~text
 available
@@ -87,18 +87,18 @@ used
 Нужно исторически различать, например:
 
 ~~~text
-right marked as exercised вне системы
+right marked as exercised offline
 → later discovered wrong person / wrong register row
-→ исправление
+→ correction
 → right becomes available again
 
-right exercised через интернет
-→ внешний внешняя служба outcome initially unknown
-→ later признанный
+right exercised online
+→ external provider outcome initially unknown
+→ later recognized
 
-right appears both in через интернет участие
-and certified вне системы выдача register
-→ конфликт рецензирование
+right appears both in online participation
+and certified offline issuance register
+→ conflict review
 ~~~
 
 Простое текущее поле `used=true` не объясняет:
@@ -106,9 +106,9 @@ and certified вне системы выдача register
 - кто и когда зафиксировал реализацию;
 - какой был канал;
 - кто был реализатором;
-- какое подтверждение использовано;
+- какое evidence использовано;
 - почему запись была исправлена;
-- что именно существовало до исправление.
+- что именно существовало до correction.
 
 Это противоречило бы ADR-004, если текущий state заменяет значимую историю.
 
@@ -116,32 +116,32 @@ and certified вне системы выдача register
 
 Предлагается самостоятельный исторически значимый факт:
 
-**Реализация права голоса (Реализация права голоса)** — признанный факт того, что конкретное Право голоса было использовано допустимым реализатором в рамках конкретного голосование, без обязательного хранения позиции выбора.
+**Реализация права голоса (Voting Right Exercise)** — признанный факт того, что конкретное Voting Right было использовано допустимым реализатором в рамках конкретного Voting, без обязательного хранения позиции выбора.
 
 Базовая модель:
 
 ~~~text
-Право голоса
-→ Реализация права голоса
+Voting Right
+→ Voting Right Exercise
 
-Реализация права голоса
-≠ голос
-≠ позиция
+Voting Right Exercise
+≠ Vote
+≠ Position
 ~~~
 
-Для анонимное голосование:
+Для Anonymous Voting:
 
 ~~~text
-субъект / Право голоса
-→ Реализация права голоса
+Subject / Voting Right
+→ Voting Right Exercise
 
                      X
 
-анонимный выбор / подсчёт contribution
-→ канал подсчёт результат
+anonymous choice / counting contribution
+→ channel count result
 ~~~
 
-`X` означает, что Community OS не должна сохранять восстанавливаемую связь между конкретной реализацией права и анонимный позиция.
+`X` означает, что Community OS не должна сохранять восстанавливаемую связь между конкретной реализацией права и anonymous Position.
 
 ## 5. Identity
 
@@ -149,135 +149,135 @@ and certified вне системы выдача register
 
 Identity не должна выводиться только из:
 
-- Учётная запись пользователя;
-- субъект;
-- Право голоса;
+- User Account;
+- Subject;
+- Voting Right;
 - timestamp;
-- канал;
-- строки вне системы register.
+- channel;
+- строки offline register.
 
-Причина — ошибочная запись, повторная доставка или исправление могут относиться к одной historical realization либо создавать новую попытку/признание согласно применимое правило.
+Причина — ошибочная запись, повторная доставка или исправление могут относиться к одной historical realization либо создавать новую попытку/признание согласно applicable rule.
 
 ## 6. Минимальная семантика
 
-Для признанный Реализация права голоса должно быть исторически определимо, где применимо:
+Для recognized Voting Right Exercise должно быть исторически определимо, где применимо:
 
-- голосование;
-- Право голоса;
+- Voting;
+- Voting Right;
 - фактический реализатор;
 - основание допустимости/представительства;
 - канал: online/offline или иной допустимый;
 - момент реализации/получения;
-- момент признание в Community OS;
-- acting Subject/User, который внёс вне системы record;
+- момент recognition в Community OS;
+- acting Subject/User, который внёс offline record;
 - source/evidence;
 - применимая версия правила;
-- исправление или замена history.
+- correction/replacement history.
 
-Position/choice в этот перечень **не входит** для анонимное голосование.
+Position/choice в этот перечень **не входит** для Anonymous Voting.
 
-## 7. открытое голосование
+## 7. Open Voting
 
-Для открытое голосование отдельный Реализация права голоса не обязан создаваться как дублирующая запись для каждого голос.
+Для Open Voting отдельный Voting Right Exercise не обязан создаваться как дублирующая запись для каждого Vote.
 
-признанный голос уже показывает:
+Recognized Vote уже показывает:
 
 ~~~text
-Право голоса
-→ realized by голос
-→ позиция
+Voting Right
+→ realized by Vote
+→ Position
 ~~~
 
 Поэтому возможна модель:
 
-- открытое голосование: голос является достаточным предметным доказательством реализации права;
-- анонимное голосование: используется отдельный Реализация права голоса без связи с позиция.
+- Open Voting: Vote является достаточным предметным доказательством реализации права;
+- Anonymous Voting: используется отдельный Voting Right Exercise без связи с Position.
 
-Это не делает Реализация права голоса «типом голос».
+Это не делает Voting Right Exercise «типом Vote».
 
-## 8. анонимный вне системы голосование
+## 8. Anonymous offline Voting
 
-Для анонимный вне системы части:
+Для anonymous offline части:
 
 ~~~text
 certified issuance/participation register
-→ operator признание
-→ 0..N Право голоса Exercises
+→ operator recognition
+→ 0..N Voting Right Exercises
 
 separately:
 
-commission counts анонимный бюллетени
-→ Результат подсчёта вне системы
+commission counts anonymous ballots
+→ Result of Offline Count
 ~~~
 
 Связь:
 
 ~~~text
-Право голоса Exercises
-↔ participation/count/quorum входные данные where applicable
+Voting Right Exercises
+↔ participation/count/quorum inputs where applicable
 
-Результат подсчёта вне системы
-↔ выбор totals
+Result of Offline Count
+↔ choice totals
 ~~~
 
 Но запрещена связь:
 
 ~~~text
-Реализация права голоса #123
-→ particular анонимный ballot/Position
+Voting Right Exercise #123
+→ particular anonymous ballot/Position
 ~~~
 
-## 9. анонимный через интернет голосование
+## 9. Anonymous online Voting
 
-Для анонимное электронное голосование средствами самой Community OS Community OS должна иметь возможность:
+Для native online Anonymous Voting Community OS должна иметь возможность:
 
 ~~~text
-Право голоса
+Voting Right
 → prove eligibility
-→ recognize right реализация права
-→ prevent second реализация права
+→ recognize right exercise
+→ prevent second exercise
 
 separately:
 
-анонимный подача
-→ анонимный подсчёт input/result
+anonymous submission
+→ anonymous counting input/result
 ~~~
 
-Технический способ разрыва identity/choice linkage — одноразовый credential, blind signature, cryptographic mix, внешний anonymous-voting внешняя служба либо иной механизм — **не определяется настоящим проверка на сложных сценариях**.
+Технический способ разрыва identity/choice linkage — одноразовый credential, blind signature, cryptographic mix, external anonymous-voting provider либо иной механизм — **не определяется настоящим stress-test**.
 
 Domain requirement только такой:
 
-> признание факта реализации права не должно создавать восстанавливаемую Subject/Voting Right → позиция связь.
+> recognition факта реализации права не должно создавать восстанавливаемую Subject/Voting Right → Position связь.
 
-## 10. Mixed анонимное голосование и защита от двойного участия
+## 10. Mixed anonymous Voting и защита от двойного участия
 
-Именно отдельный Реализация права голоса позволяет проверить mixed online/offline участие без раскрытия выбора.
+Именно отдельный Voting Right Exercise позволяет проверить mixed online/offline participation без раскрытия выбора.
 
 Пример:
 
 ~~~text
 VR-15
-→ через интернет реализация права already признанный
+→ online exercise already recognized
 
-вне системы выдача register
+offline issuance register
 → also contains VR-15
 ~~~
 
-Community OS может выявить конфликт:
+Community OS может выявить conflict:
 
 ~~~text
-same Право голоса
+same Voting Right
 → two claimed exercises
 → conflict/review
 ~~~
 
-не зная, какой выбор был сделан через интернет или на бумаге.
+не зная, какой choice был сделан online или на бумаге.
 
-применимое правило голосования должна определить последствия:
+Applicable Voting Rule должна определить последствия:
 
-- reject later реализация права;
-- require manual рецензирование;
-- recognize one источник as authoritative;
+- reject later exercise;
+- require manual review;
+- recognize one source as authoritative;
 - исправить ошибочную запись;
 - иной legal/profile-specific outcome.
 
@@ -285,71 +285,71 @@ Universal «последний всегда побеждает» не вводи
 
 ## 11. Представитель
 
-Если Право голоса реализовано представителем:
+Если Voting Right реализовано представителем:
 
 ~~~text
-Право голоса owner/basis
-≠ actual exercising субъект
+Voting Right owner/basis
+≠ actual exercising Subject
 ~~~
 
-Реализация права голоса может исторически хранить:
+Voting Right Exercise может исторически хранить:
 
-- actual exercising субъект;
-- Representation/Domain Power основание;
+- actual exercising Subject;
+- Representation/Domain Power basis;
 - applicable time;
 - source/evidence.
 
-При анонимное голосование это не раскрывает позиция: сохраняется только факт, кто допустимо реализовал право.
+При Anonymous Voting это не раскрывает Position: сохраняется только факт, кто допустимо реализовал право.
 
-## 12. Несколько Права голоса одного субъект
+## 12. Несколько Voting Rights одного Subject
 
-Один субъект может реализовать несколько Права голоса.
+Один Subject может реализовать несколько Voting Rights.
 
 Например:
 
 ~~~text
-субъект A
-→ VR-15 → реализация права E15
-→ VR-27 → реализация права E27
-→ VR-83 → реализация права E83
+Subject A
+→ VR-15 → Exercise E15
+→ VR-27 → Exercise E27
+→ VR-83 → Exercise E83
 ~~~
 
-Для анонимное голосование эти факты показывают количество использованных прав, но не содержат choices.
+Для Anonymous Voting эти факты показывают количество использованных прав, но не содержат choices.
 
-## 13. исправление
+## 13. Correction
 
-Ошибочно признанный реализация права не удаляется молча.
+Ошибочно recognized exercise не удаляется молча.
 
 Пример:
 
 ~~~text
 E17:
-VR-27 marked exercised вне системы
+VR-27 marked exercised offline
 
 later:
-register row mapped to wrong Право голоса
+register row mapped to wrong Voting Right
 
 → explicit correction/review
 → E17 remains historical
-→ действующая признанная реализация права state corrected
+→ effective realization state corrected
 ~~~
 
-Не вводится universal `Реализация права голоса исправление` entity автоматически; достаточно ADR-004-compatible исправление semantics, пока отдельный жизненный цикл исправление не доказан.
+Не вводится universal `Voting Right Exercise Correction` entity автоматически; достаточно ADR-004-compatible correction semantics, пока отдельный lifecycle correction не доказан.
 
-## 14. Rejected участие подтверждение
+## 14. Rejected participation evidence
 
-Если строка реестра/online eligibility подтверждение не подтверждает допустимую реализацию права:
+Если строка реестра/online eligibility evidence не подтверждает допустимую реализацию права:
 
 ~~~text
-полученный подтверждение
-≠ Реализация права голоса
+received evidence
+≠ Voting Right Exercise
 ~~~
 
-Rejected/unrecognized подтверждение может сохраняться с provenance по ADR-011, если это предметно значимо.
+Rejected/unrecognized evidence может сохраняться с provenance по ADR-011, если это предметно значимо.
 
-## 15. Quorum / участие
+## 15. Quorum / participation
 
-Реализация права голоса может быть входом расчёта кворума **только если применимое правило так определяет**.
+Voting Right Exercise может быть входом расчёта кворума **только если applicable rule так определяет**.
 
 Нельзя универсально считать:
 
@@ -360,185 +360,185 @@ number of exercises
 
 ADR-008 сохраняется: quorum может определяться по другому составу/уровню/правилу.
 
-## 16. Результат подсчёта вне системы
+## 16. Result of Offline Count
 
 Принятое ранее решение сохраняется:
 
-**Результат подсчёта офлайн-части** — самостоятельный исторически значимый факт в области управления.
+**Результат подсчёта офлайн-части** — самостоятельный исторически значимый Governance fact.
 
-Он отличается от Реализация права голоса:
+Он отличается от Voting Right Exercise:
 
 ~~~text
-Реализация права голоса
+Voting Right Exercise
 → кто/какое право участвовало
 
-Результат подсчёта вне системы
-→ сколько анонимный бюллетени дали каждую позиция
+Result of Offline Count
+→ сколько anonymous ballots дали каждую Position
 ~~~
 
-И отличается от общего расчёт:
+И отличается от общего Calculation:
 
 ~~~text
-Результат подсчёта вне системы
-≠ расчёт
-≠ Установленный результат
+Result of Offline Count
+≠ Calculation
+≠ Established Result
 ~~~
 
-## 17. Почему не достаточно «участие»
+## 17. Почему не достаточно «Participation»
 
-Существующее `Право участия` ADR-001 — это **право**, а не исторический факт его фактической реализации.
+Существующее `Participation Right` ADR-001 — это **право**, а не исторический факт его фактической реализации.
 
 ADR-008 также сознательно не вводит universal «участника процедуры».
 
-Поэтому использовать `Право участия` вместо Реализация права голоса означало бы смешать:
+Поэтому использовать `Participation Right` вместо Voting Right Exercise означало бы смешать:
 
 ~~~text
 entitlement
-≠ actual реализация права
+≠ actual exercise
 ~~~
 
-## 18. фундаментальная сущность check
+## 18. Fundamental entity check
 
-Для анонимное голосование самостоятельная identity факта реализации права **обоснована и принята для этап 11Б**.
+Для Anonymous Voting самостоятельная identity факта реализации права **обоснована и принята для Stage 11B**.
 
 Причины:
 
-1. факт существует независимо от позиция;
+1. факт существует независимо от Position;
 2. нужен для double-use/conflict detection;
-3. имеет собственное время и канал provenance;
+3. имеет собственное время и channel provenance;
 4. имеет actor/representation/admissibility semantics;
-5. может быть исправлен независимо от анонимный подсчёт результат;
+5. может быть исправлен независимо от anonymous count result;
 6. используется как доказательство участия;
-7. может быть входом quorum/participation расчёт according to правило;
-8. не может быть корректно выражен существующим голос без разрушения анонимный boundary.
+7. может быть входом quorum/participation calculation according to rule;
+8. не может быть корректно выражен существующим Vote без разрушения anonymous boundary.
 
 Принятое решение:
 
-> `Реализация права голоса / Реализация права голоса` является новым имеющий собственную предметную идентичность Governance concept этап 11Б.
+> `Voting Right Exercise / Реализация права голоса` является новым identity-bearing Governance concept Stage 11B.
 
-Это **не новый предметный контекст**.
+Это **не новый bounded context**.
 
 ## 19. Нормативные последствия
 
-После принятия решения этап 11Б BP должен предложить минимальную sync:
+После принятия решения Stage 11B BP должен предложить минимальную sync:
 
 ### ADR-001
 
 Уточнить, что:
 
-- Право голоса может иметь 0..N historical реализация права records where procedure requires separate realization tracking;
-- голос остаётся position-bearing факт and не используется как анонимный участие placeholder;
-- один effective реализация права per Право голоса / конфликт semantics определяются применимое правило.
+- Voting Right может иметь 0..N historical exercise records where procedure requires separate realization tracking;
+- Vote остаётся position-bearing fact and не используется как anonymous participation placeholder;
+- один effective exercise per Voting Right / conflict semantics определяются applicable rule.
 
 ### ADR-008
 
 Уточнить, что:
 
-- анонимный procedure может разделять right реализация права и анонимный choice/counting contribution;
-- расчёт может использовать Право голоса Exercises для participation/quorum where applicable и подсчёт results для positions;
-- mixed канал конфликт разрешается без раскрытия выбор.
+- anonymous procedure может разделять right exercise и anonymous choice/counting contribution;
+- Calculation может использовать Voting Right Exercises для participation/quorum where applicable и count results для positions;
+- mixed channel conflict разрешается без раскрытия choice.
 
 ### DOMAIN_MODEL / TERMINOLOGY
 
-Добавить `Реализация права голоса` только после review/adjudication этап 11Б.
+Добавить `Реализация права голоса` только после review/adjudication Stage 11B.
 
 ## 20. Проверочные сценарии
 
-### 20.1. открытый через интернет
+### 20.1. Open online
 
 ~~~text
-VR1 → голос V1("За")
+VR1 → Vote V1("За")
 ~~~
 
-Отдельный реализация права не требуется как обязательная дублирующая запись.
+Отдельный Exercise не требуется как обязательная дублирующая запись.
 
-### 20.2. анонимный через интернет
+### 20.2. Anonymous online
 
 ~~~text
-VR1 → реализация права E1
+VR1 → Exercise E1
 
-анонимный выбор
+anonymous choice
 → no VR1 link
 ~~~
 
-### 20.3. анонимный вне системы
+### 20.3. Anonymous offline
 
 ~~~text
-VR1 → реализация права E1
-VR2 → реализация права E2
-VR3 → реализация права E3
+VR1 → Exercise E1
+VR2 → Exercise E2
+VR3 → Exercise E3
 
-commission результат:
+commission result:
 За 2
 Против 1
-→ Результат подсчёта вне системы C1
+→ Result of Offline Count C1
 ~~~
 
-Связь E1/E2/E3 с конкретными позиция отсутствует.
+Связь E1/E2/E3 с конкретными Position отсутствует.
 
-### 20.4. Same right через интернет + вне системы
+### 20.4. Same right online + offline
 
 ~~~text
 VR1 → E-online
 VR1 → claimed E-offline
-→ конфликт
+→ conflict
 ~~~
 
-позиция disclosure не требуется для обнаружения конфликта.
+Position disclosure не требуется для обнаружения конфликта.
 
 ### 20.5. Representative
 
 ~~~text
 VR1
-→ реализация права by субъект B
-→ представление основание R
+→ Exercise by Subject B
+→ Representation basis R
 ~~~
 
-Owner/right основание и exercising субъект различаются.
+Owner/right basis и exercising Subject различаются.
 
 ### 20.6. Wrong register mapping
 
 ~~~text
 register row mapped to VR2
-→ E2 признанный
+→ E2 recognized
 → error found
-→ explicit исправление
+→ explicit correction
 ~~~
 
 Historical record не удаляется silently.
 
 ## 21. Итог
 
-Существующая модель `Право голоса → голос → позиция` достаточна для открытое голосование, но **недостаточна для анонимное голосование**, если Community OS должна одновременно:
+Существующая модель `Voting Right → Vote → Position` достаточна для Open Voting, но **недостаточна для Anonymous Voting**, если Community OS должна одновременно:
 
 - знать, что право реализовано;
-- предотвращать double use в mixed online/offline режим;
+- предотвращать double use в mixed online/offline mode;
 - сохранять доказательство участия;
-- не хранить связь права/Subject с позиция.
+- не хранить связь права/Subject с Position.
 
-принято BP-GOV-001 использует два независимых понятия:
+Accepted BP-GOV-001 использует два независимых понятия:
 
 ~~~text
-Реализация права голоса
-→ факт of participation/right use
+Voting Right Exercise
+→ fact of participation/right use
 
-голос / анонимный подсчёт contribution
-→ выбор semantics
+Vote / anonymous counting contribution
+→ choice semantics
 ~~~
 
-Для анонимный вне системы канал choice-level источник остаётся внешним, а Community OS принимает самостоятельный `Результат подсчёта вне системы`.
+Для anonymous offline channel choice-level source остаётся внешним, а Community OS принимает самостоятельный `Result of Offline Count`.
 
 ## 22. Решение владельца проекта
 
-`Реализация права голоса / Реализация права голоса` **принята** как самостоятельный имеющий собственную предметную идентичность Governance concept этап 11Б.
+`Voting Right Exercise / Реализация права голоса` **принята** как самостоятельный identity-bearing Governance concept Stage 11B.
 
-Результат после этап 11Б consolidation:
+Результат после Stage 11B consolidation:
 
 ~~~text
-BP-GOV-001 принято
-→ Реализация права голоса retained as самостоятельный исторически значимый факт в области управления
-→ Результат подсчёта вне системы retained as independent анонимный подсчёт вне системы факт
-→ independent multi-review завершено
-→ согласование нормативных документов ADR-001 / ADR-008 / DOMAIN_MODEL / TERMINOLOGY performed
-→ анонимное электронное голосование средствами самой Community OS deferred as задача дальнейшего проектирования
+BP-GOV-001 accepted
+→ Voting Right Exercise retained as identity-bearing Governance fact
+→ Result of Offline Count retained as independent anonymous offline count fact
+→ independent multi-review completed
+→ normative sync ADR-001 / ADR-008 / DOMAIN_MODEL / TERMINOLOGY performed
+→ native online Anonymous deferred as Future Design Task
 ~~~

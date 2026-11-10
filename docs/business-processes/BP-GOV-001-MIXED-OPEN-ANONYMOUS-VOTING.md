@@ -1248,188 +1248,188 @@ ADR-010 сохраняется.
 24. Расчёт не тождественен установленному результату.
 25. Установленный результат не тождественен управленческому решению.
 26. Полученные внешние сведения не становятся признанным предметным фактом автоматически.
-27. Cryptographic validity ≠ domain admissibility.
-28. User Account/access ≠ Voting Right.
-29. Representation does not create a new Voting Right.
-30. Registry changes do not silently rewrite snapshot.
-31. Corrections do not silently rewrite historical facts.
-32. Ballot issuance/receipt ≠ Voting Right Exercise automatically.
-33. One Result of Offline Count belongs to one Voting/Question.
-34. One protocol Document may evidence several question-local Results of Offline Count.
-35. Multiple historical Exercise records/claims do not imply multiple simultaneously effective realizations.
-36. Participation mode and carrier/formalization mode are not one universal Channel taxonomy.
-37. Native online Anonymous Voting is outside first normative / first-pilot scope.
-38. UI-hidden Position with retained Subject/Voting Right→Position linkage is not Anonymous Voting.
-39. Issuance/receipt creates Exercise only when applicable Voting Rule explicitly declares it a right-consumption event.
-40. Voting Right Exercise does not automatically assert participation, quorum, valid cast or counting effect.
-41. Result of Offline Count does not automatically assert participation, quorum, right use or Established Result.
-42. One Result of Offline Count belongs to one declared count scope; Calculation must avoid implicit double counting across scopes.
-43. Counting units/weights are defined by Voting Rule; one ballot is not universally one unit of result weight.
-44. Identifiable/signed Document cannot contain Position for Anonymous Voting.
-45. Multi-item Document-origin Vote requires per-Vote source-item mapping provenance.
-46. Choice-visibility mode is fixed before acceptance of submissions and is not silently changed afterward.
-47. Different Open/Anonymous Votings are not aggregated into one Calculation/Established Result by this BP.
-48. Timely received action recognized later is not late automatically.
-49. Anonymous privacy includes correlation risks across identifiers, timing, scope, evidence and correction metadata.
-50. Aggregate Open count does not replace individual Open Votes in first-pilot semantics.
-51. Correction Exercise in Anonymous Voting does not identify/correct a particular anonymous Position automatically.
+27. Криптографическая действительность подписи не тождественна предметной допустимости волеизъявления.
+28. Пользовательская учётная запись или право доступа не тождественны праву голоса.
+29. Представительство не создаёт новое право голоса.
+30. Изменения реестров не переписывают исходный снимок прав без самостоятельного основания.
+31. Исправления не переписывают исторические факты без сохранения истории.
+32. Выдача или получение бюллетеня не создаёт факт реализации права голоса автоматически.
+33. Один результат подсчёта вне системы относится к одному голосованию и вопросу.
+34. Один документ с протоколом может подтверждать несколько результатов подсчёта по отдельным вопросам.
+35. Несколько исторических записей о реализации права не означают одновременного существования нескольких действующих реализаций.
+36. Способ участия и способ оформления волеизъявления не образуют единую универсальную классификацию каналов.
+37. Собственное анонимное электронное голосование Community OS не входит в первую нормативную версию и первое внедрение.
+38. Сокрытие позиции в интерфейсе при сохранении связи «Субъект / Право голоса → Позиция» не обеспечивает анонимность.
+39. Выдача или получение бюллетеня признаётся реализацией права только тогда, когда применимое правило явно считает это событие моментом использования права.
+40. Факт реализации права не доказывает автоматически участие, кворум, действительность поданного голоса или влияние на подсчёт.
+41. Результат подсчёта вне системы не доказывает автоматически участие, кворум, использование права или окончательно установленный результат.
+42. Один результат подсчёта вне системы относится к одной объявленной области подсчёта; расчёт должен исключать двойной учёт пересекающихся областей.
+43. Единицы и вес подсчёта определяются правилом; один бюллетень не обязательно соответствует одной единице веса результата.
+44. Документ, позволяющий установить подписанта или участника, не может содержать позицию по анонимному голосованию.
+45. Для голоса, полученного из документа с несколькими пунктами, обязательна связь с конкретным исходным пунктом и его положением в документе.
+46. Режим прозрачности выбора фиксируется до начала приёма волеизъявлений и не меняется без отдельного основания.
+47. Настоящий бизнес-процесс не допускает объединения открытых и анонимных голосований в единый расчёт или установленный результат.
+48. Своевременно полученное, но признанное позднее волеизъявление не становится просроченным автоматически.
+49. Защита анонимности охватывает риски косвенного сопоставления идентификаторов, времени, областей подсчёта, подтверждений и истории исправлений.
+50. При открытом голосовании первого внедрения сводный подсчёт не заменяет отдельные признанные голоса.
+51. Исправление факта реализации права голоса не раскрывает и не исправляет автоматически конкретную анонимную позицию.
 
 ---
 
-## 52. Fundamental entity check
+## 52. Проверка обоснованности фундаментальных сущностей
 
-### 52.1. Voting Right Exercise
+### 52.1. Реализация права голоса
 
-Accepted as new identity-bearing Governance concept for Stage 11B.
+Принята в этапе 11Б как самостоятельное понятие в области управления с собственной предметной идентичностью.
 
-### 52.2. Result of Offline Count
+### 52.2. Результат подсчёта вне системы
 
-Accepted as new identity-bearing Governance concept for Stage 11B.
+Принят в этапе 11Б как самостоятельное понятие в области управления с собственной предметной идентичностью.
 
-### 52.3. No new channel entities
+### 52.3. Дополнительные сущности каналов не вводятся
 
-Paper Vote / Electronic Vote / Hybrid Vote fundamental entities не вводятся.
+Фундаментальные сущности «Бумажный голос», «Электронный голос» и «Смешанный голос» не вводятся.
 
-### 52.4. No universal Ballot entity yet
+### 52.4. Универсальная сущность «Бюллетень» пока не вводится
 
-Ballot использует Document semantics; separate fundamental Ballot entity не вводится.
+Бюллетень описывается через понятия документа; отдельная фундаментальная сущность «Бюллетень» не вводится.
 
-### 52.5. No generalized Signed Action yet
+### 52.5. Универсальное «Подписанное действие» пока не вводится
 
-Stage 11A document-scoped Signing не обобщается автоматически.
+Модель подписания, относящаяся к документам в этапе 11А, не расширяется автоматически на другие действия.
 
 ---
 
-## 53. Normative synchronization after adjudication
+## 53. Согласование нормативных документов по итогам рассмотрения рецензий
 
-Independent multi-review consolidated; Option A accepted; point fixes applied.
+Результаты независимых рецензий сведены; вариант А принят; точечные исправления внесены.
 
-Разрешена минимальная normative sync.
+Разрешено минимально необходимое согласование нормативных документов.
 
 ### ADR-001
 
 Добавить:
 
-- Voting Right Exercise как distinct from Vote;
-- Exercise without Position;
-- rule-defined recognition basis/effects;
-- no more than one effective realization per Voting Right in one Voting at reference time;
-- one declared choice-visibility mode per Voting.
+- реализация права голоса — самостоятельный факт, отличный от самого голоса;
+- реализация права возможна без сохранения выбранной позиции;
+- основания признания и последствия определяются применимым правилом;
+- у одного права голоса в одном голосовании на определённый момент не более одной действующей признанной реализации;
+- на каждое голосование приходится один объявленный режим прозрачности выбора.
 
 ### ADR-008
 
 Добавить:
 
-- Result of Offline Count как самостоятельный question-local Calculation input;
-- Calculation may use recognized non-Vote inputs where rule explicitly permits;
-- anonymous offline separates right-use facts from position-counting facts;
-- correction Exercise does not identify/correct a particular anonymous Position;
-- native online Anonymous outside first normative scope.
+- результат подсчёта вне системы — самостоятельные входные сведения для расчёта по конкретному вопросу;
+- расчёт может использовать признанные сведения, не являющиеся отдельными голосами, если правило прямо это допускает;
+- анонимная процедура вне системы отделяет факты использования права от сведений о выбранных позициях;
+- исправление факта реализации права не раскрывает и не исправляет автоматически конкретную анонимную позицию;
+- собственное анонимное электронное голосование не входит в первую нормативную версию.
 
-### DOMAIN_MODEL
+### Предметная модель (DOMAIN_MODEL.md)
 
 Добавить:
 
-- Voting Right Exercise;
-- Result of Offline Count;
-- negative boundaries;
-- count-scope semantics;
-- multi-item Document→Vote mapping provenance;
-- anonymous privacy correlation constraint;
-- one-mode invariant;
-- first normative Anonymous scope = offline/physical choice-side.
+- реализация права голоса;
+- результат подсчёта вне системы;
+- явные границы понятий и запреты на ошибочное отождествление;
+- область подсчёта и правила её определения;
+- связь между пунктом документа с несколькими вопросами и признанным голосом;
+- защита анонимности от косвенного восстановления связи с участником;
+- одно голосование — один режим прозрачности выбора;
+- первая нормативная версия анонимного выбора ограничена физической процедурой вне системы.
 
-### TERMINOLOGY
+### Терминология (TERMINOLOGY.md)
 
-Добавить канонические RU/EN terms и negative definitions.
+Добавить нормативные русские наименования, английские соответствия при необходимости и определения, исключающие ошибочное отождествление понятий.
 
-Новый bounded context не требуется.
-
----
-
-## 54. Remaining profile / future-design questions
-
-После adjudication закрыто:
-
-- native online Anonymous исключён из first-pilot scope;
-- новый anonymous choice-side concept сейчас не вводится;
-- Voting Right Exercise допустим в Open Voting where rule needs separate right-use semantics;
-- one Result of Offline Count относится к one Voting/Question;
-- document-backed signed electronic ballot используется только для Open Voting.
-
-Остаются profile-specific вопросы первого пилота:
-
-1. Exact paper/electronic change/conflict rules.
-2. Exact legal/profile definition presence/quorum.
-3. Exact legal/profile status 1 Plot = 1 Vote.
-4. Physical-original retention/receipt rules.
-5. Exact consumption moment для anonymous paper procedure: issuance/receipt/other.
-6. Reissue spoiled/lost anonymous ballot semantics.
-7. Minimum anonymity/count-scope constraints.
-
-Future Design Task:
-
-8. Native online Anonymous Voting choice/counting semantics.
-9. Direct documentless signed Vote boundary if future process requires it.
+Новый предметный контекст не требуется.
 
 ---
 
-## 55. Independent review result
+## 54. Оставшиеся вопросы настройки и будущего проектирования
+
+После рассмотрения рецензий закрыты вопросы:
+
+- собственное анонимное электронное голосование исключено из первого внедрения;
+- новый самостоятельный предметный объект анонимного выбора сейчас не вводится;
+- реализация права голоса допустима при открытом голосовании, когда правилу нужен отдельный факт использования права;
+- один результат подсчёта вне системы относится к одному голосованию и вопросу;
+- электронный бюллетень в виде подписанного документа используется только для открытого голосования.
+
+Остаются вопросы первого внедрения, зависящие от конкретных правил сообщества:
+
+1. Точные правила изменения голоса и конфликтов бумажной и электронной подачи.
+2. Точное определение присутствия и кворума согласно применимым правовым и внутренним правилам.
+3. Правовая оценка правила «один участок — один голос».
+4. Правила хранения, получения и учёта бумажных оригиналов.
+5. Момент использования права при анонимном бумажном голосовании: выдача, получение или другое событие.
+6. Правила повторной выдачи испорченного или утраченного анонимного бюллетеня.
+7. Минимальные требования к анонимности и укрупнению областей подсчёта.
+
+Задачи дальнейшего проектирования:
+
+8. Предметные правила анонимного электронного выбора и его подсчёта средствами самой Community OS.
+9. Границы непосредственного подписания голоса без документа, если будущий процесс потребует такой возможности.
+
+---
+
+## 55. Итоги независимого рецензирования
 
 Independent multi-review completed. Consolidation: BP-GOV-001-INDEPENDENT-MULTI-REVIEW-CONSOLIDATION.md.
 
-Review confirmed or tested:
+Рецензии подтвердили или специально проверили:
 
-- contradiction with ADR-001/008/009;
-- Subject→Position leakage in Anonymous mode;
-- duplicate Vote/Exercise semantics;
-- conflict resolution boundaries;
-- Document/Signing ownership;
-- mixed paper/electronic flow;
-- multi-question ballot;
-- quorum/presence separation;
-- correction/recount/history;
-- justification of new fundamental entities;
-- pilot specifics promoted to universal rules accidentally.
+- отсутствие противоречий с ADR-001, ADR-008 и ADR-009;
+- риск раскрытия связи «Субъект → Позиция» при анонимном голосовании;
+- различие между голосом и реализацией права голоса, включая риски дублирования;
+- границы разрешения конфликтов;
+- принадлежность и границы документов и подписания;
+- сочетание бумажной и электронной подачи;
+- бюллетень с несколькими вопросами;
+- разграничение кворума и физического присутствия;
+- исправления, повторные подсчёты и сохранение истории;
+- обоснованность новых фундаментальных сущностей;
+- риск ошибочного превращения особенностей первого внедрения в универсальные правила.
 
 ---
 
-## 56. Итог Stage 11B
+## 56. Итог этапа 11Б
 
-Independent multi-review завершён.
+Независимое рецензирование завершено.
 
-Adjudication:
+Принятое решение:
 
 ~~~text
-Option A accepted
-→ native online Anonymous deferred
-→ point fixes applied
-→ no conceptual redesign
-→ no additional fundamental entities
-→ approved for minimal normative sync
+Вариант А принят
+→ собственное анонимное электронное голосование отложено
+→ точечные исправления внесены
+→ пересмотр общей предметной концепции не требуется
+→ дополнительные фундаментальные сущности не вводятся
+→ разрешено минимально необходимое согласование нормативной документации
 ~~~
 
-Stage 11B first normative scope поддерживает:
+Первая нормативная версия этапа 11Б поддерживает:
 
-- Open Voting с paper/electronic/remote formalization where rule permits;
-- document-backed signed electronic Open ballot;
-- Anonymous offline/physical choice procedure;
-- Voting Right Exercise;
-- Result of Offline Count;
-- mixed Open channels;
-- correction/review/privacy boundaries.
+- открытое голосование с бумажным и электронным оформлением, включая дистанционную подачу, когда её разрешает правило;
+- открытый электронный бюллетень в виде подписанного документа;
+- анонимную физическую процедуру выбора и подсчёта вне системы;
+- самостоятельный факт реализации права голоса;
+- самостоятельный результат подсчёта вне системы;
+- несколько способов подачи при открытом голосовании;
+- явные правила исправления, пересмотра и защиты анонимности.
 
-Normative synchronization ADR-001 / ADR-008 / DOMAIN_MODEL / TERMINOLOGY и final consistency check завершены.
+Согласование ADR-001, ADR-008, DOMAIN_MODEL.md и TERMINOLOGY.md и окончательная проверка непротиворечивости завершены.
 
-BP-GOV-001 принят как текущая предметная основа Stage 11B.
+BP-GOV-001 принят как текущая предметная основа этапа 11Б.
 
-Перед реализацией first-pilot voting остаются profile/legal decisions, не меняющие принятую universal model:
+Перед реализацией голосования для первого внедрения остаются решения по конкретному правовому и организационному профилю сообщества, не меняющие принятую универсальную модель:
 
-- exact presence/quorum semantics;
-- legal/profile validation правила `1 Plot = 1 Vote`;
-- paper/electronic change/conflict policy;
-- anonymous paper consumption moment и reissue policy;
-- minimum anonymity/count-scope constraints;
-- physical-original retention rules.
+- точный смысл присутствия и кворума;
+- правовая проверка правила «1 участок = 1 голос»;
+- порядок изменения голоса и разрешения конфликтов между бумажными и электронными волеизъявлениями;
+- момент использования права при анонимном бумажном голосовании и порядок повторной выдачи;
+- минимальные требования к анонимности и областям подсчёта;
+- правила хранения бумажных оригиналов.
 
-Codex implementation task формируется после фиксации необходимых pilot profile rules.
+Задача на программную реализацию для Codex формируется после фиксации необходимых правил первого внедрения.

@@ -3,13 +3,15 @@ using Npgsql;
 
 namespace CommunityOS.Modules.Platform.Infrastructure;
 
-public sealed class PostgresCommunityReservationStore(NpgsqlDataSource dataSource) : ICommunityReservationStore
+public sealed class PostgresCommunityReservationStore(NpgsqlDataSource dataSource, NpgsqlTransaction? sharedTransaction = null) : ICommunityReservationStore
 {
     public async Task<CommunityReservation?> ReserveAsync(CommunityReservation reservation, Guid requestId,
         CancellationToken cancellationToken)
     {
-        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
-        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await using var ownedConnection = sharedTransaction is null ? await dataSource.OpenConnectionAsync(cancellationToken) : null;
+        var connection = ownedConnection ?? sharedTransaction!.Connection!;
+        await using var ownedTransaction = sharedTransaction is null ? await connection.BeginTransactionAsync(cancellationToken) : null;
+        var transaction = ownedTransaction ?? sharedTransaction!;
         await using var insert = new NpgsqlCommand("""
             INSERT INTO platform_provisioning.community_reservation
                 (operation_id, community_id, creator_account_id, request_id, initial_administrator_account_id, display_name)
@@ -24,7 +26,11 @@ public sealed class PostgresCommunityReservationStore(NpgsqlDataSource dataSourc
         insert.Parameters.AddWithValue("name", reservation.DisplayName);
         if (await insert.ExecuteNonQueryAsync(cancellationToken) == 1)
         {
-            await transaction.CommitAsync(cancellationToken);
+            if (ownedTransaction is not null)
+            {
+                await ownedTransaction.CommitAsync(cancellationToken);
+            }
+
             return reservation;
         }
 

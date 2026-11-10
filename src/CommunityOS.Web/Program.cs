@@ -8,9 +8,16 @@ if (args is ["register", .. var registerArgs])
     return;
 }
 
+if (args is ["platform-account", .. var accountArgs])
+{
+    Environment.ExitCode = await PlatformWeb.AddAccountAsync(accountArgs);
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCommunityModule();
+builder.Services.AddPlatformWeb();
 
 builder.Services.AddHealthChecks()
     .AddCheck("startup", () => HealthCheckResult.Healthy(), tags: ["startup"])
@@ -19,6 +26,7 @@ builder.Services.AddHealthChecks()
 
 var app = builder.Build();
 app.MapBootstrapRehearsal();
+app.MapPlatformWeb();
 
 app.MapHealthChecks("/health/startup", new HealthCheckOptions
 {

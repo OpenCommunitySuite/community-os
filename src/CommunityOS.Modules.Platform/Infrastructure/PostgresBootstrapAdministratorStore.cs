@@ -3,12 +3,14 @@ using Npgsql;
 
 namespace CommunityOS.Modules.Platform.Infrastructure;
 
-public sealed class PostgresBootstrapAdministratorStore(NpgsqlDataSource dataSource) : IBootstrapAdministratorStore
+public sealed class PostgresBootstrapAdministratorStore(NpgsqlDataSource dataSource, NpgsqlTransaction? sharedTransaction = null) : IBootstrapAdministratorStore
 {
     public async Task<BootstrapAdministratorAssignment?> AssignAsync(Guid operationId, CancellationToken cancellationToken)
     {
-        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
-        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await using var ownedConnection = sharedTransaction is null ? await dataSource.OpenConnectionAsync(cancellationToken) : null;
+        var connection = ownedConnection ?? sharedTransaction!.Connection!;
+        await using var ownedTransaction = sharedTransaction is null ? await connection.BeginTransactionAsync(cancellationToken) : null;
+        var transaction = ownedTransaction ?? sharedTransaction!;
         await using var insert = new NpgsqlCommand("""
             WITH granted AS (
                 INSERT INTO platform_provisioning.bootstrap_administrator (operation_id)
@@ -44,14 +46,18 @@ public sealed class PostgresBootstrapAdministratorStore(NpgsqlDataSource dataSou
                 : null;
         }
 
-        await transaction.CommitAsync(cancellationToken);
+        if (ownedTransaction is not null)
+        {
+            await ownedTransaction.CommitAsync(cancellationToken);
+        }
+
         return assignment;
     }
 
     public async Task<bool> RevokeAsync(Guid communityId, Guid operationId, Guid revokerAccountId,
         CancellationToken cancellationToken)
     {
-        await using var command = dataSource.CreateCommand("""
+        await using var command = CreateCommand("""
             WITH revoked AS (
                 UPDATE platform_provisioning.bootstrap_administrator a
                 SET revoked_at = clock_timestamp(), revoked_by_account_id = @revoker
@@ -73,7 +79,7 @@ public sealed class PostgresBootstrapAdministratorStore(NpgsqlDataSource dataSou
 
     public async Task<bool> IsAssignedAsync(Guid communityId, Guid accountId, CancellationToken cancellationToken)
     {
-        await using var command = dataSource.CreateCommand("""
+        await using var command = CreateCommand("""
             SELECT EXISTS (
                 SELECT 1 FROM platform_provisioning.bootstrap_administrator a
                 JOIN platform_provisioning.community_reservation r USING (operation_id)
@@ -86,9 +92,19 @@ public sealed class PostgresBootstrapAdministratorStore(NpgsqlDataSource dataSou
         return (bool)(await command.ExecuteScalarAsync(cancellationToken))!;
     }
 
+    public async Task<bool> WasCreatedByAsync(Guid communityId, Guid creatorAccountId, CancellationToken cancellationToken)
+    {
+        await using var command = CreateCommand("""
+            SELECT EXISTS (SELECT 1 FROM platform_provisioning.community_reservation
+                WHERE community_id = @community AND creator_account_id = @creator);
+            """);
+        command.Parameters.AddWithValue("community", communityId);
+        command.Parameters.AddWithValue("creator", creatorAccountId);
+        return (bool)(await command.ExecuteScalarAsync(cancellationToken))!;
+    }
     public async Task<BootstrapSecurityEvent[]> ReadEventsAsync(Guid communityId, CancellationToken cancellationToken)
     {
-        await using var command = dataSource.CreateCommand("""
+        await using var command = CreateCommand("""
             SELECT operation_id, event_kind, administrator_account_id, initiating_account_id, recorded_at
             FROM platform_provisioning.bootstrap_security_event
             WHERE community_id = @community
@@ -105,6 +121,9 @@ public sealed class PostgresBootstrapAdministratorStore(NpgsqlDataSource dataSou
 
         return events.ToArray();
     }
+    private NpgsqlCommand CreateCommand(string sql) => sharedTransaction is null
+        ? dataSource.CreateCommand(sql)
+        : new NpgsqlCommand(sql, sharedTransaction.Connection, sharedTransaction);
 }
 
 public sealed record BootstrapSecurityEvent(Guid OperationId, string Kind, Guid AdministratorAccountId,

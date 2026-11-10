@@ -275,4 +275,65 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Equal(replay.RevokedAtUtc, reader.GetDateTime(5));
         Assert.False(await reader.ReadAsync(token));
     }
+
+    [Fact]
+    public async Task Platform_Session_Guards_One_Atomic_Bootstrap_With_A_Single_Connection()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var settings = new NpgsqlConnectionStringBuilder(_postgres.GetConnectionString()) { MaxPoolSize = 1 };
+        await using var source = NpgsqlDataSource.Create(settings.ConnectionString);
+        foreach (var file in new[] { "001_community_reservation.sql", "002_bootstrap_administrator.sql",
+                     "003_bootstrap_security_event.sql", "005_platform_authentication.sql" })
+        {
+            var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
+            await using var migration = source.CreateCommand(sql);
+            await migration.ExecuteNonQueryAsync(token);
+        }
+
+        var accounts = new PlatformAuthenticationStore(source);
+        var password = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(20));
+        var creator = await accounts.AddAccountAsync("creator", password, true, token);
+        var administrator = await accounts.AddAccountAsync("administrator", password, false, token);
+        var credential = Assert.IsType<PlatformCredential>(await accounts.FindCredentialAsync("CREATOR", token));
+        var ordinary = Assert.IsType<PlatformCredential>(await accounts.FindCredentialAsync("administrator", token));
+        Assert.StartsWith("argon2id-v19-", credential.PasswordHash);
+        Assert.NotEqual(ordinary.PasswordHash, credential.PasswordHash);
+        Assert.True(await PlatformPassword.VerifyAsync(password, credential.PasswordHash));
+        Assert.False(await PlatformPassword.VerifyAsync(password + "x", credential.PasswordHash));
+        var session = Assert.IsType<string>(await accounts.StartSessionAsync(credential, token));
+        var ordinarySession = Assert.IsType<string>(await accounts.StartSessionAsync(ordinary, token));
+        var request = Guid.CreateVersion7();
+        Task<CommunityReservation?> Run(string sessionToken, bool abort = false) =>
+            accounts.WithCreatorAsync<CommunityReservation?>(sessionToken, administrator, async (actor, active, tx) =>
+            {
+                Assert.True(active);
+                var provisioning = new CommunityProvisioning(new PostgresCommunityReservationStore(source, tx));
+                var reservation = Assert.IsType<CommunityReservation>(
+                    await provisioning.ReserveAsync(actor, request, administrator, "Test community", token));
+                var bootstrap = new BootstrapAdministrator(new PostgresBootstrapAdministratorStore(source, tx));
+                Assert.NotNull(await bootstrap.AssignAsync(reservation.OperationId, token));
+                if (abort) throw new InvalidOperationException("Test rollback");
+                return reservation;
+            }, null, token);
+
+        Assert.Null(await Run(ordinarySession));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Run(session, abort: true));
+        await using var count = source.CreateCommand("SELECT count(*) FROM platform_provisioning.community_reservation");
+        Assert.Equal(0L, await count.ExecuteScalarAsync(token));
+
+        var applied = Assert.IsType<CommunityReservation>(await Run(session));
+        Assert.Equal(creator, applied.CreatorAccountId);
+        Assert.Equal(administrator, await accounts.ResolveAssignedAccountAsync(ordinarySession, applied.CommunityId, token));
+        Assert.Null(await accounts.ResolveAssignedAccountAsync(ordinarySession, Guid.CreateVersion7(), token));
+        await accounts.RevokeSessionAsync(session, token);
+        Assert.Null(await Run(session));
+
+        await using var expire = source.CreateCommand("""
+            UPDATE platform_provisioning.platform_session SET expires_at = clock_timestamp()
+            WHERE account_id = @account;
+            """);
+        expire.Parameters.AddWithValue("account", administrator);
+        await expire.ExecuteNonQueryAsync(token);
+        Assert.Null(await accounts.ResolveAssignedAccountAsync(ordinarySession, applied.CommunityId, token));
+    }
 }

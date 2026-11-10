@@ -71,3 +71,26 @@ jobs:
             cat worker-smoke.log
             exit 1
           fi
+
+  platform-frontend:
+    name: Сборка платформенного интерфейса
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: src/CommunityOS.PlatformApp
+    steps:
+      - name: Получить исходный код
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Установить закреплённую версию Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24.22.1
+          package-manager-cache: false
+
+      - name: Восстановить зависимости платформенного интерфейса
+        run: npx --yes pnpm@11.25.0 install --frozen-lockfile
+
+      - name: Проверить TypeScript и собрать интерфейс
+        run: npx --yes pnpm@11.25.0 build

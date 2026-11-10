@@ -94,3 +94,17 @@ jobs:
 
       - name: Проверить TypeScript и собрать интерфейс
         run: npx --yes pnpm@11.25.0 build
+
+  test-stand-image:
+    name: Сборка образа тестового стенда
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Получить исходный код
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Проверить сценарий управления стендом
+        run: python3 -m py_compile ops/test-stand/stand.py
+
+      - name: Собрать образ Web и Worker с платформенным интерфейсом
+        run: docker build -f ops/test-stand/Dockerfile -t communityos-test-stand:ci .

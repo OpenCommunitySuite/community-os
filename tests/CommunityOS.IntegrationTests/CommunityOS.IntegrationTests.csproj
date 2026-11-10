@@ -13,4 +13,10 @@
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="../../src/CommunityOS.Modules.Community/CommunityOS.Modules.Community.csproj" />
+    <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/001_manual_register.sql"
+          Link="001_manual_register.sql" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -2,6 +2,12 @@ using CommunityOS.Modules.Community.Infrastructure;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
+if (args is ["register", .. var registerArgs])
+{
+    Environment.ExitCode = await RegisterCommand.RunAsync(registerArgs);
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCommunityModule();

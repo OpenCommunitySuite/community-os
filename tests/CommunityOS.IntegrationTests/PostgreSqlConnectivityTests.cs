@@ -215,4 +215,43 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         await using var count = source.CreateCommand("SELECT count(*) FROM platform_provisioning.community_reservation");
         Assert.Equal(2L, await count.ExecuteScalarAsync(token));
     }
+
+    [Fact]
+    public async Task Bootstrap_Administrator_Resumes_Without_Reinstating_A_Revoked_Assignment()
+    {
+        var token = TestContext.Current.CancellationToken;
+        await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
+        foreach (var file in new[] { "001_community_reservation.sql", "002_bootstrap_administrator.sql" })
+        {
+            var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
+            await using var migration = source.CreateCommand(sql);
+            await migration.ExecuteNonQueryAsync(token);
+        }
+
+        var provisioning = new CommunityProvisioning(new PostgresCommunityReservationStore(source));
+        var administrator = Guid.CreateVersion7();
+        var reservation = Assert.IsType<CommunityReservation>(await provisioning.ReserveAsync(
+            Guid.CreateVersion7(), Guid.CreateVersion7(), administrator, "Test community", token));
+        var bootstrap = new BootstrapAdministrator(new PostgresBootstrapAdministratorStore(source));
+        Assert.Null(await bootstrap.AssignAsync(Guid.CreateVersion7(), token));
+        var attempts = await Task.WhenAll(bootstrap.AssignAsync(reservation.OperationId, token),
+            bootstrap.AssignAsync(reservation.OperationId, token));
+        var granted = Assert.IsType<BootstrapAdministratorAssignment>(attempts[0]);
+        Assert.Equal(granted, attempts[1]);
+        Assert.Equal(reservation.CommunityId, granted.CommunityId);
+        Assert.Equal(administrator, granted.AdministratorAccountId);
+        Assert.Null(granted.RevokedAtUtc);
+
+        var revoker = Guid.CreateVersion7();
+        Assert.False(await bootstrap.RevokeAsync(Guid.CreateVersion7(), reservation.OperationId, revoker, token));
+        Assert.True(await bootstrap.RevokeAsync(reservation.CommunityId, reservation.OperationId, revoker, token));
+        Assert.False(await bootstrap.RevokeAsync(reservation.CommunityId, reservation.OperationId, Guid.CreateVersion7(), token));
+        var replay = Assert.IsType<BootstrapAdministratorAssignment>(
+            await bootstrap.AssignAsync(reservation.OperationId, token));
+        Assert.Equal(granted.GrantedAtUtc, replay.GrantedAtUtc);
+        Assert.NotNull(replay.RevokedAtUtc);
+        await using var revokedBy = source.CreateCommand(
+            "SELECT revoked_by_account_id FROM platform_provisioning.bootstrap_administrator");
+        Assert.Equal(revoker, await revokedBy.ExecuteScalarAsync(token));
+    }
 }

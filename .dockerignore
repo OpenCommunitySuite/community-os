@@ -1,0 +1,13 @@
+**
+!global.json
+!Directory.Build.props
+!Directory.Packages.props
+!src/
+!src/**
+src/**/bin/
+src/**/obj/
+src/**/node_modules/
+src/**/dist/
+!ops/
+!ops/test-stand/
+!ops/test-stand/Dockerfile

@@ -122,11 +122,24 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Equal(entries[0].OwnerId, entries[1].OwnerId);
         Assert.Equal("0001", entries[0].AccountNumber);
 
+        var receipt = Assert.IsType<RegisterImportReceipt>(
+            await store.FindImportReceiptAsync(community, plan.Id, token));
+        Assert.Equal("operator", receipt.ConfirmedBy);
+        Assert.Equal(DateTimeKind.Utc, receipt.RecordedAtUtc.Kind);
+        Assert.Collection(receipt.Items,
+            item => Assert.Equal((2, entries[0].PlotId, entries[0].OwnerId, "0001"),
+                (item.SourceRow, item.PlotId, item.ImportedSubjectId, item.AccountNumber)),
+            item => Assert.Equal((3, entries[1].PlotId, entries[1].OwnerId, "0002"),
+                (item.SourceRow, item.PlotId, item.ImportedSubjectId, item.AccountNumber)));
+        Assert.NotEqual(receipt.Items[0].AccountId, receipt.Items[1].AccountId);
+        Assert.Null(await store.FindImportReceiptAsync(Guid.CreateVersion7(), plan.Id, token));
+
         var conflicting = RegisterImportPlan.Create(community,
             [new(2, "3", "S-2", "Other", "0003"), new(3, "4", "S-2", "Other", "0002")]);
         Assert.True(conflicting.Preview([]).CanProceed);
         Assert.Equal(RegisterImportResult.Conflicts, await store.ApplyImportAsync(conflicting, "operator", token));
         Assert.Equal(2, (await store.ListAsync(community, token)).Count);
+        Assert.Null(await store.FindImportReceiptAsync(community, conflicting.Id, token));
         await using var count = source.CreateCommand("SELECT count(*) FROM community_register.register_import_item");
         Assert.Equal(2L, await count.ExecuteScalarAsync(token));
     }

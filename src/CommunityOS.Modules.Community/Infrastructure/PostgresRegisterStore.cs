@@ -110,6 +110,38 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
         return RegisterImportResult.Applied;
     }
 
+    public async Task<RegisterImportReceipt?> FindImportReceiptAsync(Guid communityId, string planId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = dataSource.CreateCommand("""
+            SELECT b.confirmed_by, b.recorded_at, i.source_row, p.id, p.number, i.subject_id, a.id, a.number
+            FROM community_register.register_import b
+            JOIN community_register.register_import_item i USING (community_id, plan_id)
+            JOIN community_register.plot p ON (p.community_id, p.id) = (i.community_id, i.plot_id)
+            JOIN community_register.personal_account a ON (a.community_id, a.plot_id) = (p.community_id, p.id)
+            WHERE b.community_id = @community AND b.plan_id = @plan
+            ORDER BY i.source_row;
+            """);
+        command.Parameters.AddWithValue("community", communityId);
+        command.Parameters.AddWithValue("plan", planId);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        var confirmedBy = reader.GetString(0);
+        var recordedAt = reader.GetDateTime(1);
+        var items = new List<RegisterImportReceiptItem>();
+        do
+        {
+            items.Add(new(reader.GetInt32(2), reader.GetGuid(3), reader.GetString(4),
+                reader.GetGuid(5), reader.GetGuid(6), reader.GetString(7)));
+        } while (await reader.ReadAsync(cancellationToken));
+
+        return new(planId, confirmedBy, recordedAt, items);
+    }
+
     public async Task<IReadOnlyList<RegisterEntry>> ListAsync(Guid communityId, CancellationToken cancellationToken)
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);

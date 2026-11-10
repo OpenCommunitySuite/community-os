@@ -66,12 +66,22 @@ internal static class RegisterCommand
                     var result = await store.ApplyImportAsync(reviewed, confirmedBy, default);
                     Console.WriteLine(result);
                     return result == RegisterImportResult.Conflicts ? 1 : 0;
+                case ["import-receipt", var receiptId] when receiptId.Length == 64 && receiptId.All(Uri.IsHexDigit):
+                    var receipt = await store.FindImportReceiptAsync(communityId, receiptId.ToUpperInvariant(), default);
+                    if (receipt is null)
+                    {
+                        Console.Error.WriteLine("No applied import with that plan ID in this community.");
+                        return 1;
+                    }
+
+                    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(receipt));
+                    return 0;
                 case ["list"]:
                     var entries = await register.ListAsync(communityId, default);
                     Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(entries));
                     return 0;
                 default:
-                    Console.Error.WriteLine("register add-new <name> <plot> <account> | add-existing <owner-id> <plot> <account> | correct-owner <plot-id> <revision> <owner-id> <reason> | preview-import <file> [decisions.csv] | apply-import <file> <plan-id> [decisions.csv] | list");
+                    Console.Error.WriteLine("register add-new <name> <plot> <account> | add-existing <owner-id> <plot> <account> | correct-owner <plot-id> <revision> <owner-id> <reason> | preview-import <file> [decisions.csv] | apply-import <file> <plan-id> [decisions.csv] | import-receipt <plan-id> | list");
                     return 2;
             }
         }

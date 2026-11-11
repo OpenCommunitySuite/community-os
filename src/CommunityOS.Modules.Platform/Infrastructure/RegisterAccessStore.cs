@@ -2,8 +2,9 @@ using Npgsql;
 
 namespace CommunityOS.Modules.Platform.Infrastructure;
 
-public sealed record RegisterCommunity(Guid Id, string Name, bool CanRead, bool CanAdd);
+public sealed record RegisterCommunity(Guid Id, string Name, bool CanRead, bool CanAdd, bool CanPrepareImport);
 public sealed record RegisterActor(Guid AccountId, Guid SubjectId, string? AdditionBasis, Guid AdmissionId);
+public enum RegisterPermission { Read, Add, PrepareImport, WriteImportDraft }
 
 public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
 {
@@ -15,7 +16,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
         }
 
         await using var command = dataSource.CreateCommand("""
-            SELECT c.community_id, c.display_name, o.can_read, o.can_add AND o.addition_basis IS NOT NULL
+            SELECT c.community_id, c.display_name, o.can_read, o.can_add AND o.addition_basis IS NOT NULL,
+                o.can_prepare_import
             FROM platform_provisioning.platform_session s
             JOIN platform_provisioning.platform_account a ON a.id = s.account_id
             LEFT JOIN (
@@ -23,7 +25,7 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                 JOIN platform_provisioning.register_availability v USING (community_id)
                 JOIN platform_provisioning.community_reservation c USING (community_id)
             ) ON o.account_id = a.id AND o.linked AND v.community_active AND v.register_enabled
-                AND (o.can_read OR (o.can_add AND o.addition_basis IS NOT NULL))
+                AND (o.can_read OR (o.can_add AND o.addition_basis IS NOT NULL) OR o.can_prepare_import)
             WHERE s.token_digest = @digest AND s.revoked_at IS NULL
                 AND s.expires_at > clock_timestamp() AND a.disabled_at IS NULL
             ORDER BY c.display_name, c.community_id;
@@ -40,14 +42,19 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
         {
             if (!reader.IsDBNull(0))
             {
-                communities.Add(new(reader.GetGuid(0), reader.GetString(1), reader.GetBoolean(2), reader.GetBoolean(3)));
+                communities.Add(new(reader.GetGuid(0), reader.GetString(1), reader.GetBoolean(2), reader.GetBoolean(3),
+                    reader.GetBoolean(4)));
             }
         } while (await reader.ReadAsync(token));
 
         return communities;
     }
 
-    public async Task<T> WithAccessAsync<T>(string? session, Guid community, bool adding,
+    public Task<T> WithAccessAsync<T>(string? session, Guid community, bool adding,
+        Func<RegisterActor, Task<T>> action, T denied, CancellationToken token) =>
+        WithAccessAsync(session, community, adding ? RegisterPermission.Add : RegisterPermission.Read, action, denied, token);
+
+    public async Task<T> WithAccessAsync<T>(string? session, Guid community, RegisterPermission permission,
         Func<RegisterActor, Task<T>> action, T denied, CancellationToken token)
     {
         if (PlatformAuthenticationStore.Digest(session) is not { } digest)
@@ -66,12 +73,17 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
             WHERE s.token_digest = @digest AND s.revoked_at IS NULL
                 AND a.disabled_at IS NULL AND o.community_id = @community AND o.linked
                 AND v.community_active AND v.register_enabled
-                AND ((@adding AND o.can_add AND o.addition_basis IS NOT NULL) OR (NOT @adding AND o.can_read))
+                AND ((@adding AND o.can_add AND o.addition_basis IS NOT NULL) OR (@reading AND o.can_read)
+                    OR (@preparing AND o.can_prepare_import))
             FOR SHARE OF a, s, o, v;
             """, connection, transaction);
         authorization.Parameters.AddWithValue("digest", digest);
         authorization.Parameters.AddWithValue("community", community);
+        var adding = permission == RegisterPermission.Add;
         authorization.Parameters.AddWithValue("adding", adding);
+        authorization.Parameters.AddWithValue("reading", permission == RegisterPermission.Read);
+        var writingDraft = permission == RegisterPermission.WriteImportDraft;
+        authorization.Parameters.AddWithValue("preparing", permission == RegisterPermission.PrepareImport || writingDraft);
         RegisterActor actor;
         await using (var reader = await authorization.ExecuteReaderAsync(token))
         {
@@ -81,7 +93,7 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
             }
 
             actor = new(reader.GetGuid(0), reader.GetGuid(1), reader.IsDBNull(2) ? null : reader.GetString(2),
-                adding ? Guid.CreateVersion7() : Guid.Empty);
+                adding || writingDraft ? Guid.CreateVersion7() : Guid.Empty);
         }
 
         await using var deadline = new NpgsqlCommand("""
@@ -94,11 +106,16 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
             return denied;
         }
 
-        if (adding)
+        if (adding || writingDraft)
         {
-            await using var admit = new NpgsqlCommand("""
+            await using var admit = new NpgsqlCommand(adding ? """
                 INSERT INTO platform_provisioning.register_addition_admission (id, community_id, account_id, subject_id, basis)
                 SELECT @id, @community, @account, @subject, @basis
+                FROM platform_provisioning.platform_session
+                WHERE token_digest = @digest AND expires_at > clock_timestamp();
+                """ : """
+                INSERT INTO platform_provisioning.register_import_draft_admission (id, community_id, account_id, subject_id)
+                SELECT @id, @community, @account, @subject
                 FROM platform_provisioning.platform_session
                 WHERE token_digest = @digest AND expires_at > clock_timestamp();
                 """, connection, transaction);
@@ -106,7 +123,10 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
             admit.Parameters.AddWithValue("community", community);
             admit.Parameters.AddWithValue("account", actor.AccountId);
             admit.Parameters.AddWithValue("subject", actor.SubjectId);
-            admit.Parameters.AddWithValue("basis", actor.AdditionBasis!);
+            if (adding)
+            {
+                admit.Parameters.AddWithValue("basis", actor.AdditionBasis!);
+            }
             admit.Parameters.AddWithValue("digest", digest);
             if (await admit.ExecuteNonQueryAsync(token) != 1)
             {

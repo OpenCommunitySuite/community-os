@@ -35,6 +35,7 @@ internal static class PlatformWeb
                     })
                     : RateLimitPartition.GetNoLimiter("other"));
             options.AddConcurrencyLimiter("platform-password", limiter => limiter.PermitLimit = 2);
+            options.AddConcurrencyLimiter("osbbx-upload", limiter => limiter.PermitLimit = 2);
         });
     }
 
@@ -62,7 +63,8 @@ internal static class PlatformWeb
                 (http.Request.Path.StartsWithSegments("/platform") || http.Request.Path.StartsWithSegments("/community")) &&
                 http.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } body)
             {
-                body.MaxRequestBodySize = 8192;
+                body.MaxRequestBodySize = http.Request.Path.StartsWithSegments("/community/imports")
+                    ? CommunityImportWeb.MaxBodySize : 8192;
             }
 
             await next(http);

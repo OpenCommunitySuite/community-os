@@ -6,6 +6,25 @@ namespace CommunityOS.IntegrationTests;
 public class RegisterImportPreviewTests
 {
     [Fact]
+    public void Draft_Resolves_Only_Explicit_Source_Rows_And_Preserves_Numbers()
+    {
+        RegisterImportRow[] rows = [
+            new(2, "0001", "", "Same name", "00001", true),
+            new(7, "0002", "", "Same name", "00002", true),
+        ];
+        var partial = RegisterImportDraft.Resolve(rows, [new(2, "owner", "Verified")]);
+        Assert.False(RegisterImportPreview.Create(partial, []).CanProceed);
+        var resolved = RegisterImportDraft.Resolve(rows, [new(2, "owner", "Verified"), new(7, "owner", "Verified")]);
+        var preview = RegisterImportPreview.Create(resolved, []);
+        Assert.True(preview.CanProceed);
+        Assert.Equal("reuse-batch-owner", preview.Candidates[1].OwnerAction);
+        Assert.Equal("00002", preview.Candidates[1].AccountNumber);
+        Assert.Throws<ArgumentException>(() => RegisterImportDraft.Resolve(rows, [new(3, "owner", "Verified")]));
+        Assert.Throws<ArgumentException>(() =>
+            RegisterImportDraft.Resolve(rows, [new(2, "one", "Verified"), new(2, "two", "Verified")]));
+    }
+
+    [Fact]
     public void Preview_Reuses_Only_Explicit_Batch_Identity()
     {
         var preview = RegisterImportPreview.Create(

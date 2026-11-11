@@ -10,6 +10,8 @@ const messages = {
     check: 'Перевірка призначення та журналу', community: 'Спільнота', operation: 'Операція',
     assignment: 'Перевірити мій доступ', events: 'Показати журнал', revoke: 'Відкликати призначення',
     recovery: 'Відновлення доступу', code: 'Одноразовий код', newPassword: 'Новий пароль', reset: 'Змінити пароль', requestCode: 'Запросити код', requestAccepted: 'Якщо доступний підтверджений канал, код буде надіслано.',
+    recoverySucceeded: 'Пароль змінено. Увійдіть із новим паролем.',
+    recoveryRejected: 'Не вдалося змінити пароль. Перевірте код і новий пароль.',
     passwordTooShort: 'Новий пароль має містити щонайменше 15 символів.',
     failed: 'Не вдалося виконати запит.',
   },
@@ -21,6 +23,8 @@ const messages = {
     check: 'Проверка назначения и журнала', community: 'Сообщество', operation: 'Операция',
     assignment: 'Проверить мой доступ', events: 'Показать журнал', revoke: 'Отозвать назначение',
     recovery: 'Восстановление доступа', code: 'Одноразовый код', newPassword: 'Новый пароль', reset: 'Сменить пароль', requestCode: 'Запросить код', requestAccepted: 'Если доступен подтверждённый канал, код будет отправлен.',
+    recoverySucceeded: 'Пароль изменён. Войдите с новым паролем.',
+    recoveryRejected: 'Не удалось сменить пароль. Проверьте код и новый пароль.',
     passwordTooShort: 'Новый пароль должен содержать не менее 15 символов.',
     failed: 'Не удалось выполнить запрос.',
   },
@@ -58,6 +62,11 @@ function App() {
         return null;
       }
 
+      if (path === "/recover" && (response.status === 204 || response.status === 400)) {
+        setResult(response.status === 204 ? t.recoverySucceeded : t.recoveryRejected);
+        return null;
+      }
+
       setResult(String(response.status) + (data === null ? '' : '\n' + JSON.stringify(data, null, 2)));
       return response.ok ? data as T | null : null;
     } catch {
@@ -91,7 +100,7 @@ function App() {
     const newPassword = password.value;
     form.reset();
     void call('/recover', 'POST', {
-      login: input.get('login'), code: input.get('code'), newPassword,
+      login: input.get('login'), code: input.get('code')?.toString().trim(), newPassword,
     });
   }
 

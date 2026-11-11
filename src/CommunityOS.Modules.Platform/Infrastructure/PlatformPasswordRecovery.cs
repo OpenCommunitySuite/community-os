@@ -4,7 +4,7 @@ using Npgsql;
 
 namespace CommunityOS.Modules.Platform.Infrastructure;
 
-public sealed class PlatformPasswordRecovery(NpgsqlDataSource dataSource)
+public sealed class PlatformPasswordRecovery(NpgsqlDataSource dataSource, RecoveryDeliveryStore? delivery = null)
 {
     public async Task<string?> IssueAsync(Guid accountId, CancellationToken token)
     {
@@ -25,12 +25,31 @@ public sealed class PlatformPasswordRecovery(NpgsqlDataSource dataSource)
 
     public async Task<bool> ConsumeAsync(string? login, string? code, string? newPassword, CancellationToken token)
     {
-        if (login is not { Length: > 0 and <= 128 } || !PlatformPassword.IsAcceptable(newPassword) ||
-            Digest(code) is not { } digest)
+        if (login is not { Length: > 0 and <= 128 } || !PlatformPassword.IsAcceptable(newPassword))
         {
             return false;
         }
 
+        var normalized = PlatformAuthenticationStore.NormalizeLogin(login);
+        Guid? issuance = null;
+        byte[]? digest;
+        if (delivery is not null && RecoveryDeliveryStore.IsShortCode(code))
+        {
+            await using var lookup = dataSource.CreateCommand(
+                "SELECT platform_provisioning.short_recovery_issuance(@login);");
+            lookup.Parameters.AddWithValue("login", normalized);
+            issuance = await lookup.ExecuteScalarAsync(token) is Guid id ? id : null;
+            digest = issuance is Guid current ? delivery.ShortVerifier(current, code!) : null;
+        }
+        else
+        {
+            digest = Digest(code);
+        }
+
+        if (digest is null)
+        {
+            return false;
+        }
         var credential = await new PlatformAuthenticationStore(dataSource).FindCredentialAsync(login, token);
         if (credential is null || await PlatformPassword.VerifyAsync(newPassword!, credential.PasswordHash))
         {
@@ -39,8 +58,15 @@ public sealed class PlatformPasswordRecovery(NpgsqlDataSource dataSource)
 
         var hash = await PlatformPassword.HashAsync(newPassword!);
         await using var command = dataSource.CreateCommand(
-            "SELECT platform_provisioning.consume_password_recovery(@login, @digest, @expected, @hash);");
-        command.Parameters.AddWithValue("login", PlatformAuthenticationStore.NormalizeLogin(login));
+            issuance is null
+                ? "SELECT platform_provisioning.consume_password_recovery(@login, @digest, @expected, @hash);"
+                : "SELECT platform_provisioning.consume_short_recovery(@login, @issuance, @digest, @expected, @hash);");
+        if (issuance is Guid jobId)
+        {
+            command.Parameters.AddWithValue("issuance", jobId);
+        }
+
+        command.Parameters.AddWithValue("login", normalized);
         command.Parameters.AddWithValue("digest", digest);
         command.Parameters.AddWithValue("expected", credential.PasswordHash);
         command.Parameters.AddWithValue("hash", hash);

@@ -18,26 +18,59 @@ public sealed class RecoveryDeliveryStore(NpgsqlDataSource dataSource, byte[] ke
     public byte[] DeriveCode(Guid jobId) =>
         HMACSHA256.HashData(key, Encoding.ASCII.GetBytes("CommunityOS/platform-password-recovery/v1/" + jobId.ToString("D")));
 
-    public async Task RequestAsync(string? login, CancellationToken token)
+    public static bool IsShortCode(string? code) =>
+        code is { Length: 6 } && code.All(char.IsAsciiDigit);
+
+    public string DeriveShortCode(Guid jobId)
     {
-        var job = Guid.CreateVersion7();
-        var code = DeriveCode(job);
-        try
+        for (var counter = 0; ; counter++)
         {
-            await using var command = dataSource.CreateCommand(
-                "SELECT platform_provisioning.request_recovery_delivery(@login, @job, @digest);");
-            command.Parameters.AddWithValue("login", login is { Length: > 0 and <= 128 }
-                ? PlatformAuthenticationStore.NormalizeLogin(login) : string.Empty);
-            command.Parameters.AddWithValue("job", job);
-            command.Parameters.AddWithValue("digest", SHA256.HashData(code));
-            await command.ExecuteNonQueryAsync(token);
-        }
-        finally
-        {
-            CryptographicOperations.ZeroMemory(code);
+            var input = FormattableString.Invariant($"CommunityOS/recovery/code/v2/{jobId:D}/{counter}");
+            var bytes = HMACSHA256.HashData(key, Encoding.ASCII.GetBytes(input));
+            var sample = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(bytes);
+            CryptographicOperations.ZeroMemory(bytes);
+            // Discard the incomplete range so all one million values are equally likely.
+            if (sample < 4_294_000_000U)
+            {
+                return (sample % 1_000_000).ToString("D6", System.Globalization.CultureInfo.InvariantCulture);
+            }
         }
     }
 
+    public byte[] ShortVerifier(Guid issuance, string code) =>
+        HMACSHA256.HashData(key, Encoding.ASCII.GetBytes($"CommunityOS/recovery/verifier/v2/{issuance:D}/{code}"));
+
+    public string? ResolveDeliveryCode(RecoveryDeliveryJob job)
+    {
+        var shortCode = DeriveShortCode(job.Id);
+        if (CryptographicOperations.FixedTimeEquals(ShortVerifier(job.Id, shortCode), job.Digest))
+        {
+            return shortCode;
+        }
+
+        var legacy = DeriveCode(job.Id);
+        try
+        {
+            return CryptographicOperations.FixedTimeEquals(SHA256.HashData(legacy), job.Digest)
+                ? Convert.ToHexString(legacy) : null;
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(legacy);
+        }
+    }
+
+    public async Task RequestAsync(string? login, CancellationToken token)
+    {
+        var job = Guid.CreateVersion7();
+        await using var command = dataSource.CreateCommand(
+            "SELECT platform_provisioning.request_short_recovery(@login, @job, @digest);");
+        command.Parameters.AddWithValue("login", login is { Length: > 0 and <= 128 }
+            ? PlatformAuthenticationStore.NormalizeLogin(login) : string.Empty);
+        command.Parameters.AddWithValue("job", job);
+        command.Parameters.AddWithValue("digest", ShortVerifier(job, DeriveShortCode(job)));
+        await command.ExecuteNonQueryAsync(token);
+    }
     public async Task<RecoveryDeliveryJob?> ClaimAsync(CancellationToken token)
     {
         await using var command = dataSource.CreateCommand("SELECT * FROM platform_provisioning.claim_recovery_delivery();");

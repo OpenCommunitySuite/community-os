@@ -10,6 +10,7 @@ const messages = {
     check: 'Перевірка призначення та журналу', community: 'Спільнота', operation: 'Операція',
     assignment: 'Перевірити мій доступ', events: 'Показати журнал', revoke: 'Відкликати призначення',
     recovery: 'Відновлення доступу', code: 'Одноразовий код', newPassword: 'Новий пароль', reset: 'Змінити пароль', requestCode: 'Запросити код', requestAccepted: 'Якщо доступний підтверджений канал, код буде надіслано.',
+    passwordTooShort: 'Новий пароль має містити щонайменше 15 символів.',
     failed: 'Не вдалося виконати запит.',
   },
   ru: {
@@ -20,6 +21,7 @@ const messages = {
     check: 'Проверка назначения и журнала', community: 'Сообщество', operation: 'Операция',
     assignment: 'Проверить мой доступ', events: 'Показать журнал', revoke: 'Отозвать назначение',
     recovery: 'Восстановление доступа', code: 'Одноразовый код', newPassword: 'Новый пароль', reset: 'Сменить пароль', requestCode: 'Запросить код', requestAccepted: 'Если доступен подтверждённый канал, код будет отправлен.',
+    passwordTooShort: 'Новый пароль должен содержать не менее 15 символов.',
     failed: 'Не удалось выполнить запрос.',
   },
 };
@@ -79,9 +81,17 @@ function App() {
     event.preventDefault();
     const form = event.currentTarget;
     const input = new FormData(form);
+    const password = form.elements.namedItem('newPassword') as HTMLInputElement;
+    if (password.value.length < 15) {
+      setResult(t.passwordTooShort);
+      password.focus();
+      return;
+    }
+
+    const newPassword = password.value;
     form.reset();
     void call('/recover', 'POST', {
-      login: input.get('login'), code: input.get('code'), newPassword: input.get('newPassword'),
+      login: input.get('login'), code: input.get('code'), newPassword,
     });
   }
 
@@ -125,7 +135,7 @@ function App() {
           <legend>{t.recovery}</legend>
           <label>{t.login} <input name="login" required maxLength={128} autoComplete="username" /></label>
           <label>{t.code} <input name="code" type="password" required maxLength={64} autoComplete="one-time-code" /></label>
-          <label>{t.newPassword} <input name="newPassword" type="password" required minLength={15} maxLength={256} autoComplete="new-password" /></label>
+          <label>{t.newPassword} <input name="newPassword" type="password" required maxLength={256} autoComplete="new-password" /></label>
           <button>{t.reset}</button>
         </fieldset>
       </form>

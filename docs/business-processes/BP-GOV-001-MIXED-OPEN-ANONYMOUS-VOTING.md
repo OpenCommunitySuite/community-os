@@ -11,6 +11,8 @@
 - STAGE-11B-MIXED-PAPER-ELECTRONIC-VOTING-STRESS-TEST.md;
 - STAGE-11B-ANONYMOUS-VOTING-RIGHT-EXERCISE-STRESS-TEST.md;
 - STAGE-11B-PILOT-MEMBERSHIP-PLOT-VOTING-STRESS-TEST.md;
+- STAGE-11B-PILOT-PRESENCE-PARTICIPATION-QUORUM-ANALYSIS.md (проект анализа; не принятое правило и не юридическое заключение);
+- STAGE-11B-VERIFIED-ACCOUNT-VOTING-AND-FAMILY-ASSISTANCE-ANALYSIS.md (проект анализа подтверждения личности, допустимости действия без КЕП и помощи родственника; не изменение принятого BP);
 - PILOT_ST_EXPRESS_MEETING_2026-10-24_REFERENCE_ANALYSIS.md.
 
 ---

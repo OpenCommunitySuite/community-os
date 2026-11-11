@@ -10,3 +10,11 @@ await build({
   outfile: 'dist/platform.js',
 });
 await copyFile('index.html', 'dist/index.html');
+await build({
+  entryPoints: ['community.tsx'],
+  bundle: true,
+  minify: true,
+  define: { 'process.env.NODE_ENV': '"production"' },
+  outfile: 'dist/community.js',
+});
+await copyFile('community.html', 'dist/community.html');

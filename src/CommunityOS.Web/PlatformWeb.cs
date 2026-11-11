@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Http.Features;
 
 internal static class PlatformWeb
 {
-    private const string Cookie = "__Host-communityos-platform";
+    internal const string Cookie = "__Host-communityos-platform";
     private const string DatabaseKey = "Platform:Database";
 
     public static void AddPlatformWeb(this IServiceCollection services)
@@ -58,7 +58,8 @@ internal static class PlatformWeb
         app.Lifetime.ApplicationStopped.Register(dataSource.Dispose);
         app.Use(async (http, next) =>
         {
-            if (HttpMethods.IsPost(http.Request.Method) && http.Request.Path.StartsWithSegments("/platform") &&
+            if (HttpMethods.IsPost(http.Request.Method) &&
+                (http.Request.Path.StartsWithSegments("/platform") || http.Request.Path.StartsWithSegments("/community")) &&
                 http.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } body)
             {
                 body.MaxRequestBodySize = 8192;
@@ -74,7 +75,19 @@ internal static class PlatformWeb
 
 
 
-        var routes = app.MapGroup("/platform");
+        var routes = SecureRoutes(app, "/platform");
+        CommunityRegisterWeb.Map(app, dataSource, frontend);
+        routes.MapGet("/", () => Results.File(index, "text/html; charset=utf-8"));
+        routes.MapGet("/platform.js", () => Results.File(script, "text/javascript; charset=utf-8"));
+        routes.MapGet("/csrf", (HttpContext http, IAntiforgery antiforgery) =>
+            Results.Ok(new { Token = antiforgery.GetAndStoreTokens(http).RequestToken }));
+
+        MapOperations(routes, accounts, dataSource, delivery);
+    }
+
+    internal static RouteGroupBuilder SecureRoutes(WebApplication app, string prefix)
+    {
+        var routes = app.MapGroup(prefix);
         routes.AddEndpointFilter(async (invocation, next) =>
         {
             var http = invocation.HttpContext;
@@ -97,11 +110,12 @@ internal static class PlatformWeb
 
             return await next(invocation);
         });
-        routes.MapGet("/", () => Results.File(index, "text/html; charset=utf-8"));
-        routes.MapGet("/platform.js", () => Results.File(script, "text/javascript; charset=utf-8"));
-        routes.MapGet("/csrf", (HttpContext http, IAntiforgery antiforgery) =>
-            Results.Ok(new { Token = antiforgery.GetAndStoreTokens(http).RequestToken }));
+        return routes;
+    }
 
+    private static void MapOperations(RouteGroupBuilder routes, PlatformAuthenticationStore accounts,
+        NpgsqlDataSource dataSource, RecoveryDeliveryStore? delivery)
+    {
         routes.MapPost("/login", async (LoginInput input, HttpContext http, CancellationToken token) =>
         {
             if (input.Login is not { Length: > 0 and <= 128 } || !PlatformPassword.IsAcceptable(input.Password))

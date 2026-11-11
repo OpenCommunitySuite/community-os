@@ -11,6 +11,20 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         await SetCommunityScopeAsync(connection, transaction, entry.CommunityId, cancellationToken);
         await InsertEntryAsync(connection, transaction, entry, cancellationToken);
+        if (entry.Addition is { } addition)
+        {
+            await using var attribution = new NpgsqlCommand("""
+                INSERT INTO community_register.manual_addition (community_id, plot_id, admission_id, account_id, subject_id, basis)
+                VALUES (@community, @plot, @admission, @account, @subject, @basis);
+                """, connection, transaction);
+            attribution.Parameters.AddWithValue("community", entry.CommunityId);
+            attribution.Parameters.AddWithValue("plot", entry.PlotId);
+            attribution.Parameters.AddWithValue("admission", addition.AdmissionId);
+            attribution.Parameters.AddWithValue("account", addition.AccountId);
+            attribution.Parameters.AddWithValue("subject", addition.SubjectId);
+            attribution.Parameters.AddWithValue("basis", addition.Basis);
+            await attribution.ExecuteNonQueryAsync(cancellationToken);
+        }
         await transaction.CommitAsync(cancellationToken);
     }
 

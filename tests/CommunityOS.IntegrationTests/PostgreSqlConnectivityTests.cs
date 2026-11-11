@@ -277,6 +277,60 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Register_Admission_Is_Durable_Before_Execution_And_Revocation_Blocks_New_Writes()
+    {
+        var token = TestContext.Current.CancellationToken;
+        await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
+        foreach (var file in new[] { "001_community_reservation.sql", "005_platform_authentication.sql", "009_register_access.sql" })
+        {
+            var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
+            await using var migration = source.CreateCommand(sql);
+            await migration.ExecuteNonQueryAsync(token);
+        }
+
+        var accounts = new PlatformAuthenticationStore(source);
+        var actor = await accounts.AddAccountAsync("register-operator", Guid.NewGuid().ToString("N"), false, token);
+        var credential = Assert.IsType<PlatformCredential>(await accounts.FindCredentialAsync("register-operator", token));
+        var session = Assert.IsType<string>(await accounts.StartSessionAsync(credential, token));
+        var community = Guid.NewGuid();
+        var subject = Guid.NewGuid();
+        await using var seed = source.CreateCommand("""
+            INSERT INTO platform_provisioning.community_reservation
+                (operation_id, community_id, creator_account_id, request_id, initial_administrator_account_id, display_name)
+                VALUES (gen_random_uuid(), @community, @actor, gen_random_uuid(), @actor, 'Test');
+            INSERT INTO platform_provisioning.register_availability (community_id, community_active, register_enabled)
+                VALUES (@community, true, true);
+            INSERT INTO platform_provisioning.register_operator
+                (community_id, account_id, subject_id, linked, can_read, can_add, addition_basis)
+                VALUES (@community, @actor, @subject, true, true, true, 'synthetic');
+            """);
+        seed.Parameters.AddWithValue("community", community);
+        seed.Parameters.AddWithValue("actor", actor);
+        seed.Parameters.AddWithValue("subject", subject);
+        await seed.ExecuteNonQueryAsync(token);
+        var access = new RegisterAccessStore(source);
+
+        Assert.True(await access.WithAccessAsync(session, community, true, async admitted =>
+        {
+            Assert.Equal((actor, subject, "synthetic"), (admitted.AccountId, admitted.SubjectId, admitted.AdditionBasis));
+            await using var committed = source.CreateCommand("""
+                SELECT count(*) FROM platform_provisioning.register_addition_admission WHERE id = @id;
+                """);
+            committed.Parameters.AddWithValue("id", admitted.AdmissionId);
+            Assert.Equal(1L, await committed.ExecuteScalarAsync(token));
+            await using var revoke = source.CreateCommand("""
+                UPDATE platform_provisioning.register_operator SET can_add = false;
+                """);
+            Assert.Equal(1, await revoke.ExecuteNonQueryAsync(token));
+            return true;
+        }, false, token));
+
+        Assert.False(await access.WithAccessAsync(session, community, true, _ => Task.FromResult(true), false, token));
+        Assert.True(await access.WithAccessAsync(session, community, false, _ => Task.FromResult(true), false, token));
+        Assert.False(await access.WithAccessAsync(session, Guid.NewGuid(), false, _ => Task.FromResult(true), false, token));
+    }
+
+    [Fact]
     public async Task Platform_Session_Guards_One_Atomic_Bootstrap_With_A_Single_Connection()
     {
         var token = TestContext.Current.CancellationToken;

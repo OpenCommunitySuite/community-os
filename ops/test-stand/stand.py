@@ -248,10 +248,10 @@ def migrate(docker, postgres, database, module):
         print(f"Applied {module}/{migration.name}", flush=True)
 
 
-def web_connection(config, *, migrator=False):
+def web_connection(config, *, migrator=False, database=PLATFORM):
     role = MIGRATOR if migrator else WEB_ROLE
     password = config["postgres_password" if migrator else "web_password"]
-    return f"Host={PREFIX}-postgres;Database={PLATFORM};Username={role};Password={password};Timeout=5"
+    return f"Host={PREFIX}-postgres;Database={database};Username={role};Password={password};Timeout=5"
 
 
 def migrate_stand(docker):
@@ -296,12 +296,25 @@ def up(docker, config, config_dir):
             platform_provisioning.bootstrap_security_event, platform_provisioning.platform_auth_security_event TO {WEB_ROLE};
         GRANT UPDATE (revoked_at, revoked_by_account_id) ON platform_provisioning.bootstrap_administrator TO {WEB_ROLE};
         GRANT EXECUTE ON FUNCTION platform_provisioning.consume_password_recovery(text, bytea, text, text) TO {WEB_ROLE};
+        GRANT SELECT ON platform_provisioning.register_availability, platform_provisioning.register_operator TO {WEB_ROLE};
+        GRANT UPDATE (lock_marker) ON platform_provisioning.register_availability,
+            platform_provisioning.register_operator TO {WEB_ROLE};
+        GRANT INSERT ON platform_provisioning.register_addition_admission TO {WEB_ROLE};
     """, private=True)
+    psql(docker, postgres, REGISTER, f"""
+        GRANT USAGE ON SCHEMA community_register TO {WEB_ROLE};
+        GRANT SELECT ON community_register.subject, community_register.plot, community_register.ownership,
+            community_register.personal_account TO {WEB_ROLE};
+        GRANT INSERT ON community_register.subject, community_register.plot, community_register.ownership,
+            community_register.personal_account, community_register.manual_addition TO {WEB_ROLE};
+    """)
     web = docker.ensure_container("web", image=config["image"], env=[
         "ASPNETCORE_ENVIRONMENT=Production", "ASPNETCORE_URLS=https://127.0.0.1:8443",
         "ASPNETCORE_Kestrel__Certificates__Default__Path=/run/stand/https.pfx",
         f"ASPNETCORE_Kestrel__Certificates__Default__Password={config['pfx_password']}",
         f"Platform__Database={web_connection(config)}",
+        "CommunityRegister__SyntheticStandEnabled=true",
+        f"CommunityRegister__Database={web_connection(config, database=REGISTER)}",
     ], mounts=[{"Type": "volume", "Source": state, "Target": "/state"}], start=False)
     _, existing_web = docker.container("web")
     if not existing_web["State"]["Running"]:

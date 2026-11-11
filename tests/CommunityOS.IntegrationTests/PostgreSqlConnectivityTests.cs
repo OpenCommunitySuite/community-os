@@ -475,17 +475,19 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.True(await bindings.SetAsync(account, "email", "synthetic@example.invalid", token));
         await store.RequestAsync("mail-user", token);
         var job = Assert.IsType<RecoveryDeliveryJob>(await store.ClaimAsync(token));
-        async Task<bool> TryDigest(byte[] digest)
+        async Task<bool> TryDigest(byte[] digest, string login = "mail-user")
         {
             await using var command = source.CreateCommand("""
-                SELECT platform_provisioning.consume_short_recovery('mail-user', @issuance, @digest, @hash, @hash);
+                SELECT platform_provisioning.consume_short_recovery(@login, @issuance, @digest, @hash, @hash);
                 """);
+            command.Parameters.AddWithValue("login", login);
             command.Parameters.AddWithValue("issuance", job.Id);
             command.Parameters.AddWithValue("digest", digest);
             command.Parameters.AddWithValue("hash", hash);
             return await command.ExecuteScalarAsync(token) is true;
         }
 
+        Assert.False(await TryDigest(job.Digest, "telegram-user"));
         var guesses = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => TryDigest(new byte[32])));
         Assert.All(guesses, accepted => Assert.False(accepted));
         await using var failures = source.CreateCommand("SELECT count(*) FROM platform_provisioning.recovery_short_failure");
@@ -500,6 +502,16 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         await store.RequestAsync("mail-user", token);
         var nextJob = Assert.IsType<RecoveryDeliveryJob>(await store.ClaimAsync(token));
         Assert.NotEqual(job.Id, nextJob.Id);
+        Assert.False(await restarted.ConsumeAsync("mail-user", store.DeriveShortCode(nextJob.Id), password, token));
+
+        await using var expire = source.CreateCommand("""
+            UPDATE platform_provisioning.platform_password_recovery SET expires_at = clock_timestamp()
+            WHERE account_id = @account;
+            UPDATE platform_provisioning.recovery_short_failure SET attempted_at = clock_timestamp() - interval '16 minutes'
+            WHERE account_id = @account;
+            """);
+        expire.Parameters.AddWithValue("account", account);
+        await expire.ExecuteNonQueryAsync(token);
         Assert.False(await restarted.ConsumeAsync("mail-user", store.DeriveShortCode(nextJob.Id), password, token));
 
         var legacyJob = Guid.CreateVersion7();

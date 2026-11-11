@@ -12,7 +12,13 @@ internal static class OsbbxOwnersWorkbook
 
     public static IReadOnlyList<RegisterImportRow> Read(string path)
     {
-        using var archive = ZipFile.OpenRead(path);
+        using var stream = File.OpenRead(path);
+        return Read(stream);
+    }
+
+    public static IReadOnlyList<RegisterImportRow> Read(Stream stream, int? rowLimit = null)
+    {
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
         var workbook = ReadPart(archive, "xl/workbook.xml");
         var relationships = ReadPart(archive, "xl/_rels/workbook.xml.rels");
         var sheet = workbook.Root?.Element(Sheet + "sheets")?.Elements(Sheet + "sheet")
@@ -22,8 +28,8 @@ internal static class OsbbxOwnersWorkbook
             .FirstOrDefault(element => sheetId is not null && (string?)element.Attribute("Id") == sheetId);
         var stringsRelation = relationships.Root?.Elements(PackageRel + "Relationship")
             .FirstOrDefault(element => (string?)element.Attribute("Type") == Rel.NamespaceName + "/sharedStrings");
-        var strings = stringsRelation is null ? [] : ReadPart(archive, ResolvePart(stringsRelation))
-            .Root!.Elements(Sheet + "si").Select(ReadText).ToArray();
+        var strings = stringsRelation is null ? [] : (ReadPart(archive, ResolvePart(stringsRelation))
+            .Root ?? throw new FormatException("Invalid shared strings.")).Elements(Sheet + "si").Select(ReadText).ToArray();
         var rows = ReadPart(archive, ResolvePart(sheetRelation)).Root?.Element(Sheet + "sheetData")
             ?.Elements(Sheet + "row") ?? [];
         using var iterator = rows.GetEnumerator();
@@ -37,6 +43,7 @@ internal static class OsbbxOwnersWorkbook
         var ownerColumn = FindColumn(header, "ПІБ", strings);
         var accountColumn = FindColumn(header, "Особовий рахунок", strings);
         var candidates = new List<RegisterImportRow>();
+        var previousRow = 1;
         while (iterator.MoveNext())
         {
             var row = iterator.Current;
@@ -47,18 +54,29 @@ internal static class OsbbxOwnersWorkbook
             }
 
             if (!int.TryParse((string?)row.Attribute("r"), NumberStyles.None, CultureInfo.InvariantCulture,
-                    out var number) || number < 2)
+                    out var number) || number < 2 || (rowLimit.HasValue && number <= previousRow))
             {
                 throw new FormatException("Invalid row number in the OSBBX owners sheet.");
             }
+            previousRow = number;
 
-            var plot = ReadValue(cells.GetValueOrDefault(plotColumn), strings).Trim();
-            var owner = ReadValue(cells.GetValueOrDefault(ownerColumn), strings).Trim();
+            var plotCell = cells.GetValueOrDefault(plotColumn);
+            var ownerCell = cells.GetValueOrDefault(ownerColumn);
             var accountCell = cells.GetValueOrDefault(accountColumn);
+            var plot = ReadValue(plotCell, strings).Trim();
+            var owner = ReadValue(ownerCell, strings).Trim();
             var account = ReadValue(accountCell, strings).Trim();
             if (account.Length > 0 && (string?)accountCell?.Attribute("t") is not ("s" or "inlineStr" or "str"))
             {
                 throw new FormatException($"Account number at Excel row {number} must be stored as text.");
+            }
+
+            if (rowLimit is int limit &&
+                (candidates.Count >= limit || plot.Length > 128 || owner.Length > 512 || account.Length > 128 ||
+                 plotCell?.Element(Sheet + "f") is not null || ownerCell?.Element(Sheet + "f") is not null ||
+                 accountCell?.Element(Sheet + "f") is not null))
+            {
+                throw new FormatException("The OSBBX owners sheet exceeds the supported limits or contains formulas.");
             }
 
             candidates.Add(new(number, plot, string.Empty, owner, account, RequiresOwnerReview: true));
@@ -83,8 +101,17 @@ internal static class OsbbxOwnersWorkbook
     private static XDocument ReadPart(ZipArchive archive, string name)
     {
         var entry = archive.GetEntry(name) ?? throw new FormatException("A required XLSX part is missing.");
+        if (entry.Length > 8_000_000)
+        {
+            throw new FormatException("An XLSX part exceeds the supported size.");
+        }
         using var stream = entry.Open();
-        using var reader = XmlReader.Create(stream, new XmlReaderSettings { MaxCharactersInDocument = 8_000_000 });
+        using var reader = XmlReader.Create(stream, new XmlReaderSettings
+        {
+            DtdProcessing = DtdProcessing.Prohibit,
+            MaxCharactersInDocument = 8_000_000,
+            XmlResolver = null,
+        });
         return XDocument.Load(reader);
     }
 

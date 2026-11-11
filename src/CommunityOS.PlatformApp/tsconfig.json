@@ -7,5 +7,5 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["main.tsx", "community.tsx"]
+  "include": ["main.tsx", "community.tsx", "importPreparation.tsx"]
 }

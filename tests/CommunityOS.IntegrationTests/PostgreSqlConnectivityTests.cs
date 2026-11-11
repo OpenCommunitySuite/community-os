@@ -277,11 +277,45 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Import_Draft_Is_Private_To_Community_Account_And_Subject_And_Requires_Current_Revision()
+    {
+        var token = TestContext.Current.CancellationToken;
+        await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
+        await using var schema = source.CreateCommand("CREATE SCHEMA community_register;");
+        await schema.ExecuteNonQueryAsync(token);
+        await using var migration = source.CreateCommand(await File.ReadAllTextAsync(
+            Path.Combine(AppContext.BaseDirectory, "006_register_import_draft.sql"), token));
+        await migration.ExecuteNonQueryAsync(token);
+
+        var store = new PostgresImportDraftStore(source);
+        var owner = new ImportDraftOwner(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var id = await store.CreateAsync(owner, new byte[32],
+            [new(7, "0001", "", "Source owner", "00009", true)], token);
+        RegisterOwnerDecision[] decisions = [new(7, "explicit-owner", "Confirmed owner")];
+        Assert.True(await store.SaveAsync(owner, id, 1, decisions, token));
+        Assert.False(await store.SaveAsync(owner, id, 1, [], token));
+        var draft = Assert.IsType<ImportDraft>(await store.ReadAsync(owner, id, token));
+        Assert.Equal(2, draft.Revision);
+        Assert.Equal("00009", Assert.Single(draft.Source).AccountNumber);
+        Assert.Equal(decisions[0], Assert.Single(draft.Decisions));
+        Assert.Equal(id, Assert.Single(await store.ListAsync(owner, token)).Id);
+
+        foreach (var outsider in new[] { owner with { Community = Guid.NewGuid() },
+                     owner with { Account = Guid.NewGuid() }, owner with { Subject = Guid.NewGuid() } })
+        {
+            Assert.Empty(await store.ListAsync(outsider, token));
+            Assert.Null(await store.ReadAsync(outsider, id, token));
+            Assert.False(await store.SaveAsync(outsider, id, 2, [], token));
+        }
+    }
+
+    [Fact]
     public async Task Register_Admission_Is_Durable_Before_Execution_And_Revocation_Blocks_New_Writes()
     {
         var token = TestContext.Current.CancellationToken;
         await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
-        foreach (var file in new[] { "001_community_reservation.sql", "005_platform_authentication.sql", "009_register_access.sql" })
+        foreach (var file in new[] { "001_community_reservation.sql", "005_platform_authentication.sql",
+                     "009_register_access.sql", "010_register_import_preparation.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -328,6 +362,20 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.False(await access.WithAccessAsync(session, community, true, _ => Task.FromResult(true), false, token));
         Assert.True(await access.WithAccessAsync(session, community, false, _ => Task.FromResult(true), false, token));
         Assert.False(await access.WithAccessAsync(session, Guid.NewGuid(), false, _ => Task.FromResult(true), false, token));
+
+        Task<bool> TryPrepare() => access.WithAccessAsync(session, community, RegisterPermission.WriteImportDraft,
+            _ => Task.FromResult(true), false, token);
+        Assert.False(await TryPrepare());
+        await using var grantPreparation = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator SET can_prepare_import = true;
+            """);
+        await grantPreparation.ExecuteNonQueryAsync(token);
+        Assert.True(await TryPrepare());
+        await using var revokePreparation = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator SET can_prepare_import = false;
+            """);
+        await revokePreparation.ExecuteNonQueryAsync(token);
+        Assert.False(await TryPrepare());
     }
 
     [Fact]

@@ -198,7 +198,7 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
         return entries;
     }
 
-    private static async Task SetCommunityScopeAsync(NpgsqlConnection connection, NpgsqlTransaction transaction,
+    internal static async Task SetCommunityScopeAsync(NpgsqlConnection connection, NpgsqlTransaction transaction,
         Guid communityId, CancellationToken cancellationToken)
     {
         ArgumentOutOfRangeException.ThrowIfEqual(communityId, Guid.Empty);

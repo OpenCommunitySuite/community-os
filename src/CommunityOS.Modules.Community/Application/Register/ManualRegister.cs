@@ -1,7 +1,12 @@
 namespace CommunityOS.Modules.Community.Application.Register;
 
 public sealed record RegisterEntry(
-    Guid CommunityId, Guid OwnerId, Guid PlotId, string OwnerName, string PlotNumber, string AccountNumber, Guid OwnershipRevision = default);
+    Guid CommunityId, Guid OwnerId, Guid PlotId, string OwnerName, string PlotNumber, string AccountNumber, Guid OwnershipRevision = default)
+{
+    public RegisterAddition? Addition { get; init; }
+}
+
+public sealed record RegisterAddition(Guid AdmissionId, Guid AccountId, Guid SubjectId, string Basis);
 
 public interface IRegisterStore
 {
@@ -15,7 +20,7 @@ public sealed class ManualRegister(IRegisterStore store)
 {
     public async Task<Guid> CreateAsync(
         Guid communityId, Guid? ownerId, string? ownerName, string plotNumber, string accountNumber,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, RegisterAddition? addition = null)
     {
         ArgumentOutOfRangeException.ThrowIfEqual(communityId, Guid.Empty);
         if (ownerId == Guid.Empty)
@@ -34,7 +39,7 @@ public sealed class ManualRegister(IRegisterStore store)
         ArgumentException.ThrowIfNullOrWhiteSpace(accountNumber);
 
         var entry = new RegisterEntry(communityId, ownerId ?? Guid.CreateVersion7(), Guid.CreateVersion7(),
-            ownerName?.Trim() ?? string.Empty, plotNumber.Trim(), accountNumber.Trim());
+            ownerName?.Trim() ?? string.Empty, plotNumber.Trim(), accountNumber.Trim()) { Addition = addition };
         await store.CreateAsync(entry, cancellationToken);
         return entry.OwnerId;
     }

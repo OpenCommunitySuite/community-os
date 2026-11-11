@@ -187,7 +187,7 @@ public sealed class PlatformAuthenticationStore(NpgsqlDataSource dataSource)
         command.Parameters.AddWithValue("community", communityId);
         return (Guid?)await command.ExecuteScalarAsync(token);
     }
-    private static byte[]? Digest(string? secret)
+    internal static byte[]? Digest(string? secret)
     {
         Span<byte> bytes = stackalloc byte[32];
         return secret is { Length: 64 } &&

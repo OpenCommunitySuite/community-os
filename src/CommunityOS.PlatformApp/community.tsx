@@ -1,19 +1,23 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ImportPreparation } from './importPreparation';
 import { ImportApproval } from './importApproval';
+import { OwnershipCorrection } from './ownershipCorrection';
 
 type Community = { id: string; name: string; canRead: boolean; canAdd: boolean; canPrepareImport: boolean;
-  canApproveImport: boolean };
-type Entry = { plotId: string; plotNumber: string; ownerId: string; ownerName: string; accountNumber: string };
+  canApproveImport: boolean; canCorrectOwnership: boolean };
+type Entry = { plotId: string; plotNumber: string; ownerId: string; ownerName: string; accountNumber: string;
+  ownershipRevision: string };
 
 function Register() {
   const [communities, setCommunities] = useState<Community[]>([]);
   const [selected, setSelected] = useState('');
+  const activeCommunity = useRef('');
   const [entries, setEntries] = useState<Entry[]>([]);
   const [existing, setExisting] = useState(false);
   const [message, setMessage] = useState('');
   const [pending, setPending] = useState(false);
+  const [historyPlot, setHistoryPlot] = useState('');
   const community = communities.find(item => item.id === selected);
   const owners = [...new Map(entries.map(entry => [entry.ownerId, entry])).values()];
 
@@ -33,16 +37,20 @@ function Register() {
   async function read(item: Community) {
     if (!item.canRead) return;
     const response = await fetch('/community/register/' + item.id);
+    if (activeCommunity.current !== item.id) return;
     if (!response.ok) {
       setEntries([]);
       setMessage('Не вдалося відкрити реєстр. Перевірте доступ.');
       return;
     }
-    setEntries(await response.json());
+    const records = await response.json();
+    if (activeCommunity.current === item.id) setEntries(records);
   }
 
   async function select(id: string) {
+    activeCommunity.current = id;
     setSelected(id);
+    setHistoryPlot('');
     setEntries([]);
     setExisting(false);
     setMessage('');
@@ -102,11 +110,16 @@ function Register() {
       </select>
     </label>}
     {community?.canRead && <table>
-      <thead><tr><th>Ділянка</th><th>Власник</th><th>Особовий рахунок</th></tr></thead>
+      <thead><tr><th>Ділянка</th><th>Власник</th><th>Особовий рахунок</th><th>Історія</th></tr></thead>
       <tbody>{entries.map(entry => <tr key={entry.plotId}>
         <td>{entry.plotNumber}</td><td>{entry.ownerName}</td><td>{entry.accountNumber}</td>
+        <td><button type="button" onClick={() => setHistoryPlot(entry.plotId)}
+          aria-label={'Історія ділянки ' + entry.plotNumber}>Відкрити</button></td>
       </tr>)}</tbody>
     </table>}
+    {community?.canRead && entries.filter(entry => entry.plotId === historyPlot).map(entry =>
+      <OwnershipCorrection key={community.id + ':' + entry.plotId} community={community.id}
+        entry={entry} canCorrect={community.canCorrectOwnership} refresh={() => read(community)} />)}
     {community?.canAdd && <form onSubmit={event => void add(event)}>
       <fieldset disabled={pending}>
         <legend>Додати ділянку та особовий рахунок</legend>

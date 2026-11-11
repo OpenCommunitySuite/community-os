@@ -60,6 +60,15 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         await SetCommunityScopeAsync(connection, transaction, communityId, cancellationToken);
+        var changed = await CorrectOwnerAsync(connection, transaction, communityId, plotId, revision, ownerId,
+            reason, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return changed;
+    }
+
+    internal static async Task<bool> CorrectOwnerAsync(NpgsqlConnection connection, NpgsqlTransaction transaction,
+        Guid communityId, Guid plotId, Guid revision, Guid ownerId, string reason, CancellationToken cancellationToken)
+    {
         await using var command = new NpgsqlCommand("""
             WITH corrected AS (
                 UPDATE community_register.ownership
@@ -78,9 +87,7 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
         command.Parameters.AddWithValue("revision", revision);
         command.Parameters.AddWithValue("owner", ownerId);
         command.Parameters.AddWithValue("reason", reason);
-        var changed = await command.ExecuteNonQueryAsync(cancellationToken) == 1;
-        await transaction.CommitAsync(cancellationToken);
-        return changed;
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
 
     public async Task<RegisterImportResult> ApplyImportAsync(RegisterImportPlan plan, string confirmedBy,

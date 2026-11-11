@@ -36,6 +36,8 @@
           Link="010_register_import_preparation.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Platform/Infrastructure/Migrations/011_register_import_approval.sql"
           Link="011_register_import_approval.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Platform/Infrastructure/Migrations/012_ownership_correction_access.sql"
+          Link="012_ownership_correction_access.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/001_manual_register.sql"
           Link="001_manual_register.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/002_ownership_correction.sql"
@@ -48,6 +50,8 @@
           Link="006_register_import_draft.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/007_register_import_approval.sql"
           Link="007_register_import_approval.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/008_ownership_correction_attribution.sql"
+          Link="008_ownership_correction_attribution.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Net.Mail;
-using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace CommunityOS.Modules.Platform.Infrastructure;
@@ -29,32 +28,24 @@ public sealed class RecoveryDeliveryProcessor(RecoveryDeliveryStore store, IRead
             return false;
         }
 
-        var code = store.DeriveCode(job.Id);
-        try
+        var code = store.ResolveDeliveryCode(job);
+        var outcome = RecoveryDeliveryOutcome.Failed;
+        if (code is not null && transports.TryGetValue(job.Channel, out var transport))
         {
-            var outcome = RecoveryDeliveryOutcome.Failed;
-            if (CryptographicOperations.FixedTimeEquals(SHA256.HashData(code), job.Digest) &&
-                transports.TryGetValue(job.Channel, out var transport))
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+            deadline.CancelAfter(TimeSpan.FromSeconds(12));
+            try
             {
-                using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
-                deadline.CancelAfter(TimeSpan.FromSeconds(12));
-                try
-                {
-                    outcome = await transport.SendAsync(job.Destination, Convert.ToHexString(code), deadline.Token);
-                }
-                catch (OperationCanceledException) when (!token.IsCancellationRequested)
-                {
-                    outcome = RecoveryDeliveryOutcome.Retry;
-                }
+                outcome = await transport.SendAsync(job.Destination, code, deadline.Token);
             }
+            catch (OperationCanceledException) when (!token.IsCancellationRequested)
+            {
+                outcome = RecoveryDeliveryOutcome.Retry;
+            }
+        }
 
-            await store.FinishAsync(job, outcome, token);
-            return true;
-        }
-        finally
-        {
-            CryptographicOperations.ZeroMemory(code);
-        }
+        await store.FinishAsync(job, outcome, token);
+        return true;
     }
 }
 

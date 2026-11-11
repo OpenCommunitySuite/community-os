@@ -406,7 +406,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         var token = TestContext.Current.CancellationToken;
         await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
         foreach (var file in new[] { "001_community_reservation.sql", "005_platform_authentication.sql",
-                     "006_password_recovery.sql", "007_recovery_delivery.sql" })
+                     "006_password_recovery.sql", "007_recovery_delivery.sql", "008_short_recovery_code.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -448,14 +448,77 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         await store.RequestAsync("telegram-user", token);
         Assert.True(await processor.ProcessOneAsync(token));
         Assert.Equal("123456", Assert.Single(telegram.Messages).Destination);
+        Assert.Matches("^[0-9]{6}$", telegram.Messages[0].Code);
+        Assert.Matches("^[0-9]{6}$", email.Messages[0].Code);
 
-        var recovery = new PlatformPasswordRecovery(source);
+        var recovery = new PlatformPasswordRecovery(source, store);
         var newPassword = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(24));
         Assert.True(await bindings.SetAsync(account, null, null, token));
         Assert.False(await recovery.ConsumeAsync("mail-user", email.Messages[0].Code, newPassword, token));
-        Assert.True(await recovery.ConsumeAsync("telegram-user", telegram.Messages[0].Code, newPassword, token));
+        var code = telegram.Messages[0].Code;
+        var competing = await Task.WhenAll(recovery.ConsumeAsync("telegram-user", code, newPassword, token),
+            recovery.ConsumeAsync("telegram-user", code, newPassword, token));
+        Assert.Single(competing, accepted => accepted);
         await store.RequestAsync("telegram-user", token);
         Assert.False(await processor.ProcessOneAsync(token));
+
+        // Exercise the persisted limit without running ten additional Argon2 computations.
+        await using var credentials = source.CreateCommand("""
+            SELECT password_hash FROM platform_provisioning.platform_account WHERE login = 'mail-user';
+            """);
+        var hash = Assert.IsType<string>(await credentials.ExecuteScalarAsync(token));
+        await using var rebind = source.CreateCommand("""
+            UPDATE platform_provisioning.platform_auth_security_event
+            SET recorded_at = clock_timestamp() - interval '61 seconds' WHERE event_kind = 'recovery-issued';
+            """);
+        await rebind.ExecuteNonQueryAsync(token);
+        Assert.True(await bindings.SetAsync(account, "email", "synthetic@example.invalid", token));
+        await store.RequestAsync("mail-user", token);
+        var job = Assert.IsType<RecoveryDeliveryJob>(await store.ClaimAsync(token));
+        async Task<bool> TryDigest(byte[] digest, string login = "mail-user")
+        {
+            await using var command = source.CreateCommand("""
+                SELECT platform_provisioning.consume_short_recovery(@login, @issuance, @digest, @hash, @hash);
+                """);
+            command.Parameters.AddWithValue("login", login);
+            command.Parameters.AddWithValue("issuance", job.Id);
+            command.Parameters.AddWithValue("digest", digest);
+            command.Parameters.AddWithValue("hash", hash);
+            return await command.ExecuteScalarAsync(token) is true;
+        }
+
+        Assert.False(await TryDigest(job.Digest, "telegram-user"));
+        var guesses = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => TryDigest(new byte[32])));
+        Assert.All(guesses, accepted => Assert.False(accepted));
+        await using var failures = source.CreateCommand("SELECT count(*) FROM platform_provisioning.recovery_short_failure");
+        Assert.Equal(5L, await failures.ExecuteScalarAsync(token));
+        var restarted = new PlatformPasswordRecovery(source, store);
+        Assert.False(await restarted.ConsumeAsync("mail-user", store.DeriveShortCode(job.Id), newPassword, token));
+
+        var manual = Assert.IsType<string>(await restarted.IssueAsync(account, token));
+        Assert.Equal(64, manual.Length);
+        Assert.True(await restarted.ConsumeAsync("mail-user", manual, newPassword, token));
+        await rebind.ExecuteNonQueryAsync(token);
+        await store.RequestAsync("mail-user", token);
+        var nextJob = Assert.IsType<RecoveryDeliveryJob>(await store.ClaimAsync(token));
+        Assert.NotEqual(job.Id, nextJob.Id);
+        Assert.False(await restarted.ConsumeAsync("mail-user", store.DeriveShortCode(nextJob.Id), password, token));
+
+        await using var expire = source.CreateCommand("""
+            UPDATE platform_provisioning.platform_password_recovery SET expires_at = clock_timestamp()
+            WHERE account_id = @account;
+            UPDATE platform_provisioning.recovery_short_failure SET attempted_at = clock_timestamp() - interval '16 minutes'
+            WHERE account_id = @account;
+            """);
+        expire.Parameters.AddWithValue("account", account);
+        await expire.ExecuteNonQueryAsync(token);
+        Assert.False(await restarted.ConsumeAsync("mail-user", store.DeriveShortCode(nextJob.Id), password, token));
+
+        var legacyJob = Guid.CreateVersion7();
+        var legacyBytes = store.DeriveCode(legacyJob);
+        Assert.Equal(Convert.ToHexString(legacyBytes), store.ResolveDeliveryCode(new RecoveryDeliveryJob(
+            legacyJob, 1, "email", "synthetic@example.invalid",
+            System.Security.Cryptography.SHA256.HashData(legacyBytes))));
 
         await using var audit = source.CreateCommand("""
             SELECT count(*) FROM platform_provisioning.platform_auth_security_event

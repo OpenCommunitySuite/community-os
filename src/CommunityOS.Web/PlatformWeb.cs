@@ -141,7 +141,7 @@ internal static class PlatformWeb
         });
         routes.MapPost("/recover", async (RecoveryInput input, HttpContext http, CancellationToken token) =>
         {
-            var recovery = new PlatformPasswordRecovery(dataSource);
+            var recovery = new PlatformPasswordRecovery(dataSource, delivery);
             if (!await recovery.ConsumeAsync(input.Login, input.Code, input.NewPassword, token))
             {
                 return Results.BadRequest();

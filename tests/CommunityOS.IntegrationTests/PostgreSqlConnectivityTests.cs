@@ -277,6 +277,51 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Approved_Import_Rejects_Stale_Revision_And_Applies_Once()
+    {
+        var token = TestContext.Current.CancellationToken;
+        await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
+        foreach (var file in new[] { "001_manual_register.sql", "002_ownership_correction.sql",
+                     "003_register_import.sql", "004_register_community_scope.sql",
+                     "006_register_import_draft.sql", "007_register_import_approval.sql" })
+        {
+            var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
+            await using var migration = source.CreateCommand(sql);
+            await migration.ExecuteNonQueryAsync(token);
+        }
+
+        var drafts = new PostgresImportDraftStore(source);
+        var approvals = new PostgresImportApprovalStore(source);
+        var owner = new ImportDraftOwner(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        RegisterImportRow[] rows = [new(2, "01", "", "Source owner", "001", true),
+            new(3, "02", "", "Source owner", "002", true)];
+        RegisterOwnerDecision[] decisions = [new(2, "explicit", "Verified"), new(3, "explicit", "Verified")];
+        var plan = RegisterImportPlan.Create(owner.Community, RegisterImportDraft.Resolve(rows, decisions), rows);
+        var draftId = await drafts.CreateAsync(owner, new byte[32], rows, token);
+        Assert.True(await drafts.SaveAsync(owner, draftId, 1, decisions, token));
+        var key = new ImportSubmissionKey(draftId, 2, plan.Id);
+        var preparer = new ImportApprovalActor(owner.Account, owner.Subject, Guid.NewGuid(), null);
+        var approver = new ImportApprovalActor(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "synthetic-test");
+        Assert.True(await approvals.SubmitAsync(owner.Community, key, preparer, token));
+        Assert.True(await drafts.SaveAsync(owner, draftId, 2, decisions, token));
+        Assert.Equal(ImportApprovalResult.Stale, await approvals.ApplyAsync(owner.Community, key, approver, token));
+        Assert.Null(await approvals.ReceiptAsync(owner.Community, key, token));
+
+        key = key with { Revision = 3 };
+        Assert.True(await approvals.SubmitAsync(owner.Community, key, preparer with { AdmissionId = Guid.NewGuid() }, token));
+        var results = await Task.WhenAll(
+            approvals.ApplyAsync(owner.Community, key, approver with { AdmissionId = Guid.NewGuid() }, token),
+            approvals.ApplyAsync(owner.Community, key, approver with { AdmissionId = Guid.NewGuid() }, token));
+        Assert.Contains(ImportApprovalResult.Applied, results);
+        Assert.Contains(ImportApprovalResult.Replayed, results);
+        var receipt = Assert.IsType<RegisterImportReceipt>(await approvals.ReceiptAsync(owner.Community, key, token));
+        Assert.Equal(approver.AccountId.ToString(), receipt.ConfirmedBy);
+        Assert.Equal(new[] { "001", "002" }, receipt.Items.Select(item => item.AccountNumber));
+        Assert.Single(receipt.Items.Select(item => item.ImportedSubjectId).Distinct());
+        Assert.Null(await approvals.ReceiptAsync(Guid.NewGuid(), key, token));
+    }
+
+    [Fact]
     public async Task Import_Draft_Is_Private_To_Community_Account_And_Subject_And_Requires_Current_Revision()
     {
         var token = TestContext.Current.CancellationToken;
@@ -315,7 +360,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         var token = TestContext.Current.CancellationToken;
         await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
         foreach (var file in new[] { "001_community_reservation.sql", "005_platform_authentication.sql",
-                     "009_register_access.sql", "010_register_import_preparation.sql" })
+                     "009_register_access.sql", "010_register_import_preparation.sql", "011_register_import_approval.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -376,6 +421,39 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
             """);
         await revokePreparation.ExecuteNonQueryAsync(token);
         Assert.False(await TryPrepare());
+
+        await using var grantApproval = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator
+            SET can_approve_import = true, import_approval_basis = 'synthetic';
+            """);
+        await grantApproval.ExecuteNonQueryAsync(token);
+        await using var revoker = await source.OpenConnectionAsync(token);
+        await using var revocation = await revoker.BeginTransactionAsync(token);
+        await using var revokeApproval = new NpgsqlCommand("""
+            UPDATE platform_provisioning.register_operator SET can_approve_import = false;
+            """, revoker, revocation);
+        Assert.Equal(1, await revokeApproval.ExecuteNonQueryAsync(token));
+
+        var settings = new NpgsqlConnectionStringBuilder(_postgres.GetConnectionString())
+            { ApplicationName = "i1-concurrent-approval" };
+        await using var approvalSource = NpgsqlDataSource.Create(settings.ConnectionString);
+        var approval = new RegisterAccessStore(approvalSource).WithAccessAsync(session, community,
+            RegisterPermission.ApproveImport, _ => Task.FromResult(true), false, token,
+            new(Guid.NewGuid(), 1, new string('A', 64)));
+        await using var waiting = source.CreateCommand("""
+            SELECT EXISTS (SELECT 1 FROM pg_stat_activity
+                WHERE application_name = 'i1-concurrent-approval' AND wait_event_type = 'Lock');
+            """);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+        deadline.CancelAfter(TimeSpan.FromSeconds(10));
+        while (await waiting.ExecuteScalarAsync(deadline.Token) is not true)
+        {
+            await Task.Delay(25, deadline.Token);
+        }
+        await revocation.CommitAsync(token);
+        Assert.False(await approval);
+        await using var admissions = source.CreateCommand("SELECT count(*) FROM platform_provisioning.register_import_admission;");
+        Assert.Equal(0L, await admissions.ExecuteScalarAsync(token));
     }
 
     [Fact]

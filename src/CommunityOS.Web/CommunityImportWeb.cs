@@ -142,7 +142,8 @@ internal static class CommunityImportWeb
     {
         var current = await register.ListAsync(community, token);
         var rows = RegisterImportDraft.Resolve(draft.Source, draft.Decisions);
-        return Results.Ok(new { Draft = draft, Preview = RegisterImportPreview.Create(rows, current) });
+        var plan = RegisterImportPlan.Create(community, rows, draft.Source);
+        return Results.Ok(new { Draft = draft, Preview = plan.Preview(current), PlanId = plan.Id });
     }
 
     private sealed record DraftInput(int Revision, RegisterOwnerDecision[]? Decisions);

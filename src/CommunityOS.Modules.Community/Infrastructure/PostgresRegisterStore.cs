@@ -90,6 +90,18 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         await SetCommunityScopeAsync(connection, transaction, plan.CommunityId, cancellationToken);
+        var result = await ApplyImportAsync(connection, transaction, plan, confirmedBy, cancellationToken);
+        if (result == RegisterImportResult.Applied)
+        {
+            await transaction.CommitAsync(cancellationToken);
+        }
+
+        return result;
+    }
+
+    internal static async Task<RegisterImportResult> ApplyImportAsync(NpgsqlConnection connection,
+        NpgsqlTransaction transaction, RegisterImportPlan plan, string confirmedBy, CancellationToken cancellationToken)
+    {
         await using var batch = new NpgsqlCommand("""
             INSERT INTO community_register.register_import (community_id, plan_id, confirmed_by)
             VALUES (@community, @plan, @operator)
@@ -127,7 +139,6 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
             await item.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        await transaction.CommitAsync(cancellationToken);
         return RegisterImportResult.Applied;
     }
 
@@ -174,7 +185,7 @@ public sealed class PostgresRegisterStore(NpgsqlDataSource dataSource) : IRegist
         return await ReadEntriesAsync(connection, transaction, communityId, cancellationToken);
     }
 
-    private static async Task<IReadOnlyList<RegisterEntry>> ReadEntriesAsync(NpgsqlConnection connection,
+    internal static async Task<IReadOnlyList<RegisterEntry>> ReadEntriesAsync(NpgsqlConnection connection,
         NpgsqlTransaction transaction, Guid communityId, CancellationToken cancellationToken)
     {
         await using var command = new NpgsqlCommand("""

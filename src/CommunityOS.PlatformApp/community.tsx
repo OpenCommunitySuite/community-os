@@ -3,9 +3,11 @@ import { createRoot } from 'react-dom/client';
 import { ImportPreparation } from './importPreparation';
 import { ImportApproval } from './importApproval';
 import { OwnershipCorrection } from './ownershipCorrection';
+import { Electricity } from './electricity';
 
 type Community = { id: string; name: string; canRead: boolean; canAdd: boolean; canPrepareImport: boolean;
-  canApproveImport: boolean; canCorrectOwnership: boolean };
+  canApproveImport: boolean; canCorrectOwnership: boolean; canReadElectricity: boolean;
+  canSetupElectricity: boolean; canRecognizeElectricity: boolean };
 type Entry = { plotId: string; plotNumber: string; ownerId: string; ownerName: string; accountNumber: string;
   ownershipRevision: string };
 
@@ -141,6 +143,8 @@ function Register() {
     <p role="status">{message}</p>
     {community?.canPrepareImport && <ImportPreparation key={community.id} community={community.id} />}
     {community?.canApproveImport && <ImportApproval key={community.id} community={community.id} />}
+    {community?.canReadElectricity && <Electricity key={community.id} community={community.id}
+      canSetup={community.canSetupElectricity} canRecognize={community.canRecognizeElectricity} />}
   </>;
 }
 

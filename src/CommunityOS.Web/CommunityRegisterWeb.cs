@@ -20,6 +20,7 @@ internal static class CommunityRegisterWeb
         var routes = PlatformWeb.SecureRoutes(app, "/community");
         CommunityImportWeb.Map(routes, access, register, new PostgresImportDraftStore(database));
         CommunityImportApprovalWeb.Map(routes, access, new PostgresImportApprovalStore(database));
+        CommunityElectricityWeb.Map(routes, access, new PostgresElectricityStore(database));
         MapCorrections(routes, access, new PostgresOwnershipCorrectionStore(database));
         var index = Path.GetFullPath(Path.Combine(frontend, "community.html"));
         var script = Path.GetFullPath(Path.Combine(frontend, "community.js"));

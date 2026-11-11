@@ -301,6 +301,7 @@ def up(docker, config, config_dir):
             platform_provisioning.register_operator TO {WEB_ROLE};
         GRANT INSERT ON platform_provisioning.register_addition_admission TO {WEB_ROLE};
         GRANT INSERT ON platform_provisioning.register_import_draft_admission TO {WEB_ROLE};
+        GRANT INSERT ON platform_provisioning.register_import_admission TO {WEB_ROLE};
     """, private=True)
     psql(docker, postgres, REGISTER, f"""
         GRANT USAGE ON SCHEMA community_register TO {WEB_ROLE};
@@ -310,6 +311,10 @@ def up(docker, config, config_dir):
             community_register.personal_account, community_register.manual_addition TO {WEB_ROLE};
         GRANT SELECT, INSERT ON community_register.import_draft TO {WEB_ROLE};
         GRANT UPDATE (decisions, revision, updated_at) ON community_register.import_draft TO {WEB_ROLE};
+        GRANT SELECT, INSERT ON community_register.register_import, community_register.register_import_item,
+            community_register.import_submission TO {WEB_ROLE};
+        GRANT UPDATE (applied_plan_id) ON community_register.import_submission TO {WEB_ROLE};
+        GRANT INSERT ON community_register.import_approval_event TO {WEB_ROLE};
     """)
     web = docker.ensure_container("web", image=config["image"], env=[
         "ASPNETCORE_ENVIRONMENT=Production", "ASPNETCORE_URLS=https://127.0.0.1:8443",

@@ -34,6 +34,8 @@
           Link="009_register_access.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Platform/Infrastructure/Migrations/010_register_import_preparation.sql"
           Link="010_register_import_preparation.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Platform/Infrastructure/Migrations/011_register_import_approval.sql"
+          Link="011_register_import_approval.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/001_manual_register.sql"
           Link="001_manual_register.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/002_ownership_correction.sql"
@@ -44,6 +46,8 @@
           Link="004_register_community_scope.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/006_register_import_draft.sql"
           Link="006_register_import_draft.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/007_register_import_approval.sql"
+          Link="007_register_import_approval.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

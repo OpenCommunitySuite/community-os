@@ -4,6 +4,7 @@ type Summary = { id: string; updatedAt: string };
 type Decision = { row: number; ownerKey: string; ownerName: string };
 type SourceRow = { row: number; plotNumber: string; ownerName: string; accountNumber: string };
 type Preparation = {
+  planId: string;
   draft: { id: string; revision: number; source: SourceRow[]; decisions: Decision[] };
   preview: { canProceed: boolean; candidates: { row: number; issues: string[] }[] };
 };
@@ -40,6 +41,7 @@ export function ImportPreparation({ community }: { community: string }) {
   const [summaries, setSummaries] = useState<Summary[]>([]);
   const [current, setCurrent] = useState<Preparation>();
   const [pending, setPending] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const [message, setMessage] = useState('');
 
   async function loadList() {
@@ -52,6 +54,7 @@ export function ImportPreparation({ community }: { community: string }) {
 
   async function open(id: string) {
     setCurrent(undefined);
+    setDirty(false);
     setCurrent(await check(await fetch(url + '/' + id)).json());
   }
 
@@ -127,7 +130,8 @@ export function ImportPreparation({ community }: { community: string }) {
         </option>)}
       </select>
     </label>}
-    {current && <form key={current.draft.id + ':' + current.draft.revision} onSubmit={save}>
+    {current && <form key={current.draft.id + ':' + current.draft.revision} onSubmit={save}
+      onChange={() => setDirty(true)}>
       <p>Однаковий ключ указуйте лише для ділянок одного підтвердженого власника.</p>
       <p>{current.preview.canProceed ? 'Конфліктів не виявлено.' : 'Перевірте рішення та конфлікти в таблиці.'}</p>
       <fieldset disabled={pending}>
@@ -145,6 +149,12 @@ export function ImportPreparation({ community }: { community: string }) {
           </tr>)}</tbody>
         </table>
         <button>Зберегти й перевірити</button>
+        {current.preview.canProceed && <button type="button" disabled={dirty} onClick={() => void run(async () => {
+          const { draft, planId } = current;
+          await post('/community/import-approvals/' + community + '/' + draft.id + '/' + draft.revision + '/' +
+            planId + '/submit', 'application/json', '{}');
+          setMessage('Ревізію ' + draft.revision + ' передано на затвердження.');
+        })}>Передати на затвердження</button>}
       </fieldset>
     </form>}
     <p role="status">{message}</p>

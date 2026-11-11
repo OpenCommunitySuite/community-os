@@ -1,8 +1,10 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ImportPreparation } from './importPreparation';
+import { ImportApproval } from './importApproval';
 
-type Community = { id: string; name: string; canRead: boolean; canAdd: boolean; canPrepareImport: boolean };
+type Community = { id: string; name: string; canRead: boolean; canAdd: boolean; canPrepareImport: boolean;
+  canApproveImport: boolean };
 type Entry = { plotId: string; plotNumber: string; ownerId: string; ownerName: string; accountNumber: string };
 
 function Register() {
@@ -125,6 +127,7 @@ function Register() {
     </form>}
     <p role="status">{message}</p>
     {community?.canPrepareImport && <ImportPreparation key={community.id} community={community.id} />}
+    {community?.canApproveImport && <ImportApproval key={community.id} community={community.id} />}
   </>;
 }
 

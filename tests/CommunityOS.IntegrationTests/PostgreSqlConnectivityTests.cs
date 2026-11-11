@@ -283,7 +283,8 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
         foreach (var file in new[] { "001_manual_register.sql", "002_ownership_correction.sql",
                      "003_register_import.sql", "004_register_community_scope.sql",
-                     "006_register_import_draft.sql", "007_register_import_approval.sql" })
+                     "006_register_import_draft.sql", "007_register_import_approval.sql",
+                     "008_ownership_correction_attribution.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -319,6 +320,34 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Equal(new[] { "001", "002" }, receipt.Items.Select(item => item.AccountNumber));
         Assert.Single(receipt.Items.Select(item => item.ImportedSubjectId).Distinct());
         Assert.Null(await approvals.ReceiptAsync(Guid.NewGuid(), key, token));
+
+        var register = new ManualRegister(new PostgresRegisterStore(source));
+        var correctionStore = new PostgresOwnershipCorrectionStore(source);
+        var correctedPlot = receipt.Items[0].PlotId;
+        var imported = Assert.Single(await register.ListAsync(owner.Community, token), entry => entry.PlotId == correctedPlot);
+        var newOwner = await register.CreateAsync(owner.Community, null, "Other owner", "03", "003", token);
+        var foreignOwner = await register.CreateAsync(Guid.NewGuid(), null, "Foreign owner", "01", "001", token);
+        var correction = new OwnershipCorrection(correctedPlot, imported.OwnershipRevision, newOwner, "Wrong initial link");
+        var corrector = new OwnershipCorrectionActor(Guid.NewGuid(), owner.Account, owner.Subject, "synthetic-correction");
+        Assert.Equal(OwnershipCorrectionResult.InvalidOwner, await correctionStore.CorrectAsync(owner.Community,
+            correction with { OwnerId = foreignOwner }, corrector, token));
+        Assert.Equal(OwnershipCorrectionResult.Unchanged, await correctionStore.CorrectAsync(owner.Community,
+            correction with { OwnerId = imported.OwnerId }, corrector with { AdmissionId = Guid.NewGuid() }, token));
+        var corrections = await Task.WhenAll(
+            correctionStore.CorrectAsync(owner.Community, correction, corrector with { AdmissionId = Guid.NewGuid() }, token),
+            correctionStore.CorrectAsync(owner.Community, correction, corrector with { AdmissionId = Guid.NewGuid() }, token));
+        Assert.Contains(OwnershipCorrectionResult.Corrected, corrections);
+        Assert.Contains(OwnershipCorrectionResult.Stale, corrections);
+        var history = Assert.Single(await correctionStore.HistoryAsync(owner.Community, correctedPlot, token));
+        Assert.Equal((imported.OwnerId, newOwner, correction.Reason), (history.PreviousOwnerId, history.CorrectedOwnerId, history.Reason));
+        Assert.Equal(corrector.AccountId, history.AccountId);
+        Assert.Equal(corrector.SubjectId, history.SubjectId);
+        Assert.Empty(await correctionStore.HistoryAsync(Guid.NewGuid(), correctedPlot, token));
+        var corrected = Assert.Single(await register.ListAsync(owner.Community, token), entry => entry.PlotId == correctedPlot);
+        Assert.Equal(newOwner, corrected.OwnerId);
+        Assert.Equal(imported.AccountNumber, corrected.AccountNumber);
+        var after = Assert.IsType<RegisterImportReceipt>(await approvals.ReceiptAsync(owner.Community, key, token));
+        Assert.Equal(receipt.Items, after.Items);
     }
 
     [Fact]
@@ -360,7 +389,8 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         var token = TestContext.Current.CancellationToken;
         await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
         foreach (var file in new[] { "001_community_reservation.sql", "005_platform_authentication.sql",
-                     "009_register_access.sql", "010_register_import_preparation.sql", "011_register_import_approval.sql" })
+                     "009_register_access.sql", "010_register_import_preparation.sql", "011_register_import_approval.sql",
+                     "012_ownership_correction_access.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);

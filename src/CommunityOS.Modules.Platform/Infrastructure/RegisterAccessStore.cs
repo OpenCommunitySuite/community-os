@@ -3,10 +3,15 @@ using Npgsql;
 namespace CommunityOS.Modules.Platform.Infrastructure;
 
 public sealed record RegisterCommunity(Guid Id, string Name, bool CanRead, bool CanAdd, bool CanPrepareImport,
-    bool CanApproveImport);
+    bool CanApproveImport, bool CanCorrectOwnership);
 public sealed record RegisterActor(Guid AccountId, Guid SubjectId, string? AdditionBasis, Guid AdmissionId);
 public sealed record RegisterImportTarget(Guid DraftId, int Revision, string PlanId);
-public enum RegisterPermission { Read, Add, PrepareImport, WriteImportDraft, ReadImportApproval, SubmitImport, ApproveImport }
+public sealed record OwnershipCorrectionTarget(Guid PlotId, Guid Revision, Guid OwnerId);
+public enum RegisterPermission
+{
+    Read, Add, PrepareImport, WriteImportDraft, ReadImportApproval, SubmitImport, ApproveImport,
+    ReadCorrectionCandidates, CorrectOwnership
+}
 
 public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
 {
@@ -19,7 +24,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
 
         await using var command = dataSource.CreateCommand("""
             SELECT c.community_id, c.display_name, o.can_read, o.can_add AND o.addition_basis IS NOT NULL,
-                o.can_prepare_import, o.can_approve_import AND o.import_approval_basis IS NOT NULL
+                o.can_prepare_import, o.can_approve_import AND o.import_approval_basis IS NOT NULL,
+                o.can_read AND o.can_correct_ownership AND o.ownership_correction_basis IS NOT NULL
             FROM platform_provisioning.platform_session s
             JOIN platform_provisioning.platform_account a ON a.id = s.account_id
             LEFT JOIN (
@@ -46,7 +52,7 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
             if (!reader.IsDBNull(0))
             {
                 communities.Add(new(reader.GetGuid(0), reader.GetString(1), reader.GetBoolean(2), reader.GetBoolean(3),
-                    reader.GetBoolean(4), reader.GetBoolean(5)));
+                    reader.GetBoolean(4), reader.GetBoolean(5), reader.GetBoolean(6)));
             }
         } while (await reader.ReadAsync(token));
 
@@ -58,7 +64,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
         WithAccessAsync(session, community, adding ? RegisterPermission.Add : RegisterPermission.Read, action, denied, token);
 
     public async Task<T> WithAccessAsync<T>(string? session, Guid community, RegisterPermission permission,
-        Func<RegisterActor, Task<T>> action, T denied, CancellationToken token, RegisterImportTarget? target = null)
+        Func<RegisterActor, Task<T>> action, T denied, CancellationToken token, RegisterImportTarget? target = null,
+        OwnershipCorrectionTarget? correction = null)
     {
         if (PlatformAuthenticationStore.Digest(session) is not { } digest)
         {
@@ -67,7 +74,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
 
         var submitting = permission == RegisterPermission.SubmitImport;
         var approving = permission == RegisterPermission.ApproveImport;
-        if ((submitting || approving) && target is null)
+        var correcting = permission == RegisterPermission.CorrectOwnership;
+        if (((submitting || approving) && target is null) || (correcting && correction is null))
         {
             return denied;
         }
@@ -75,7 +83,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
         await using var connection = await dataSource.OpenConnectionAsync(token);
         await using var transaction = await connection.BeginTransactionAsync(token);
         await using var authorization = new NpgsqlCommand("""
-            SELECT a.id, o.subject_id, CASE WHEN @approval THEN o.import_approval_basis ELSE o.addition_basis END
+            SELECT a.id, o.subject_id, CASE WHEN @correcting THEN o.ownership_correction_basis
+                WHEN @approval THEN o.import_approval_basis ELSE o.addition_basis END
             FROM platform_provisioning.platform_session s
             JOIN platform_provisioning.platform_account a ON a.id = s.account_id
             JOIN platform_provisioning.register_operator o ON o.account_id = a.id
@@ -85,7 +94,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                 AND v.community_active AND v.register_enabled
                 AND ((@adding AND o.can_add AND o.addition_basis IS NOT NULL) OR (@reading AND o.can_read)
                     OR (@preparing AND o.can_prepare_import)
-                    OR (@approval AND o.can_approve_import AND o.import_approval_basis IS NOT NULL))
+                    OR (@approval AND o.can_approve_import AND o.import_approval_basis IS NOT NULL)
+                    OR (@correcting AND o.can_read AND o.can_correct_ownership AND o.ownership_correction_basis IS NOT NULL))
             FOR SHARE OF a, s, o, v;
             """, connection, transaction);
         authorization.Parameters.AddWithValue("digest", digest);
@@ -96,7 +106,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
         var writingDraft = permission == RegisterPermission.WriteImportDraft;
         authorization.Parameters.AddWithValue("preparing", permission == RegisterPermission.PrepareImport || writingDraft || submitting);
         authorization.Parameters.AddWithValue("approval", permission == RegisterPermission.ReadImportApproval || approving);
-        var writing = adding || writingDraft || submitting || approving;
+        authorization.Parameters.AddWithValue("correcting", correcting || permission == RegisterPermission.ReadCorrectionCandidates);
+        var writing = adding || writingDraft || submitting || approving || correcting;
         RegisterActor actor;
         await using (var reader = await authorization.ExecuteReaderAsync(token))
         {
@@ -131,6 +142,12 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                 SELECT @id, @community, @account, @subject
                 FROM platform_provisioning.platform_session
                 WHERE token_digest = @digest AND expires_at > clock_timestamp();
+                """ : correcting ? """
+                INSERT INTO platform_provisioning.ownership_correction_admission
+                    (id, community_id, account_id, subject_id, plot_id, previous_revision, owner_id, basis)
+                SELECT @id, @community, @account, @subject, @plot, @previous, @owner, @basis
+                FROM platform_provisioning.platform_session
+                WHERE token_digest = @digest AND expires_at > clock_timestamp();
                 """ : """
                 INSERT INTO platform_provisioning.register_import_admission
                     (id, community_id, account_id, subject_id, draft_id, revision, plan_id, action, basis)
@@ -142,9 +159,15 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
             admit.Parameters.AddWithValue("community", community);
             admit.Parameters.AddWithValue("account", actor.AccountId);
             admit.Parameters.AddWithValue("subject", actor.SubjectId);
-            if (adding)
+            if (adding || correcting)
             {
                 admit.Parameters.AddWithValue("basis", actor.AdditionBasis!);
+            }
+            if (correcting)
+            {
+                admit.Parameters.AddWithValue("plot", correction!.PlotId);
+                admit.Parameters.AddWithValue("previous", correction.Revision);
+                admit.Parameters.AddWithValue("owner", correction.OwnerId);
             }
             if (submitting || approving)
             {

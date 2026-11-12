@@ -25,7 +25,8 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
     {
         var token = TestContext.Current.CancellationToken;
         await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
-        foreach (var file in new[] { "001_manual_register.sql", "009_electricity_readings.sql" })
+        foreach (var file in new[] { "001_manual_register.sql", "002_ownership_correction.sql",
+                     "009_electricity_readings.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);

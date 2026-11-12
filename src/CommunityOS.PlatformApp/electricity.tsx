@@ -5,6 +5,7 @@ type Installation = { id: string; meterDesignation: string; startsOn: string; en
   registerMode: 'total' | 'dual';
   replacement?: { reason: string; recordedAt: string; accountId: string } };
 type Plot = { id: string; number: string; installation: Installation | null };
+type CommonPoint = { id: string; designation: string; boundary: string };
 type Interval = { fromReadingId: string; toReadingId: string; from: string; to: string; value: number; channel: Channel };
 type Series = {
   readings: { id: string; date: string; value: number; recognizedAt: string; accountId: string; channel: Channel }[];
@@ -25,6 +26,7 @@ const messages: Record<string, string> = {
   ExistingReading: 'Старий лічильник уже має показання на дату заміни або пізніше.',
   Conflict: 'Установку вже закрито, позначення зайняте або дані повторного запиту відрізняються.',
   UnsupportedChannel: 'Цей лічильник не підтримує вибраний регістр.',
+  CommonPointConflict: 'Позначення точки або лічильника вже використовується.',
 };
 const format = new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 3 });
 
@@ -36,11 +38,12 @@ async function checked(response: Response) {
   throw new Error(messages[error?.outcome] ?? 'Перевірте дані та повторіть спробу.');
 }
 
-export function Electricity({ community, canSetup, canRecognize, canReplace }: {
-  community: string; canSetup: boolean; canRecognize: boolean; canReplace: boolean;
+export function Electricity({ community, canSetup, canRecognize, canReplace, canSetupCommon }: {
+  community: string; canSetup: boolean; canRecognize: boolean; canReplace: boolean; canSetupCommon: boolean;
 }) {
   const endpoint = '/community/electricity/' + community;
   const [plots, setPlots] = useState<Plot[]>([]);
+  const [commonPoints, setCommonPoints] = useState<CommonPoint[]>([]);
   const [selected, setSelected] = useState('');
   const [series, setSeries] = useState<Series>();
   const [installations, setInstallations] = useState<Installation[]>([]);
@@ -49,6 +52,7 @@ export function Electricity({ community, canSetup, canRecognize, canReplace }: {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState('');
   const plot = plots.find(item => item.id === selected);
+  const commonPoint = commonPoints.find(item => 'common:' + item.id === selected);
   const installation = installations.find(item => item.id === selectedInstallation);
 
   async function loadPlots(): Promise<Plot[]> {
@@ -57,14 +61,22 @@ export function Electricity({ community, canSetup, canRecognize, canReplace }: {
     return data;
   }
 
+  async function loadCommonPoints() {
+    setCommonPoints(await (await checked(await fetch(endpoint + '/common-points'))).json());
+  }
+
   async function loadSeries(item: Installation | null | undefined) {
     setSeries(item ? await (await checked(await fetch(endpoint + '/installations/' + item.id + '/readings'))).json()
       : undefined);
   }
 
-  async function loadInstallations(plotId: string, preferred?: string) {
-    const items: Installation[] = plotId
-      ? await (await checked(await fetch(endpoint + '/plots/' + plotId + '/installations'))).json() : [];
+  async function loadInstallations(target: string, preferred?: string) {
+    setInstallations([]);
+    setSelectedInstallation('');
+    setSeries(undefined);
+    const path = target.startsWith('common:') ? '/common-points/' + target.slice(7) : '/plots/' + target;
+    const items: Installation[] = target
+      ? await (await checked(await fetch(endpoint + path + '/installations'))).json() : [];
     const next = items.find(item => item.id === preferred) ?? items.find(item => !item.endsBefore);
     setInstallations(items);
     setSelectedInstallation(next?.id ?? '');
@@ -79,7 +91,7 @@ export function Electricity({ community, canSetup, canRecognize, canReplace }: {
     finally { setPending(false); }
   }
 
-  useEffect(() => { void run(async () => { await loadPlots(); }); }, [endpoint]);
+  useEffect(() => { void run(async () => { await Promise.all([loadPlots(), loadCommonPoints()]); }); }, [endpoint]);
 
   async function post(path: string, data: object) {
     const { token } = await (await checked(await fetch('/platform/csrf'))).json();
@@ -104,7 +116,7 @@ export function Electricity({ community, canSetup, canRecognize, canReplace }: {
 
   function replace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!plot || !installation || installation.endsBefore) return;
+    if (!selected || !installation || installation.endsBefore) return;
     const data = Object.fromEntries(new FormData(event.currentTarget));
     const payload = JSON.stringify([installation.id, data]);
     if (replacementRequest.current?.payload !== payload)
@@ -114,9 +126,29 @@ export function Electricity({ community, canSetup, canRecognize, canReplace }: {
       const response = await post('/installations/' + installation.id + '/replacement', { ...data, requestId });
       const result = await response.json();
       await loadPlots();
-      await loadInstallations(plot.id, result.installationId);
+      await loadInstallations(selected, result.installationId);
       replacementRequest.current = undefined;
       setMessage('Заміну лічильника зареєстровано.');
+    });
+  }
+
+  function setupCommon(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const input = Object.fromEntries(new FormData(form));
+    void run(async () => {
+      const response = await post('/common-points', input);
+      const { id } = await response.json();
+      const target = 'common:' + id;
+      form.reset();
+      try {
+        await loadCommonPoints();
+        setSelected(target);
+        await loadInstallations(target);
+        setMessage('Загальну точку та установку зареєстровано.');
+      } catch {
+        setMessage('Загальну точку зареєстровано. Оновіть сторінку, щоб відкрити її.');
+      }
     });
   }
 
@@ -137,19 +169,35 @@ export function Electricity({ community, canSetup, canRecognize, canReplace }: {
 
   return <section aria-labelledby="electricity-heading">
     <h2 id="electricity-heading">Облік електроенергії</h2>
-    <label>Ділянка для обліку{' '}
+    <label>Точка або ділянка для обліку{' '}
       <select value={selected} disabled={pending} onChange={event => {
         const id = event.target.value;
         setSelected(id);
-        setSeries(undefined);
-        setInstallations([]);
-        setSelectedInstallation('');
         void run(() => loadInstallations(id));
       }}>
-        <option value="">Оберіть ділянку</option>
-        {plots.map(item => <option key={item.id} value={item.id}>{item.number}</option>)}
+        <option value="">Оберіть точку або ділянку</option>
+        <optgroup label="Індивідуальні ділянки">
+          {plots.map(item => <option key={item.id} value={item.id}>{item.number}</option>)}
+        </optgroup>
+        {commonPoints.length > 0 && <optgroup label="Загальні точки">
+          {commonPoints.map(item => <option key={item.id} value={'common:' + item.id}>{item.designation}</option>)}
+        </optgroup>}
       </select>
     </label>
+    {commonPoint && <p>Межа вимірювання · {commonPoint.boundary}</p>}
+    {canSetupCommon && <form onSubmit={setupCommon}>
+      <fieldset disabled={pending}>
+        <legend>Зареєструвати загальну точку</legend>
+        <label>Позначення точки <input name="pointDesignation" maxLength={128} required /></label>{' '}
+        <label>Межа вимірювання <input name="boundary" maxLength={500} required /></label>{' '}
+        <label>Позначення лічильника <input name="designation" maxLength={128} required /></label>{' '}
+        <label>Дата початку установки <input name="startsOn" type="date" required /></label>{' '}
+        <label>Регістри лічильника <select name="registerMode" defaultValue="total">
+          <option value="total">Загальний</option><option value="dual">День і ніч</option>
+        </select></label>{' '}
+        <button>Зареєструвати загальну точку</button>
+      </fieldset>
+    </form>}
     {plot && !plot.installation && canSetup && <form onSubmit={setup} key={plot.id}>
       <fieldset disabled={pending}>
         <legend>Зареєструвати точку обліку та установку</legend>

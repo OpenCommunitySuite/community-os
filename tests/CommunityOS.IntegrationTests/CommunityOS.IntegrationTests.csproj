@@ -40,6 +40,8 @@
           Link="012_ownership_correction_access.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Platform/Infrastructure/Migrations/013_electricity_access.sql"
           Link="013_electricity_access.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Platform/Infrastructure/Migrations/014_electricity_replacement_access.sql"
+          Link="014_electricity_replacement_access.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/001_manual_register.sql"
           Link="001_manual_register.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/002_ownership_correction.sql"
@@ -56,6 +58,8 @@
           Link="008_ownership_correction_attribution.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/009_electricity_readings.sql"
           Link="009_electricity_readings.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/010_electricity_replacement.sql"
+          Link="010_electricity_replacement.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

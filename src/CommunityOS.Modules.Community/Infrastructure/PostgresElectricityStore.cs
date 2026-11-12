@@ -4,15 +4,132 @@ using Npgsql;
 namespace CommunityOS.Modules.Community.Infrastructure;
 
 public sealed record ElectricityActor(Guid AccountId, Guid SubjectId, Guid AdmissionId, string Basis);
-public sealed record ElectricityInstallation(Guid Id, Guid PointId, Guid MeterId, string MeterDesignation, DateOnly StartsOn);
+public sealed record ElectricityInstallation(Guid Id, Guid PointId, Guid MeterId, string MeterDesignation, DateOnly StartsOn,
+    DateOnly? EndsBefore = null, ElectricityReplacementHistory? Replacement = null);
+public sealed record ElectricityReplacementHistory(string Reason, DateTime RecordedAt, Guid AccountId, Guid SubjectId);
 public sealed record ElectricityPlot(Guid Id, string Number, ElectricityInstallation? Installation);
 public sealed record ElectricitySeries(IReadOnlyList<ElectricityReading> Readings, IReadOnlyList<ElectricityInterval> Intervals,
     string Unit);
 public sealed record ElectricityRecognition(ReadingOutcome Outcome, Guid? ReadingId = null);
 public enum ElectricitySetupOutcome { Created, MissingPlot, Conflict }
+public sealed record ElectricityReplacement(Guid RequestId, Guid InstallationId, DateOnly EffectiveOn, string Designation, string Reason);
+public enum ElectricityReplacementOutcome { Replaced, Replayed, Missing, InvalidDate, ExistingReading, Conflict }
+public sealed record ElectricityReplacementResult(ElectricityReplacementOutcome Outcome, Guid? InstallationId = null);
 
 public sealed class PostgresElectricityStore(NpgsqlDataSource source)
 {
+    public Task<IReadOnlyList<ElectricityInstallation>> InstallationsAsync(Guid community, Guid plot, CancellationToken token) =>
+        RunAsync<IReadOnlyList<ElectricityInstallation>>(community, async (connection, transaction) =>
+        {
+            await using var query = Query(connection, transaction, community, """
+                SELECT i.id, i.point_id, i.meter_id, m.designation, i.starts_on, i.ends_before,
+                    r.reason, r.recorded_at, r.account_id, r.subject_id
+                FROM community_electricity.accounting_point p
+                JOIN community_electricity.installation i ON (i.community_id, i.point_id) = (p.community_id, p.id)
+                JOIN community_electricity.meter m ON (m.community_id, m.id) = (i.community_id, i.meter_id)
+                LEFT JOIN community_electricity.replacement r ON
+                    (r.community_id, r.new_installation_id) = (i.community_id, i.id)
+                WHERE p.community_id = @community AND p.plot_id = @plot
+                ORDER BY i.starts_on DESC, i.id;
+                """);
+            query.Parameters.AddWithValue("plot", plot);
+            await using var reader = await query.ExecuteReaderAsync(token);
+            var installations = new List<ElectricityInstallation>();
+            while (await reader.ReadAsync(token))
+            {
+                installations.Add(new(reader.GetGuid(0), reader.GetGuid(1), reader.GetGuid(2), reader.GetString(3),
+                    reader.GetFieldValue<DateOnly>(4), reader.IsDBNull(5) ? null : reader.GetFieldValue<DateOnly>(5),
+                    reader.IsDBNull(6) ? null : new(reader.GetString(6), reader.GetDateTime(7), reader.GetGuid(8), reader.GetGuid(9))));
+            }
+            return installations;
+        }, token);
+
+    public async Task<ElectricityReplacementResult> ReplaceAsync(Guid community, ElectricityReplacement input,
+        DateOnly today, ElectricityActor actor, CancellationToken token)
+    {
+        try
+        {
+            return await RunAsync<ElectricityReplacementResult>(community, async (connection, transaction) =>
+            {
+                await using var requestLock = Query(connection, transaction, community, """
+                    SELECT pg_advisory_xact_lock(hashtextextended(@community::text || ':' || @request::text, 0));
+                    """);
+                requestLock.Parameters.AddWithValue("request", input.RequestId);
+                await requestLock.ExecuteNonQueryAsync(token);
+
+                await using var existing = Query(connection, transaction, community, """
+                    SELECT r.old_installation_id, r.effective_on, m.designation, r.reason, r.new_installation_id
+                    FROM community_electricity.replacement r
+                    JOIN community_electricity.installation i ON (i.community_id, i.id) = (r.community_id, r.new_installation_id)
+                    JOIN community_electricity.meter m ON (m.community_id, m.id) = (i.community_id, i.meter_id)
+                    WHERE r.community_id = @community AND r.request_id = @request;
+                    """);
+                existing.Parameters.AddWithValue("request", input.RequestId);
+                await using (var reader = await existing.ExecuteReaderAsync(token))
+                {
+                    if (await reader.ReadAsync(token))
+                        return reader.GetGuid(0) == input.InstallationId && reader.GetFieldValue<DateOnly>(1) == input.EffectiveOn &&
+                            reader.GetString(2) == input.Designation && reader.GetString(3) == input.Reason
+                            ? new(ElectricityReplacementOutcome.Replayed, reader.GetGuid(4)) : new(ElectricityReplacementOutcome.Conflict);
+                }
+
+                await using var installation = Query(connection, transaction, community, """
+                    SELECT point_id, starts_on, ends_before FROM community_electricity.installation
+                    WHERE community_id = @community AND id = @old FOR UPDATE;
+                    """);
+                installation.Parameters.AddWithValue("old", input.InstallationId);
+                Guid point;
+                await using (var reader = await installation.ExecuteReaderAsync(token))
+                {
+                    if (!await reader.ReadAsync(token)) return new(ElectricityReplacementOutcome.Missing);
+                    if (!reader.IsDBNull(2)) return new(ElectricityReplacementOutcome.Conflict);
+                    if (input.EffectiveOn <= reader.GetFieldValue<DateOnly>(1) || input.EffectiveOn > today)
+                        return new(ElectricityReplacementOutcome.InvalidDate);
+                    point = reader.GetGuid(0);
+                }
+
+                await using var readings = Query(connection, transaction, community, """
+                    SELECT EXISTS (SELECT 1 FROM community_electricity.reading WHERE community_id = @community
+                        AND installation_id = @old AND measured_on >= @date);
+                    """);
+                readings.Parameters.AddWithValue("old", input.InstallationId);
+                readings.Parameters.AddWithValue("date", input.EffectiveOn);
+                if (await readings.ExecuteScalarAsync(token) is true) return new(ElectricityReplacementOutcome.ExistingReading);
+
+                await using var replace = Query(connection, transaction, community, """
+                    UPDATE community_electricity.installation SET ends_before = @date
+                    WHERE community_id = @community AND id = @old;
+                    INSERT INTO community_electricity.meter (community_id, id, designation)
+                    VALUES (@community, @meter, @designation);
+                    INSERT INTO community_electricity.installation
+                        (community_id, id, point_id, meter_id, starts_on, admission_id, account_id, subject_id, basis)
+                    VALUES (@community, @new, @point, @meter, @date, @admission, @account, @subject, @basis);
+                    INSERT INTO community_electricity.replacement
+                        (community_id, request_id, point_id, old_installation_id, new_installation_id, effective_on,
+                         reason, admission_id, account_id, subject_id, basis)
+                    VALUES (@community, @request, @point, @old, @new, @date, @reason, @admission, @account, @subject, @basis);
+                    """);
+                var next = Guid.CreateVersion7();
+                replace.Parameters.AddWithValue("old", input.InstallationId);
+                replace.Parameters.AddWithValue("new", next);
+                replace.Parameters.AddWithValue("point", point);
+                replace.Parameters.AddWithValue("meter", Guid.CreateVersion7());
+                replace.Parameters.AddWithValue("date", input.EffectiveOn);
+                replace.Parameters.AddWithValue("designation", input.Designation);
+                replace.Parameters.AddWithValue("request", input.RequestId);
+                replace.Parameters.AddWithValue("reason", input.Reason);
+                BindActor(replace, actor);
+                await replace.ExecuteNonQueryAsync(token);
+                return new(ElectricityReplacementOutcome.Replaced, next);
+            }, token);
+        }
+        catch (PostgresException error) when (error.SqlState == PostgresErrorCodes.UniqueViolation &&
+            error.TableName is "meter" or "installation" or "replacement")
+        {
+            return new(ElectricityReplacementOutcome.Conflict);
+        }
+    }
+
     public Task<IReadOnlyList<ElectricityPlot>> ListPlotsAsync(Guid community, CancellationToken token) =>
         RunAsync<IReadOnlyList<ElectricityPlot>>(community, async (connection, transaction) =>
         {
@@ -21,6 +138,7 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
                 FROM community_register.plot p
                 LEFT JOIN community_electricity.accounting_point a ON (a.community_id, a.plot_id) = (p.community_id, p.id)
                 LEFT JOIN community_electricity.installation i ON (i.community_id, i.point_id) = (a.community_id, a.id)
+                    AND i.ends_before IS NULL
                 LEFT JOIN community_electricity.meter m ON (m.community_id, m.id) = (i.community_id, i.meter_id)
                 WHERE p.community_id = @community ORDER BY p.number, p.id;
                 """);
@@ -100,13 +218,14 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
         RunAsync<ElectricityRecognition>(community, async (connection, transaction) =>
         {
             await using var locked = Query(connection, transaction, community, """
-                SELECT starts_on FROM community_electricity.installation
+                SELECT starts_on, ends_before FROM community_electricity.installation
                 WHERE community_id = @community AND id = @installation FOR UPDATE;
                 """);
             locked.Parameters.AddWithValue("installation", installation);
             await using var installationReader = await locked.ExecuteReaderAsync(token);
             if (!await installationReader.ReadAsync(token)) return new(ReadingOutcome.NotFound);
             var starts = installationReader.GetFieldValue<DateOnly>(0);
+            DateOnly? endsBefore = installationReader.IsDBNull(1) ? null : installationReader.GetFieldValue<DateOnly>(1);
             await installationReader.DisposeAsync();
 
             await using var neighbors = Query(connection, transaction, community, """
@@ -126,7 +245,7 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
             await using var reader = await neighbors.ExecuteReaderAsync(token);
             await reader.ReadAsync(token);
             var outcome = ManualElectricity.Evaluate(starts, today, date, value, DecimalOrNull(reader, 1),
-                DecimalOrNull(reader, 2), DecimalOrNull(reader, 3));
+                DecimalOrNull(reader, 2), DecimalOrNull(reader, 3), endsBefore);
             if (outcome != ReadingOutcome.Recognized)
                 return new(outcome, outcome == ReadingOutcome.AlreadyRecorded ? reader.GetGuid(0) : null);
             await reader.DisposeAsync();

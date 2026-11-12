@@ -26,7 +26,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         var token = TestContext.Current.CancellationToken;
         await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
         foreach (var file in new[] { "001_manual_register.sql", "002_ownership_correction.sql",
-                     "009_electricity_readings.sql" })
+                     "009_electricity_readings.sql", "010_electricity_replacement.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -68,6 +68,50 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Equal(3, series.Readings.Count);
         Assert.Equal(new[] { 0m, 2.345m }, series.Intervals.Select(interval => interval.Value));
         Assert.All(series.Readings, reading => Assert.Equal((account, subject), (reading.AccountId, reading.SubjectId)));
+
+        var replacement = new ElectricityReplacement(Guid.NewGuid(), installation.Id, starts.AddDays(4), "M2", "Synthetic replacement");
+        Assert.Equal(ElectricityReplacementOutcome.Missing,
+            (await store.ReplaceAsync(foreign, replacement, today, Actor(), token)).Outcome);
+        Assert.Equal(ElectricityReplacementOutcome.ExistingReading,
+            (await store.ReplaceAsync(community, replacement with { EffectiveOn = starts.AddDays(2) }, today, Actor(), token)).Outcome);
+        Assert.Equal(ElectricityReplacementOutcome.Conflict,
+            (await store.ReplaceAsync(community, replacement with { Designation = "M1" }, today, Actor(), token)).Outcome);
+        var unchanged = Assert.Single(await store.InstallationsAsync(community, plot.PlotId, token));
+        Assert.Equal(installation.Id, unchanged.Id);
+        Assert.Null(unchanged.EndsBefore);
+
+        var replacements = await Task.WhenAll(
+            store.ReplaceAsync(community, replacement, today, Actor(), token),
+            store.ReplaceAsync(community, replacement, today, Actor(), token));
+        Assert.Contains(replacements, result => result.Outcome == ElectricityReplacementOutcome.Replaced);
+        Assert.Contains(replacements, result => result.Outcome == ElectricityReplacementOutcome.Replayed);
+        Assert.Equal(replacements[0].InstallationId, replacements[1].InstallationId);
+        var nextId = Assert.IsType<Guid>(replacements[0].InstallationId);
+        Assert.Equal(ElectricityReplacementOutcome.Conflict,
+            (await store.ReplaceAsync(community, replacement with { Reason = "Different" }, today, Actor(), token)).Outcome);
+        Assert.Equal(ReadingOutcome.OutsideInstallation, (await store.RecognizeAsync(community, installation.Id,
+            replacement.EffectiveOn, 20m, today, Actor(), token)).Outcome);
+        Assert.Equal(ReadingOutcome.Recognized, (await store.RecognizeAsync(community, nextId,
+            replacement.EffectiveOn, 1m, today, Actor(), token)).Outcome);
+        var history = await store.InstallationsAsync(community, plot.PlotId, token);
+        Assert.Equal(new[] { nextId, installation.Id }, history.Select(entry => entry.Id));
+        Assert.All(history, entry => Assert.Equal(installation.PointId, entry.PointId));
+        Assert.Equal(replacement.EffectiveOn, history[1].EndsBefore);
+        Assert.Equal(replacement.Reason, history[0].Replacement?.Reason);
+        Assert.Empty(Assert.IsType<ElectricitySeries>(await store.SeriesAsync(community, nextId, token)).Intervals);
+        Assert.Equal(3, Assert.IsType<ElectricitySeries>(await store.SeriesAsync(community, installation.Id, token)).Readings.Count);
+        Assert.Equal(ReadingOutcome.Recognized, (await store.RecognizeAsync(community, installation.Id,
+            starts.AddDays(3), 13m, today, Actor(), token)).Outcome);
+
+        var boundary = starts.AddDays(5);
+        var nextReplacement = new ElectricityReplacement(Guid.NewGuid(), nextId, boundary, "M3", "Concurrent replacement");
+        var replaceTask = store.ReplaceAsync(community, nextReplacement, today, Actor(), token);
+        var recognizeTask = store.RecognizeAsync(community, nextId, boundary, 2m, today, Actor(), token);
+        Assert.Contains(((await replaceTask).Outcome, (await recognizeTask).Outcome), new[]
+        {
+            (ElectricityReplacementOutcome.Replaced, ReadingOutcome.OutsideInstallation),
+            (ElectricityReplacementOutcome.ExistingReading, ReadingOutcome.Recognized),
+        });
     }
 
     [Fact]
@@ -441,7 +485,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
         foreach (var file in new[] { "001_community_reservation.sql", "005_platform_authentication.sql",
                      "009_register_access.sql", "010_register_import_preparation.sql", "011_register_import_approval.sql",
-                     "012_ownership_correction_access.sql", "013_electricity_access.sql" })
+                     "012_ownership_correction_access.sql", "013_electricity_access.sql", "014_electricity_replacement_access.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);

@@ -4,15 +4,15 @@ namespace CommunityOS.Modules.Platform.Infrastructure;
 
 public sealed record RegisterCommunity(Guid Id, string Name, bool CanRead, bool CanAdd, bool CanPrepareImport,
     bool CanApproveImport, bool CanCorrectOwnership, bool CanReadElectricity, bool CanSetupElectricity,
-    bool CanRecognizeElectricity);
+    bool CanRecognizeElectricity, bool CanReplaceElectricity);
 public sealed record RegisterActor(Guid AccountId, Guid SubjectId, string? AdditionBasis, Guid AdmissionId);
 public sealed record RegisterImportTarget(Guid DraftId, int Revision, string PlanId);
 public sealed record OwnershipCorrectionTarget(Guid PlotId, Guid Revision, Guid OwnerId);
-public sealed record ElectricityTarget(Guid Id, DateOnly Date);
+public sealed record ElectricityTarget(Guid Id, DateOnly Date, Guid? RequestId = null);
 public enum RegisterPermission
 {
     Read, Add, PrepareImport, WriteImportDraft, ReadImportApproval, SubmitImport, ApproveImport,
-    ReadCorrectionCandidates, CorrectOwnership, ReadElectricity, SetupElectricity, RecognizeElectricity
+    ReadCorrectionCandidates, CorrectOwnership, ReadElectricity, SetupElectricity, RecognizeElectricity, ReplaceElectricity
 }
 
 public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
@@ -32,7 +32,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                 v.register_enabled AND o.can_read AND o.can_correct_ownership AND o.ownership_correction_basis IS NOT NULL,
                 v.electricity_enabled AND o.can_read_electricity,
                 v.electricity_enabled AND o.can_read_electricity AND o.can_setup_electricity AND o.electricity_setup_basis IS NOT NULL,
-                v.electricity_enabled AND o.can_read_electricity AND o.can_recognize_electricity AND o.electricity_recognition_basis IS NOT NULL
+                v.electricity_enabled AND o.can_read_electricity AND o.can_recognize_electricity AND o.electricity_recognition_basis IS NOT NULL,
+                v.electricity_enabled AND o.can_read_electricity AND o.can_replace_electricity AND o.electricity_replacement_basis IS NOT NULL
             FROM platform_provisioning.platform_session s
             JOIN platform_provisioning.platform_account a ON a.id = s.account_id
             LEFT JOIN (
@@ -61,7 +62,7 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
             {
                 communities.Add(new(reader.GetGuid(0), reader.GetString(1), reader.GetBoolean(2), reader.GetBoolean(3),
                     reader.GetBoolean(4), reader.GetBoolean(5), reader.GetBoolean(6), reader.GetBoolean(7),
-                    reader.GetBoolean(8), reader.GetBoolean(9)));
+                    reader.GetBoolean(8), reader.GetBoolean(9), reader.GetBoolean(10)));
             }
         } while (await reader.ReadAsync(token));
 
@@ -86,8 +87,10 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
         var correcting = permission == RegisterPermission.CorrectOwnership;
         var setup = permission == RegisterPermission.SetupElectricity;
         var recognize = permission == RegisterPermission.RecognizeElectricity;
+        var replace = permission == RegisterPermission.ReplaceElectricity;
+        var electricityWrite = setup || recognize || replace;
         if (((submitting || approving) && target is null) || (correcting && correction is null) ||
-            ((setup || recognize) && electricity is null))
+            (electricityWrite && electricity is null) || (replace && electricity?.RequestId is null))
         {
             return denied;
         }
@@ -96,7 +99,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
         await using var transaction = await connection.BeginTransactionAsync(token);
         await using var authorization = new NpgsqlCommand("""
             SELECT a.id, o.subject_id, CASE WHEN @setup THEN o.electricity_setup_basis
-                WHEN @recognize THEN o.electricity_recognition_basis WHEN @correcting THEN o.ownership_correction_basis
+                WHEN @recognize THEN o.electricity_recognition_basis WHEN @replace THEN o.electricity_replacement_basis
+                WHEN @correcting THEN o.ownership_correction_basis
                 WHEN @approval THEN o.import_approval_basis ELSE o.addition_basis END
             FROM platform_provisioning.platform_session s
             JOIN platform_provisioning.platform_account a ON a.id = s.account_id
@@ -111,7 +115,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                     OR (@correcting AND o.can_read AND o.can_correct_ownership AND o.ownership_correction_basis IS NOT NULL)))
                     OR (v.electricity_enabled AND o.can_read_electricity AND (@read_electricity
                         OR (@setup AND o.can_setup_electricity AND o.electricity_setup_basis IS NOT NULL)
-                        OR (@recognize AND o.can_recognize_electricity AND o.electricity_recognition_basis IS NOT NULL))))
+                        OR (@recognize AND o.can_recognize_electricity AND o.electricity_recognition_basis IS NOT NULL)
+                        OR (@replace AND o.can_replace_electricity AND o.electricity_replacement_basis IS NOT NULL))))
             FOR SHARE OF a, s, o, v;
             """, connection, transaction);
         authorization.Parameters.AddWithValue("digest", digest);
@@ -126,7 +131,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
         authorization.Parameters.AddWithValue("read_electricity", permission == RegisterPermission.ReadElectricity);
         authorization.Parameters.AddWithValue("setup", setup);
         authorization.Parameters.AddWithValue("recognize", recognize);
-        var writing = adding || writingDraft || submitting || approving || correcting || setup || recognize;
+        authorization.Parameters.AddWithValue("replace", replace);
+        var writing = adding || writingDraft || submitting || approving || correcting || electricityWrite;
         RegisterActor actor;
         await using (var reader = await authorization.ExecuteReaderAsync(token))
         {
@@ -167,10 +173,10 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                 SELECT @id, @community, @account, @subject, @plot, @previous, @owner, @basis
                 FROM platform_provisioning.platform_session
                 WHERE token_digest = @digest AND expires_at > clock_timestamp();
-                """ : setup || recognize ? """
+                """ : electricityWrite ? """
                 INSERT INTO platform_provisioning.electricity_admission
-                    (id, community_id, account_id, subject_id, action, target_id, effective_on, basis)
-                SELECT @id, @community, @account, @subject, @action, @target, @date, @basis
+                    (id, community_id, account_id, subject_id, action, target_id, effective_on, basis, request_id)
+                SELECT @id, @community, @account, @subject, @action, @target, @date, @basis, @request
                 FROM platform_provisioning.platform_session
                 WHERE token_digest = @digest AND expires_at > clock_timestamp();
                 """ : """
@@ -184,15 +190,17 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
             admit.Parameters.AddWithValue("community", community);
             admit.Parameters.AddWithValue("account", actor.AccountId);
             admit.Parameters.AddWithValue("subject", actor.SubjectId);
-            if (adding || correcting || setup || recognize)
+            if (adding || correcting || electricityWrite)
             {
                 admit.Parameters.AddWithValue("basis", actor.AdditionBasis!);
             }
-            if (setup || recognize)
+            if (electricityWrite)
             {
-                admit.Parameters.AddWithValue("action", setup ? "setup" : "recognize");
+                admit.Parameters.AddWithValue("action", setup ? "setup" : recognize ? "recognize" : "replace");
                 admit.Parameters.AddWithValue("target", electricity!.Id);
                 admit.Parameters.AddWithValue("date", electricity.Date);
+                admit.Parameters.AddWithValue("request", NpgsqlTypes.NpgsqlDbType.Uuid,
+                    replace && electricity.RequestId is Guid request ? request : DBNull.Value);
             }
             if (correcting)
             {

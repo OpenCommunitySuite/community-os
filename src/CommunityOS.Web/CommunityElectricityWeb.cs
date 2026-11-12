@@ -1,0 +1,86 @@
+using System.Globalization;
+using CommunityOS.Modules.Community.Application.Electricity;
+using CommunityOS.Modules.Community.Infrastructure;
+using CommunityOS.Modules.Platform.Infrastructure;
+
+internal static class CommunityElectricityWeb
+{
+    private static readonly TimeZoneInfo StandTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Kyiv");
+
+    public static void Map(RouteGroupBuilder routes, RegisterAccessStore access, PostgresElectricityStore store)
+    {
+        var electricity = routes.MapGroup("/electricity/{community:guid}");
+        electricity.MapGet("/plots", (Guid community, HttpContext http, CancellationToken token) =>
+            access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadElectricity,
+                async _ => Results.Ok(await store.ListPlotsAsync(community, token)), Results.StatusCode(403), token));
+        electricity.MapPost("/plots/{plot:guid}/installation", (Guid community, Guid plot, SetupInput input,
+            HttpContext http, CancellationToken token) =>
+        {
+            if (plot == Guid.Empty || input.StartsOn == default ||
+                input.Designation?.Trim() is not { Length: > 0 and <= 128 } designation || designation.Contains('\0'))
+            {
+                return Task.FromResult<IResult>(Results.BadRequest());
+            }
+
+            return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community,
+                RegisterPermission.SetupElectricity, async actor =>
+                {
+                    if (input.StartsOn > Today()) return Results.BadRequest(new { Outcome = "FutureDate" });
+                    return await store.SetupAsync(community, plot, designation, input.StartsOn, Actor(actor), token) switch
+                    {
+                        ElectricitySetupOutcome.Created => Results.NoContent(),
+                        ElectricitySetupOutcome.MissingPlot => Results.NotFound(),
+                        _ => Results.Conflict(new { Outcome = "InstallationConflict" }),
+                    };
+                }, Results.StatusCode(403), token, electricity: new(plot, input.StartsOn));
+        });
+        electricity.MapGet("/installations/{installation:guid}/readings", (Guid community, Guid installation,
+            HttpContext http, CancellationToken token) =>
+            access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadElectricity,
+                async _ => await store.SeriesAsync(community, installation, token) is { } series
+                    ? Results.Ok(series) : Results.NotFound(), Results.StatusCode(403), token));
+        electricity.MapPost("/installations/{installation:guid}/readings", (Guid community, Guid installation,
+            ReadingInput input, HttpContext http, CancellationToken token) =>
+        {
+            if (installation == Guid.Empty || input.Date == default)
+            {
+                return Task.FromResult<IResult>(Results.BadRequest());
+            }
+            if (!TryReadValue(input.Value, out var value))
+                return Task.FromResult<IResult>(Results.BadRequest(new { Outcome = "InvalidValue" }));
+
+            return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community,
+                RegisterPermission.RecognizeElectricity, async actor =>
+                {
+                    var result = await store.RecognizeAsync(community, installation, input.Date, value, Today(), Actor(actor), token);
+                    return result.Outcome switch
+                    {
+                        ReadingOutcome.Recognized or ReadingOutcome.AlreadyRecorded => Results.Ok(Response(result)),
+                        ReadingOutcome.DateConflict or ReadingOutcome.Decreasing => Results.Conflict(Response(result)),
+                        ReadingOutcome.NotFound => Results.NotFound(),
+                        _ => Results.BadRequest(Response(result)),
+                    };
+                }, Results.StatusCode(403), token, electricity: new(installation, input.Date));
+        });
+    }
+
+    private static object Response(ElectricityRecognition result) =>
+        new { Outcome = result.Outcome.ToString(), result.ReadingId };
+
+    private static ElectricityActor Actor(RegisterActor actor) =>
+        new(actor.AccountId, actor.SubjectId, actor.AdmissionId, actor.AdditionBasis!);
+
+    private static DateOnly Today() => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, StandTimeZone).DateTime);
+
+    private static bool TryReadValue(string? text, out decimal value)
+    {
+        value = 0;
+        if (text is not { Length: > 0 and <= 16 }) return false;
+        var point = text.IndexOf('.');
+        return (point < 0 || text.Length - point - 1 <= 3) &&
+            decimal.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out value);
+    }
+
+    private sealed record SetupInput(string? Designation, DateOnly StartsOn);
+    private sealed record ReadingInput(DateOnly Date, string? Value);
+}

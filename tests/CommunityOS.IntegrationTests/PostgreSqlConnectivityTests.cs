@@ -1,6 +1,7 @@
 using CommunityOS.Modules.Platform.Application;
 using CommunityOS.Modules.Platform.Infrastructure;
 using CommunityOS.Modules.Community.Application.Register;
+using CommunityOS.Modules.Community.Application.Electricity;
 using CommunityOS.Modules.Community.Infrastructure;
 using Npgsql;
 using Testcontainers.PostgreSql;
@@ -18,6 +19,56 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
     public ValueTask InitializeAsync() => new(_postgres.StartAsync());
 
     public ValueTask DisposeAsync() => new(_postgres.DisposeAsync().AsTask());
+
+    [Fact]
+    public async Task Electricity_recognition_serializes_same_day_and_keeps_installations_scoped()
+    {
+        var token = TestContext.Current.CancellationToken;
+        await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
+        foreach (var file in new[] { "001_manual_register.sql", "002_ownership_correction.sql",
+                     "009_electricity_readings.sql" })
+        {
+            var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
+            await using var migration = source.CreateCommand(sql);
+            await migration.ExecuteNonQueryAsync(token);
+        }
+
+        var community = Guid.NewGuid();
+        var foreign = Guid.NewGuid();
+        var register = new ManualRegister(new PostgresRegisterStore(source));
+        await register.CreateAsync(community, null, "Synthetic owner", "01", "001", token);
+        var plot = Assert.Single(await register.ListAsync(community, token));
+        var store = new PostgresElectricityStore(source);
+        var starts = new DateOnly(2026, 1, 1);
+        var today = starts.AddDays(30);
+        var account = Guid.NewGuid();
+        var subject = Guid.NewGuid();
+        ElectricityActor Actor() => new(account, subject, Guid.NewGuid(), "synthetic");
+        Assert.Equal(ElectricitySetupOutcome.MissingPlot, await store.SetupAsync(foreign, plot.PlotId, "M1", starts, Actor(), token));
+        Assert.Equal(ElectricitySetupOutcome.Created, await store.SetupAsync(community, plot.PlotId, "M1", starts, Actor(), token));
+        Assert.Equal(ElectricitySetupOutcome.Conflict, await store.SetupAsync(community, plot.PlotId, "M2", starts, Actor(), token));
+        var installation = Assert.IsType<ElectricityInstallation>(Assert.Single(await store.ListPlotsAsync(community, token)).Installation);
+        Assert.Null(await store.SeriesAsync(foreign, installation.Id, token));
+        Assert.Equal(ReadingOutcome.NotFound, (await store.RecognizeAsync(foreign, installation.Id,
+            starts, 1m, today, Actor(), token)).Outcome);
+        var replies = await Task.WhenAll(Enumerable.Range(0, 2).Select(_ =>
+            store.RecognizeAsync(community, installation.Id, starts, 10m, today, Actor(), token)));
+        Assert.Contains(replies, reply => reply.Outcome == ReadingOutcome.Recognized);
+        Assert.Contains(replies, reply => reply.Outcome == ReadingOutcome.AlreadyRecorded);
+        Assert.Equal(replies[0].ReadingId, replies[1].ReadingId);
+        Assert.Empty(Assert.IsType<ElectricitySeries>(await store.SeriesAsync(community, installation.Id, token)).Intervals);
+
+        Assert.Equal(ReadingOutcome.Recognized, (await store.RecognizeAsync(community, installation.Id,
+            starts.AddDays(2), 12.345m, today, Actor(), token)).Outcome);
+        Assert.Equal(ReadingOutcome.Decreasing, (await store.RecognizeAsync(community, installation.Id,
+            starts.AddDays(1), 13m, today, Actor(), token)).Outcome);
+        Assert.Equal(ReadingOutcome.Recognized, (await store.RecognizeAsync(community, installation.Id,
+            starts.AddDays(1), 10m, today, Actor(), token)).Outcome);
+        var series = Assert.IsType<ElectricitySeries>(await store.SeriesAsync(community, installation.Id, token));
+        Assert.Equal(3, series.Readings.Count);
+        Assert.Equal(new[] { 0m, 2.345m }, series.Intervals.Select(interval => interval.Value));
+        Assert.All(series.Readings, reading => Assert.Equal((account, subject), (reading.AccountId, reading.SubjectId)));
+    }
 
     [Fact]
     public async Task Can_Open_Connection_And_Execute_Trivial_Query()
@@ -390,7 +441,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
         foreach (var file in new[] { "001_community_reservation.sql", "005_platform_authentication.sql",
                      "009_register_access.sql", "010_register_import_preparation.sql", "011_register_import_approval.sql",
-                     "012_ownership_correction_access.sql" })
+                     "012_ownership_correction_access.sql", "013_electricity_access.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);

@@ -26,7 +26,8 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         var token = TestContext.Current.CancellationToken;
         await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
         foreach (var file in new[] { "001_manual_register.sql", "002_ownership_correction.sql",
-                     "009_electricity_readings.sql", "010_electricity_replacement.sql", "011_electricity_register_channels.sql" })
+                     "009_electricity_readings.sql", "010_electricity_replacement.sql", "011_electricity_register_channels.sql",
+                     "012_common_electricity_points.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -139,6 +140,28 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Equal(ElectricityReplacementOutcome.Replaced, replacementDual.Outcome);
         var newDual = (await store.InstallationsAsync(community, dualPlot.Id, token))[0];
         Assert.Equal(ManualElectricity.Dual, newDual.RegisterMode);
+        Assert.Empty((await store.SeriesAsync(community, newDual.Id, token))!.Intervals);
+
+        var common = new CommonElectricityPoint(Guid.NewGuid(), "Feeder A", "Input of branch A");
+        var secondCommon = new CommonElectricityPoint(Guid.NewGuid(), "Feeder B", "Input of branch B");
+        var attempts = await Task.WhenAll(
+            store.SetupCommonAsync(community, common, "Common A", starts, Actor(), token, ManualElectricity.Total),
+            store.SetupCommonAsync(community, common with { Id = Guid.NewGuid(), Designation = "feeder a" },
+                "Other meter", starts, Actor(), token, ManualElectricity.Total));
+        Assert.Contains(ElectricitySetupOutcome.Created, attempts);
+        Assert.Contains(ElectricitySetupOutcome.Conflict, attempts);
+        Assert.Equal(ElectricitySetupOutcome.Created,
+            await store.SetupCommonAsync(community, secondCommon, "Common B", starts, Actor(), token, ManualElectricity.Total));
+        var points = await store.ListCommonPointsAsync(community, token);
+        Assert.Equal(2, points.Count);
+        Assert.Equal(2, (await register.ListAsync(community, token)).Count);
+        Assert.Empty(await store.ListCommonPointsAsync(foreign, token));
+        Assert.Empty(await store.CommonInstallationsAsync(foreign, secondCommon.Id, token));
+        var shared = Assert.Single(await store.CommonInstallationsAsync(community, secondCommon.Id, token));
+        Assert.Empty(await store.InstallationsAsync(community, secondCommon.Id, token));
+        await store.RecognizeAsync(community, shared.Id, starts, 50, today, Actor(), token);
+        await store.RecognizeAsync(community, shared.Id, starts.AddDays(1), 55, today, Actor(), token);
+        Assert.Equal(5m, Assert.Single((await store.SeriesAsync(community, shared.Id, token))!.Intervals).Value);
         Assert.Empty((await store.SeriesAsync(community, newDual.Id, token))!.Intervals);
     }
 
@@ -514,7 +537,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         foreach (var file in new[] { "001_community_reservation.sql", "005_platform_authentication.sql",
                      "009_register_access.sql", "010_register_import_preparation.sql", "011_register_import_approval.sql",
                      "012_ownership_correction_access.sql", "013_electricity_access.sql", "014_electricity_replacement_access.sql",
-                     "015_electricity_register_admission.sql" })
+                     "015_electricity_register_admission.sql", "016_common_electricity_access.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);

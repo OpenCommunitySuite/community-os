@@ -9,6 +9,7 @@ public sealed record ElectricityInstallation(Guid Id, Guid PointId, Guid MeterId
     string RegisterMode = ManualElectricity.Total);
 public sealed record ElectricityReplacementHistory(string Reason, DateTime RecordedAt, Guid AccountId, Guid SubjectId);
 public sealed record ElectricityPlot(Guid Id, string Number, ElectricityInstallation? Installation);
+public sealed record CommonElectricityPoint(Guid Id, string Designation, string Boundary);
 public sealed record ElectricitySeries(IReadOnlyList<ElectricityReading> Readings, IReadOnlyList<ElectricityInterval> Intervals,
     string Unit, IReadOnlyList<ElectricityCombinedInterval> CombinedIntervals);
 public sealed record ElectricityRecognition(ReadingOutcome Outcome, Guid? ReadingId = null);
@@ -20,6 +21,13 @@ public sealed record ElectricityReplacementResult(ElectricityReplacementOutcome 
 public sealed class PostgresElectricityStore(NpgsqlDataSource source)
 {
     public Task<IReadOnlyList<ElectricityInstallation>> InstallationsAsync(Guid community, Guid plot, CancellationToken token) =>
+        ReadInstallationsAsync(community, plot, false, token);
+
+    public Task<IReadOnlyList<ElectricityInstallation>> CommonInstallationsAsync(Guid community, Guid point, CancellationToken token) =>
+        ReadInstallationsAsync(community, point, true, token);
+
+    private Task<IReadOnlyList<ElectricityInstallation>> ReadInstallationsAsync(Guid community, Guid target, bool common,
+        CancellationToken token) =>
         RunAsync<IReadOnlyList<ElectricityInstallation>>(community, async (connection, transaction) =>
         {
             await using var query = Query(connection, transaction, community, """
@@ -30,10 +38,12 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
                 JOIN community_electricity.meter m ON (m.community_id, m.id) = (i.community_id, i.meter_id)
                 LEFT JOIN community_electricity.replacement r ON
                     (r.community_id, r.new_installation_id) = (i.community_id, i.id)
-                WHERE p.community_id = @community AND p.plot_id = @plot
+                WHERE p.community_id = @community AND
+                    ((@common AND p.plot_id IS NULL AND p.id = @target) OR (NOT @common AND p.plot_id = @target))
                 ORDER BY i.starts_on DESC, i.id;
                 """);
-            query.Parameters.AddWithValue("plot", plot);
+            query.Parameters.AddWithValue("target", target);
+            query.Parameters.AddWithValue("common", common);
             await using var reader = await query.ExecuteReaderAsync(token);
             var installations = new List<ElectricityInstallation>();
             while (await reader.ReadAsync(token))
@@ -159,8 +169,32 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
             return plots;
         }, token);
 
-    public async Task<ElectricitySetupOutcome> SetupAsync(Guid community, Guid plot, string designation,
-        DateOnly startsOn, ElectricityActor actor, CancellationToken token, string mode = ManualElectricity.Total)
+    public Task<IReadOnlyList<CommonElectricityPoint>> ListCommonPointsAsync(Guid community, CancellationToken token) =>
+        RunAsync<IReadOnlyList<CommonElectricityPoint>>(community, async (connection, transaction) =>
+        {
+            await using var command = Query(connection, transaction, community, """
+                SELECT id, common_designation, measurement_boundary
+                FROM community_electricity.accounting_point
+                WHERE community_id = @community AND plot_id IS NULL
+                ORDER BY common_designation, id;
+                """);
+            await using var reader = await command.ExecuteReaderAsync(token);
+            var points = new List<CommonElectricityPoint>();
+            while (await reader.ReadAsync(token))
+                points.Add(new(reader.GetGuid(0), reader.GetString(1), reader.GetString(2)));
+            return points;
+        }, token);
+
+    public Task<ElectricitySetupOutcome> SetupAsync(Guid community, Guid plot, string designation,
+        DateOnly startsOn, ElectricityActor actor, CancellationToken token, string mode = ManualElectricity.Total) =>
+        SetupPointAsync(community, plot, null, designation, startsOn, actor, token, mode);
+
+    public Task<ElectricitySetupOutcome> SetupCommonAsync(Guid community, CommonElectricityPoint point, string designation,
+        DateOnly startsOn, ElectricityActor actor, CancellationToken token, string mode) =>
+        SetupPointAsync(community, null, point, designation, startsOn, actor, token, mode);
+
+    private async Task<ElectricitySetupOutcome> SetupPointAsync(Guid community, Guid? plot, CommonElectricityPoint? common,
+        string designation, DateOnly startsOn, ElectricityActor actor, CancellationToken token, string mode)
     {
         try
         {
@@ -168,9 +202,12 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
             {
                 await using var command = Query(connection, transaction, community, """
                     WITH point AS (
-                        INSERT INTO community_electricity.accounting_point (community_id, id, plot_id)
-                        SELECT @community, @point, p.id FROM community_register.plot p
-                        WHERE p.community_id = @community AND p.id = @plot RETURNING id
+                        INSERT INTO community_electricity.accounting_point
+                            (community_id, id, plot_id, common_designation, measurement_boundary)
+                        SELECT @community, @point, @plot, @common_name, @boundary
+                        WHERE @plot IS NULL OR EXISTS (
+                            SELECT 1 FROM community_register.plot WHERE community_id = @community AND id = @plot)
+                        RETURNING id
                     ), meter AS (
                         INSERT INTO community_electricity.meter (community_id, id, designation, register_mode)
                         SELECT @community, @meter, @designation, @mode FROM point RETURNING id
@@ -180,8 +217,10 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
                     SELECT @community, @id, point.id, meter.id, @starts, @admission, @account, @subject, @basis
                     FROM point CROSS JOIN meter;
                     """);
-                command.Parameters.AddWithValue("plot", plot);
-                command.Parameters.AddWithValue("point", Guid.CreateVersion7());
+                command.Parameters.AddWithValue("plot", NpgsqlTypes.NpgsqlDbType.Uuid, plot is Guid id ? id : DBNull.Value);
+                command.Parameters.AddWithValue("point", common?.Id ?? Guid.CreateVersion7());
+                command.Parameters.AddWithValue("common_name", NpgsqlTypes.NpgsqlDbType.Text, (object?)common?.Designation ?? DBNull.Value);
+                command.Parameters.AddWithValue("boundary", NpgsqlTypes.NpgsqlDbType.Text, (object?)common?.Boundary ?? DBNull.Value);
                 command.Parameters.AddWithValue("meter", Guid.CreateVersion7());
                 command.Parameters.AddWithValue("id", Guid.CreateVersion7());
                 command.Parameters.AddWithValue("designation", designation);

@@ -13,6 +13,34 @@ internal static class CommunityElectricityWeb
         electricity.MapGet("/plots", (Guid community, HttpContext http, CancellationToken token) =>
             access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadElectricity,
                 async _ => Results.Ok(await store.ListPlotsAsync(community, token)), Results.StatusCode(403), token));
+        electricity.MapGet("/common-points", (Guid community, HttpContext http, CancellationToken token) =>
+            access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadElectricity,
+                async _ => Results.Ok(await store.ListCommonPointsAsync(community, token)), Results.StatusCode(403), token));
+        electricity.MapGet("/common-points/{point:guid}/installations", (Guid community, Guid point, HttpContext http,
+            CancellationToken token) =>
+            access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadElectricity,
+                async _ => Results.Ok(await store.CommonInstallationsAsync(community, point, token)), Results.StatusCode(403), token));
+        electricity.MapPost("/common-points", (Guid community, CommonSetupInput input, HttpContext http,
+            CancellationToken token) =>
+        {
+            var mode = input.RegisterMode ?? ManualElectricity.Total;
+            if (input.StartsOn == default || mode is not (ManualElectricity.Total or ManualElectricity.Dual) ||
+                input.Designation?.Trim() is not { Length: > 0 and <= 128 } designation || designation.Contains('\0') ||
+                input.PointDesignation?.Trim() is not { Length: > 0 and <= 128 } name || name.Contains('\0') ||
+                input.Boundary?.Trim() is not { Length: > 0 and <= 500 } boundary || boundary.Contains('\0'))
+                return Task.FromResult<IResult>(Results.BadRequest());
+
+            var point = new CommonElectricityPoint(Guid.CreateVersion7(), name, boundary);
+            return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community,
+                RegisterPermission.SetupCommonElectricity, async actor =>
+                {
+                    if (input.StartsOn > Today()) return Results.BadRequest(new { Outcome = "FutureDate" });
+                    var result = await store.SetupCommonAsync(community, point, designation, input.StartsOn, Actor(actor), token, mode);
+                    return result == ElectricitySetupOutcome.Created
+                        ? Results.Created($"/community/electricity/{community}/common-points/{point.Id}/installations", new { point.Id })
+                        : Results.Conflict(new { Outcome = "CommonPointConflict" });
+                }, Results.StatusCode(403), token, electricity: new(point.Id, input.StartsOn, RegisterMode: mode));
+        });
         electricity.MapGet("/plots/{plot:guid}/installations", (Guid community, Guid plot, HttpContext http,
             CancellationToken token) =>
             access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadElectricity,
@@ -115,6 +143,8 @@ internal static class CommunityElectricityWeb
     }
 
     private sealed record SetupInput(string? Designation, DateOnly StartsOn, string? RegisterMode);
+    private sealed record CommonSetupInput(string? PointDesignation, string? Boundary, string? Designation,
+        DateOnly StartsOn, string? RegisterMode);
     private sealed record ReadingInput(DateOnly Date, string? Value, string? Channel);
     private sealed record ReplacementInput(Guid RequestId, DateOnly EffectiveOn, string? Designation, string? Reason);
 }

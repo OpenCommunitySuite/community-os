@@ -48,6 +48,8 @@
           Link="016_common_electricity_access.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Platform/Infrastructure/Migrations/017_electricity_topology_access.sql"
           Link="017_electricity_topology_access.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Platform/Infrastructure/Migrations/018_water_access.sql"
+          Link="018_water_access.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/001_manual_register.sql"
           Link="001_manual_register.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/002_ownership_correction.sql"
@@ -76,6 +78,8 @@
           Link="014_electricity_metering_trees.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/015_electricity_reading_import_source.sql"
           Link="015_electricity_reading_import_source.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/016_manual_water.sql"
+          Link="016_manual_water.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

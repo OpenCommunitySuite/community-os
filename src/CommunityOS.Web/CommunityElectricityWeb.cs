@@ -162,7 +162,7 @@ internal static class CommunityElectricityWeb
 
     internal static DateOnly Today() => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, StandTimeZone).DateTime);
 
-    private static bool TryReadValue(string? text, out decimal value)
+    internal static bool TryReadValue(string? text, out decimal value)
     {
         value = 0;
         if (text is not { Length: > 0 and <= 16 }) return false;

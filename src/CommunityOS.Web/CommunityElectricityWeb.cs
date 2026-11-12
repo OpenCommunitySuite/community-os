@@ -10,6 +10,7 @@ internal static class CommunityElectricityWeb
     public static void Map(RouteGroupBuilder routes, RegisterAccessStore access, PostgresElectricityStore store)
     {
         var electricity = routes.MapGroup("/electricity/{community:guid}");
+        CommunityElectricityImportWeb.Map(electricity, access, store);
         electricity.MapGet("/topology", (Guid community, DateOnly date, HttpContext http, CancellationToken token) =>
             access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadElectricity,
                 async _ => Results.Ok(new { Topology = await store.TopologyOnAsync(community, date, token) }),
@@ -156,10 +157,10 @@ internal static class CommunityElectricityWeb
     private static object Response(ElectricityRecognition result) =>
         new { Outcome = result.Outcome.ToString(), result.ReadingId };
 
-    private static ElectricityActor Actor(RegisterActor actor) =>
+    internal static ElectricityActor Actor(RegisterActor actor) =>
         new(actor.AccountId, actor.SubjectId, actor.AdmissionId, actor.AdditionBasis!);
 
-    private static DateOnly Today() => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, StandTimeZone).DateTime);
+    internal static DateOnly Today() => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, StandTimeZone).DateTime);
 
     private static bool TryReadValue(string? text, out decimal value)
     {

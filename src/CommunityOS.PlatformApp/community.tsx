@@ -4,11 +4,13 @@ import { ImportPreparation } from './importPreparation';
 import { ImportApproval } from './importApproval';
 import { OwnershipCorrection } from './ownershipCorrection';
 import { Electricity } from './electricity';
+import { Water } from './water';
 
 type Community = { id: string; name: string; canRead: boolean; canAdd: boolean; canPrepareImport: boolean;
   canApproveImport: boolean; canCorrectOwnership: boolean; canReadElectricity: boolean;
   canSetupElectricity: boolean; canRecognizeElectricity: boolean; canReplaceElectricity: boolean;
-  canSetupCommonElectricity: boolean; canPublishElectricityTopology: boolean };
+  canSetupCommonElectricity: boolean; canPublishElectricityTopology: boolean;
+  canReadWater: boolean; canSetupWater: boolean; canRecognizeWater: boolean };
 type Entry = { plotId: string; plotNumber: string; ownerId: string; ownerName: string; accountNumber: string;
   ownershipRevision: string };
 
@@ -148,6 +150,8 @@ function Register() {
       canSetup={community.canSetupElectricity} canRecognize={community.canRecognizeElectricity}
       canReplace={community.canReplaceElectricity} canSetupCommon={community.canSetupCommonElectricity}
       canPublishTopology={community.canPublishElectricityTopology} />}
+    {community?.canReadWater && <Water key={'water:' + community.id} community={community.id}
+      canSetup={community.canSetupWater} canRecognize={community.canRecognizeWater} />}
   </>;
 }
 

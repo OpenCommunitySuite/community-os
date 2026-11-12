@@ -28,7 +28,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         foreach (var file in new[] { "001_manual_register.sql", "002_ownership_correction.sql",
                      "009_electricity_readings.sql", "010_electricity_replacement.sql", "011_electricity_register_channels.sql",
                      "012_common_electricity_points.sql", "013_meter_installation_details.sql",
-                     "014_electricity_metering_trees.sql", "015_electricity_reading_import_source.sql" })
+                     "014_electricity_metering_trees.sql", "015_electricity_reading_import_source.sql", "016_manual_water.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -234,6 +234,30 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         var imported = (await store.SeriesAsync(community, importedInstallation.Id, token))!;
         Assert.Equal(120m, imported.Intervals.Sum(interval => interval.Value));
         Assert.All(imported.Readings, reading => Assert.Equal("csv-import", reading.Source));
+        var water = new PostgresWaterStore(source);
+        var waterSetup = new WaterSetup(Guid.NewGuid(), plot.PlotId, "", null, "Plot water", starts);
+        Assert.Equal(ElectricitySetupOutcome.MissingPlot, await water.SetupAsync(foreign, waterSetup, Actor(), token));
+        Assert.Equal(ElectricitySetupOutcome.Created, await water.SetupAsync(community, waterSetup, Actor(), token));
+        Assert.Equal(ElectricitySetupOutcome.Conflict, await water.SetupAsync(community, waterSetup, Actor(), token));
+        Assert.Equal(ElectricitySetupOutcome.Created, await water.SetupAsync(community,
+            new(Guid.NewGuid(), null, "Water main", "Pump outlet", "Water meter", starts), Actor(), token));
+        Assert.Empty(await water.ListAsync(foreign, token));
+        var waterPoints = await water.ListAsync(community, token);
+        var waterMeter = waterPoints.Single(p => p.PlotId is null).InstallationId;
+        Assert.Equal(2, waterPoints.Count);
+        Assert.Empty((await water.SeriesAsync(community, waterPoints.Single(p => p.PlotId is not null).InstallationId, token))!.Readings);
+        Assert.Null(await water.SeriesAsync(foreign, waterMeter, token));
+        var waterFirst = await water.RecognizeAsync(community, waterMeter, starts, 10m, today, Actor(), token);
+        Assert.Equal(ReadingOutcome.Recognized, waterFirst.Outcome);
+        var waterRepeat = await water.RecognizeAsync(community, waterMeter, starts, 10m, today, Actor(), token);
+        Assert.Equal((ReadingOutcome.AlreadyRecorded, waterFirst.ReadingId), (waterRepeat.Outcome, waterRepeat.ReadingId));
+        Assert.Equal(ReadingOutcome.Recognized, (await water.RecognizeAsync(community, waterMeter, starts.AddDays(2),
+            12.5m, today, Actor(), token)).Outcome);
+        Assert.Equal("2.5", Assert.Single((await water.SeriesAsync(community, waterMeter, token))!.Intervals).ValueExact);
+        Assert.Equal(ReadingOutcome.Decreasing, (await water.RecognizeAsync(community, waterMeter, starts.AddDays(1),
+            13m, today, Actor(), token)).Outcome);
+        Assert.Equal(ReadingOutcome.Recognized, (await water.RecognizeAsync(community, waterMeter, starts.AddDays(1),
+            11m, today, Actor(), token)).Outcome);
         Assert.Empty((await store.SeriesAsync(community, newDual.Id, token))!.Intervals);
     }
 
@@ -610,7 +634,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "009_register_access.sql", "010_register_import_preparation.sql", "011_register_import_approval.sql",
                      "012_ownership_correction_access.sql", "013_electricity_access.sql", "014_electricity_replacement_access.sql",
                      "015_electricity_register_admission.sql", "016_common_electricity_access.sql",
-                     "017_electricity_topology_access.sql" })
+                     "017_electricity_topology_access.sql", "018_water_access.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -675,6 +699,31 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
             """);
         await topologyGrant.ExecuteNonQueryAsync(token);
         Assert.False(await TryPublishTopology(community));
+
+        Task<bool> TryRecognizeWater(Guid id) => access.WithAccessAsync(session, id, RegisterPermission.RecognizeWater,
+            async admitted =>
+            {
+                await using var committed = source.CreateCommand("""
+                    SELECT count(*) FROM platform_provisioning.water_admission WHERE id = @id AND action = 'recognize';
+                    """);
+                committed.Parameters.AddWithValue("id", admitted.AdmissionId);
+                return admitted.AdditionBasis == "synthetic water" && await committed.ExecuteScalarAsync(token) is 1L;
+            }, false, token, water: new(Guid.NewGuid(), topologyDate));
+        Assert.False(await TryRecognizeWater(community));
+        await using var waterGrant = source.CreateCommand("""
+            UPDATE platform_provisioning.register_availability SET water_enabled = true;
+            UPDATE platform_provisioning.register_operator
+            SET can_read_water = true, water_recognition_basis = 'synthetic water';
+            """);
+        await waterGrant.ExecuteNonQueryAsync(token);
+        Assert.True(await TryRecognizeWater(community));
+        Assert.False(await TryRecognizeWater(Guid.NewGuid()));
+        Assert.True(Assert.Single((await access.ListAsync(session, token))!).CanReadWater);
+        await using var waterRevocation = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator SET water_recognition_basis = NULL;
+            """);
+        await waterRevocation.ExecuteNonQueryAsync(token);
+        Assert.False(await TryRecognizeWater(community));
         await using var publishGrant = source.CreateCommand("""
             UPDATE platform_provisioning.register_operator SET topology_publication_basis = 'synthetic topology';
             """);

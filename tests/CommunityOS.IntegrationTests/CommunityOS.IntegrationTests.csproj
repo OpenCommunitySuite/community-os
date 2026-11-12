@@ -74,6 +74,8 @@
           Link="013_meter_installation_details.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/014_electricity_metering_trees.sql"
           Link="014_electricity_metering_trees.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/015_electricity_reading_import_source.sql"
+          Link="015_electricity_reading_import_source.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

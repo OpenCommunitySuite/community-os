@@ -12,7 +12,7 @@ public sealed record ElectricityPlot(Guid Id, string Number, ElectricityInstalla
 public sealed record CommonElectricityPoint(Guid Id, string Designation, string Boundary);
 public sealed record ElectricitySeries(IReadOnlyList<ElectricityReading> Readings, IReadOnlyList<ElectricityInterval> Intervals,
     string Unit, IReadOnlyList<ElectricityCombinedInterval> CombinedIntervals);
-public sealed record ElectricityRecognition(ReadingOutcome Outcome, Guid? ReadingId = null);
+public sealed record ElectricityRecognition(ReadingOutcome Outcome, Guid? ReadingId = null, string? MeterDesignation = null);
 public enum ElectricitySetupOutcome { Created, MissingPlot, Conflict }
 public sealed record ElectricityReplacement(Guid RequestId, Guid InstallationId, DateOnly EffectiveOn, string Designation,
     string Reason, MeterInstallationDetails? Details = null);
@@ -280,18 +280,30 @@ public sealed partial class PostgresElectricityStore(NpgsqlDataSource source)
 
     public Task<ElectricityRecognition> RecognizeAsync(Guid community, Guid installation, DateOnly date,
         decimal value, DateOnly today, ElectricityActor actor, CancellationToken token, string channel = ManualElectricity.Total) =>
+        EvaluateReadingAsync(community, installation, date, value, today, actor, token, channel, ManualElectricity.Source);
+
+    public Task<ElectricityRecognition> PreviewImportAsync(Guid community, ElectricityImportRow row, DateOnly today, CancellationToken token) =>
+        EvaluateReadingAsync(community, row.InstallationId, row.MeasuredOn, row.Value, today, null, token, row.Channel, "csv-import");
+
+    public Task<ElectricityRecognition> RecognizeImportAsync(Guid community, ElectricityImportRow row, DateOnly today,
+        ElectricityActor actor, CancellationToken token) =>
+        EvaluateReadingAsync(community, row.InstallationId, row.MeasuredOn, row.Value, today, actor, token, row.Channel, "csv-import");
+
+    private Task<ElectricityRecognition> EvaluateReadingAsync(Guid community, Guid installation, DateOnly date,
+        decimal value, DateOnly today, ElectricityActor? actor, CancellationToken token, string channel, string readingSource) =>
         RunAsync<ElectricityRecognition>(community, async (connection, transaction) =>
         {
             await using var locked = Query(connection, transaction, community, """
-                SELECT i.starts_on, i.ends_before, m.register_mode FROM community_electricity.installation i
+                SELECT i.starts_on, i.ends_before, m.register_mode, m.designation FROM community_electricity.installation i
                 JOIN community_electricity.meter m ON (m.community_id, m.id) = (i.community_id, i.meter_id)
-                WHERE i.community_id = @community AND i.id = @installation FOR UPDATE OF i;
-                """);
+                WHERE i.community_id = @community AND i.id = @installation
+                """ + (actor is null ? ";" : " FOR UPDATE OF i;"));
             locked.Parameters.AddWithValue("installation", installation);
             await using var installationReader = await locked.ExecuteReaderAsync(token);
             if (!await installationReader.ReadAsync(token)) return new(ReadingOutcome.NotFound);
+            var meter = installationReader.GetString(3);
             if (!ManualElectricity.SupportsChannel(installationReader.GetString(2), channel))
-                return new(ReadingOutcome.UnsupportedChannel);
+                return new(ReadingOutcome.UnsupportedChannel, MeterDesignation: meter);
             var starts = installationReader.GetFieldValue<DateOnly>(0);
             DateOnly? endsBefore = installationReader.IsDBNull(1) ? null : installationReader.GetFieldValue<DateOnly>(1);
             await installationReader.DisposeAsync();
@@ -316,7 +328,8 @@ public sealed partial class PostgresElectricityStore(NpgsqlDataSource source)
             var outcome = ManualElectricity.Evaluate(starts, today, date, value, DecimalOrNull(reader, 1),
                 DecimalOrNull(reader, 2), DecimalOrNull(reader, 3), endsBefore);
             if (outcome != ReadingOutcome.Recognized)
-                return new(outcome, outcome == ReadingOutcome.AlreadyRecorded ? reader.GetGuid(0) : null);
+                return new(outcome, outcome == ReadingOutcome.AlreadyRecorded ? reader.GetGuid(0) : null, meter);
+            if (actor is null) return new(outcome, MeterDesignation: meter);
             await reader.DisposeAsync();
 
             await using var insert = Query(connection, transaction, community, """
@@ -330,11 +343,11 @@ public sealed partial class PostgresElectricityStore(NpgsqlDataSource source)
             BindActor(insert, actor);
             insert.Parameters.AddWithValue("id", id);
             insert.Parameters.AddWithValue("value", value);
-            insert.Parameters.AddWithValue("source", ManualElectricity.Source);
+            insert.Parameters.AddWithValue("source", readingSource);
             insert.Parameters.AddWithValue("rule", channel == ManualElectricity.Total ? ManualElectricity.Rule : ManualElectricity.DualRule);
             insert.Parameters.AddWithValue("channel", channel);
             await insert.ExecuteNonQueryAsync(token);
-            return new(ReadingOutcome.Recognized, id);
+            return new(ReadingOutcome.Recognized, id, meter);
         }, token);
 
     private async Task<T> RunAsync<T>(Guid community, Func<NpgsqlConnection, NpgsqlTransaction, Task<T>> action,

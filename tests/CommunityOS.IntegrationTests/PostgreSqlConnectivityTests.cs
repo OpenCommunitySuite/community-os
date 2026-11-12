@@ -28,7 +28,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         foreach (var file in new[] { "001_manual_register.sql", "002_ownership_correction.sql",
                      "009_electricity_readings.sql", "010_electricity_replacement.sql", "011_electricity_register_channels.sql",
                      "012_common_electricity_points.sql", "013_meter_installation_details.sql",
-                     "014_electricity_metering_trees.sql" })
+                     "014_electricity_metering_trees.sql", "015_electricity_reading_import_source.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -208,6 +208,32 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Equal(2, (await store.TopologyOnAsync(community, starts.AddDays(3), token))!.Points.Count(point => point.Depth == 0));
         Assert.Equal(3, (await store.TopologyOnAsync(community, starts.AddDays(2), token))!.Points.Count);
         Assert.Equal(120m, Assert.Single((await store.SeriesAsync(community, shared.Id, token))!.Intervals).Value);
+        var importedPoint = new CommonElectricityPoint(Guid.NewGuid(), "CSV feeder", "Synthetic CSV feeder");
+        Assert.Equal(ElectricitySetupOutcome.Created, await store.SetupCommonAsync(community, importedPoint,
+            "CSV meter", starts, Actor(), token, ManualElectricity.Dual, details));
+        var importedInstallation = Assert.Single(await store.CommonInstallationsAsync(community, importedPoint.Id, token));
+        var initial = new ElectricityImportRow(2, importedInstallation.Id, starts, ManualElectricity.Day, 100m);
+        var final = initial with { Line = 3, MeasuredOn = starts.AddDays(3), Value = 103m };
+        Assert.Equal(ReadingOutcome.NotFound, (await store.PreviewImportAsync(foreign, initial, today, token)).Outcome);
+        var preview = await store.PreviewImportAsync(community, initial, today, token);
+        Assert.Equal((ReadingOutcome.Recognized, "CSV meter"), (preview.Outcome, preview.MeterDesignation));
+        Assert.Empty((await store.SeriesAsync(community, importedInstallation.Id, token))!.Readings);
+        var firstImport = await store.RecognizeImportAsync(community, initial, today, Actor(), token);
+        Assert.Equal(ReadingOutcome.Recognized, firstImport.Outcome);
+        Assert.Equal(ReadingOutcome.Recognized, (await store.RecognizeImportAsync(community, final, today, Actor(), token)).Outcome);
+        var repeatedImport = await store.RecognizeImportAsync(community, initial, today, Actor(), token);
+        Assert.Equal((ReadingOutcome.AlreadyRecorded, firstImport.ReadingId), (repeatedImport.Outcome, repeatedImport.ReadingId));
+        Assert.Equal(ReadingOutcome.DateConflict,
+            (await store.RecognizeImportAsync(community, initial with { Value = 101m }, today, Actor(), token)).Outcome);
+        Assert.Equal(ReadingOutcome.Decreasing,
+            (await store.RecognizeImportAsync(community, final with { MeasuredOn = starts.AddDays(2), Value = 104m },
+                today, Actor(), token)).Outcome);
+        Assert.Equal(ReadingOutcome.Recognized,
+            (await store.RecognizeImportAsync(community, final with { MeasuredOn = starts.AddDays(2), Value = 101m },
+                today, Actor(), token)).Outcome);
+        var imported = (await store.SeriesAsync(community, importedInstallation.Id, token))!;
+        Assert.Equal(120m, imported.Intervals.Sum(interval => interval.Value));
+        Assert.All(imported.Readings, reading => Assert.Equal("csv-import", reading.Source));
         Assert.Empty((await store.SeriesAsync(community, newDual.Id, token))!.Intervals);
     }
 

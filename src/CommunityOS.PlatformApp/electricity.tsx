@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { MeteringTopology } from './metering-topology';
+import { ReadingImport } from './reading-import';
 
 type Channel = 'total' | 'day' | 'night';
 type Details = { model: string | null; serialNumber: string | null; location: string | null;
@@ -199,6 +200,7 @@ export function Electricity({ community, canSetup, canRecognize, canReplace, can
 
   return <section aria-labelledby="electricity-heading">
     <h2 id="electricity-heading">Облік електроенергії</h2>
+    <ReadingImport endpoint={endpoint} canApply={canRecognize} onApplied={() => loadSeries(installation)} />
     <MeteringTopology canPublish={canPublishTopology} commonPoints={commonPoints}
       individualPoints={plots.flatMap(plot => plot.installation ?
         [{ id: plot.installation.pointId, designation: plot.number }] : [])}
@@ -266,6 +268,7 @@ export function Electricity({ community, canSetup, canRecognize, canReplace, can
       <p>Лічильник {installation.meterDesignation} · початок установки {installation.startsOn}</p>
       <dl>
         <dt>Модель</dt><dd>{installation.details.model ?? 'Не вказано'}</dd>
+        <dt>Ідентифікатор установки</dt><dd><code>{installation.id}</code></dd>
         <dt>Серійний номер лічильника</dt><dd>{installation.details.serialNumber ?? 'Не вказано'}</dd>
         <dt>Регістри</dt><dd>{installation.registerMode === 'dual' ? 'День і ніч' : 'Загальний'}</dd>
         <dt>Місце встановлення</dt><dd>{installation.details.location ?? 'Не вказано'}</dd>

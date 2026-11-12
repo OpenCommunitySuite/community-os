@@ -26,6 +26,23 @@ public class ManualElectricityTests
     }
 
     [Fact]
+    public void Multiplier_preserves_exact_decimal_values_and_raw_delta()
+    {
+        var first = new ElectricityReading(Guid.NewGuid(), new(2026, 1, 1), 0, ManualElectricity.Source,
+            ManualElectricity.Rule, DateTime.UtcNow, Guid.Empty, Guid.Empty);
+        var second = first with { Id = Guid.NewGuid(), Date = first.Date.AddDays(1), Value = 0.001m };
+        var small = Assert.Single(ManualElectricity.Intervals([first, second], 0.000001m));
+        Assert.Equal("0.000000001", small.ValueExact);
+        Assert.Equal("0.001", small.RawDeltaExact);
+        var large = Assert.Single(ManualElectricity.Intervals([first, second with { Value = 999999999999.999m }], 1_000_000m));
+        Assert.Equal("999999999999999000", large.ValueExact);
+        Assert.True(ManualElectricity.SupportsMultiplier(40));
+        Assert.False(ManualElectricity.SupportsMultiplier(0));
+        Assert.False(ManualElectricity.SupportsMultiplier(0.0000001m));
+        Assert.False(ManualElectricity.SupportsMultiplier(1_000_001m));
+    }
+
+    [Fact]
     public void Combined_estimate_requires_identical_adjacent_bounds()
     {
         var date = new DateOnly(2026, 1, 1);

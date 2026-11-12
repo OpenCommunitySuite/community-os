@@ -4,7 +4,8 @@ namespace CommunityOS.Modules.Platform.Infrastructure;
 
 public sealed record RegisterCommunity(Guid Id, string Name, bool CanRead, bool CanAdd, bool CanPrepareImport,
     bool CanApproveImport, bool CanCorrectOwnership, bool CanReadElectricity, bool CanSetupElectricity,
-    bool CanRecognizeElectricity, bool CanReplaceElectricity, bool CanSetupCommonElectricity);
+    bool CanRecognizeElectricity, bool CanReplaceElectricity, bool CanSetupCommonElectricity,
+    bool CanPublishElectricityTopology = false);
 public sealed record RegisterActor(Guid AccountId, Guid SubjectId, string? AdditionBasis, Guid AdmissionId);
 public sealed record RegisterImportTarget(Guid DraftId, int Revision, string PlanId);
 public sealed record OwnershipCorrectionTarget(Guid PlotId, Guid Revision, Guid OwnerId);
@@ -14,7 +15,7 @@ public enum RegisterPermission
 {
     Read, Add, PrepareImport, WriteImportDraft, ReadImportApproval, SubmitImport, ApproveImport,
     ReadCorrectionCandidates, CorrectOwnership, ReadElectricity, SetupElectricity, RecognizeElectricity, ReplaceElectricity,
-    SetupCommonElectricity
+    SetupCommonElectricity, PublishElectricityTopology
 }
 
 public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
@@ -37,7 +38,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                 v.electricity_enabled AND o.can_read_electricity AND o.can_recognize_electricity AND o.electricity_recognition_basis IS NOT NULL,
                 v.electricity_enabled AND o.can_read_electricity AND o.can_replace_electricity AND o.electricity_replacement_basis IS NOT NULL,
                 v.electricity_enabled AND o.can_read_electricity AND o.can_setup_common_electricity
-                    AND o.common_electricity_setup_basis IS NOT NULL
+                    AND o.common_electricity_setup_basis IS NOT NULL,
+                v.electricity_enabled AND o.can_read_electricity AND o.topology_publication_basis IS NOT NULL
             FROM platform_provisioning.platform_session s
             JOIN platform_provisioning.platform_account a ON a.id = s.account_id
             LEFT JOIN (
@@ -66,7 +68,7 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
             {
                 communities.Add(new(reader.GetGuid(0), reader.GetString(1), reader.GetBoolean(2), reader.GetBoolean(3),
                     reader.GetBoolean(4), reader.GetBoolean(5), reader.GetBoolean(6), reader.GetBoolean(7),
-                    reader.GetBoolean(8), reader.GetBoolean(9), reader.GetBoolean(10), reader.GetBoolean(11)));
+                    reader.GetBoolean(8), reader.GetBoolean(9), reader.GetBoolean(10), reader.GetBoolean(11), reader.GetBoolean(12)));
             }
         } while (await reader.ReadAsync(token));
 
@@ -93,7 +95,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
         var recognize = permission == RegisterPermission.RecognizeElectricity;
         var replace = permission == RegisterPermission.ReplaceElectricity;
         var setupCommon = permission == RegisterPermission.SetupCommonElectricity;
-        var electricityWrite = setup || recognize || replace || setupCommon;
+        var publishTopology = permission == RegisterPermission.PublishElectricityTopology;
+        var electricityWrite = setup || recognize || replace || setupCommon || publishTopology;
         if (((submitting || approving) && target is null) || (correcting && correction is null) ||
             (electricityWrite && electricity is null) || (replace && electricity?.RequestId is null))
         {
@@ -103,7 +106,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
         await using var connection = await dataSource.OpenConnectionAsync(token);
         await using var transaction = await connection.BeginTransactionAsync(token);
         await using var authorization = new NpgsqlCommand("""
-            SELECT a.id, o.subject_id, CASE WHEN @setup_common THEN o.common_electricity_setup_basis
+            SELECT a.id, o.subject_id, CASE WHEN @publish_topology THEN o.topology_publication_basis
+                WHEN @setup_common THEN o.common_electricity_setup_basis
                 WHEN @setup THEN o.electricity_setup_basis
                 WHEN @recognize THEN o.electricity_recognition_basis WHEN @replace THEN o.electricity_replacement_basis
                 WHEN @correcting THEN o.ownership_correction_basis
@@ -123,7 +127,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                         OR (@setup AND o.can_setup_electricity AND o.electricity_setup_basis IS NOT NULL)
                         OR (@recognize AND o.can_recognize_electricity AND o.electricity_recognition_basis IS NOT NULL)
                         OR (@replace AND o.can_replace_electricity AND o.electricity_replacement_basis IS NOT NULL)
-                        OR (@setup_common AND o.can_setup_common_electricity AND o.common_electricity_setup_basis IS NOT NULL))))
+                        OR (@setup_common AND o.can_setup_common_electricity AND o.common_electricity_setup_basis IS NOT NULL)
+                        OR (@publish_topology AND o.topology_publication_basis IS NOT NULL))))
             FOR SHARE OF a, s, o, v;
             """, connection, transaction);
         authorization.Parameters.AddWithValue("digest", digest);
@@ -138,6 +143,7 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
         authorization.Parameters.AddWithValue("read_electricity", permission == RegisterPermission.ReadElectricity);
         authorization.Parameters.AddWithValue("setup", setup);
         authorization.Parameters.AddWithValue("setup_common", setupCommon);
+        authorization.Parameters.AddWithValue("publish_topology", publishTopology);
         authorization.Parameters.AddWithValue("recognize", recognize);
         authorization.Parameters.AddWithValue("replace", replace);
         var writing = adding || writingDraft || submitting || approving || correcting || electricityWrite;
@@ -205,7 +211,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
             }
             if (electricityWrite)
             {
-                admit.Parameters.AddWithValue("action", setupCommon ? "setup-common" : setup ? "setup" : recognize ? "recognize" : "replace");
+                admit.Parameters.AddWithValue("action", publishTopology ? "publish-topology" :
+                    setupCommon ? "setup-common" : setup ? "setup" : recognize ? "recognize" : "replace");
                 admit.Parameters.AddWithValue("target", electricity!.Id);
                 admit.Parameters.AddWithValue("date", electricity.Date);
                 admit.Parameters.AddWithValue("mode", NpgsqlTypes.NpgsqlDbType.Text,

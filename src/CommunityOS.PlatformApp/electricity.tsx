@@ -1,12 +1,17 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 
+type Channel = 'total' | 'day' | 'night';
 type Installation = { id: string; meterDesignation: string; startsOn: string; endsBefore: string | null;
+  registerMode: 'total' | 'dual';
   replacement?: { reason: string; recordedAt: string; accountId: string } };
 type Plot = { id: string; number: string; installation: Installation | null };
+type Interval = { fromReadingId: string; toReadingId: string; from: string; to: string; value: number; channel: Channel };
 type Series = {
-  readings: { id: string; date: string; value: number; recognizedAt: string; accountId: string }[];
-  intervals: { fromReadingId: string; toReadingId: string; from: string; to: string; value: number }[];
+  readings: { id: string; date: string; value: number; recognizedAt: string; accountId: string; channel: Channel }[];
+  intervals: Interval[];
+  combinedIntervals: { day: Interval; night: Interval; value: number }[];
 };
+const channelNames: Record<Channel, string> = { total: 'Загальний', day: 'День', night: 'Ніч' };
 
 const messages: Record<string, string> = {
   AlreadyRecorded: 'Таке значення за цю дату вже записано.',
@@ -19,6 +24,7 @@ const messages: Record<string, string> = {
   InvalidDate: 'Дата заміни має бути після початку установки й не пізніше сьогодні.',
   ExistingReading: 'Старий лічильник уже має показання на дату заміни або пізніше.',
   Conflict: 'Установку вже закрито, позначення зайняте або дані повторного запиту відрізняються.',
+  UnsupportedChannel: 'Цей лічильник не підтримує вибраний регістр.',
 };
 const format = new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 3 });
 
@@ -121,7 +127,7 @@ export function Electricity({ community, canSetup, canRecognize, canReplace }: {
     const data = new FormData(form);
     void run(async () => {
       const response = await post('/installations/' + installation.id + '/readings',
-        { date: data.get('date'), value: String(data.get('value')).replace(',', '.') });
+        { date: data.get('date'), value: String(data.get('value')).replace(',', '.'), channel: data.get('channel') });
       const result = await response.json();
       await loadSeries(installation);
       setMessage(messages[result.outcome] ?? 'Показання визнано.');
@@ -149,6 +155,9 @@ export function Electricity({ community, canSetup, canRecognize, canReplace }: {
         <legend>Зареєструвати точку обліку та установку</legend>
         <label>Позначення лічильника <input name="designation" maxLength={128} required /></label>{' '}
         <label>Дата початку установки <input name="startsOn" type="date" required /></label>{' '}
+        <label>Регістри лічильника <select name="registerMode" defaultValue="total">
+          <option value="total">Загальний</option><option value="dual">День і ніч</option>
+        </select></label>{' '}
         <button>Зареєструвати установку</button>
       </fieldset>
     </form>}
@@ -183,6 +192,10 @@ export function Electricity({ community, canSetup, canRecognize, canReplace }: {
       {canRecognize && <form onSubmit={recognize} key={installation.id}>
         <fieldset disabled={pending}>
           <legend>Ручне спостереження</legend>
+          {installation.registerMode === 'dual' && <label>Регістр показання <select name="channel" required defaultValue="">
+            <option value="">Оберіть регістр</option>
+            <option value="day">День</option><option value="night">Ніч</option>
+          </select></label>}{' '}
           <label>Дата вимірювання <input name="date" type="date" required /></label>{' '}
           <label>Накопичувальне значення, кВт·год <input name="value" inputMode="decimal"
             pattern="[0-9]{1,12}([.,][0-9]{1,3})?" maxLength={16} required /></label>{' '}
@@ -192,19 +205,30 @@ export function Electricity({ community, canSetup, canRecognize, canReplace }: {
       {series && <>
         <h3>Визнані показання</h3>
         {series.readings.length === 0 ? <p>Показань ще немає.</p> : <table>
-          <thead><tr><th>Дата вимірювання</th><th>кВт·год</th><th>Джерело</th><th>Визнано</th><th>Обліковий запис</th></tr></thead>
+          <thead><tr><th>Дата вимірювання</th><th>Регістр</th><th>кВт·год</th><th>Джерело</th><th>Визнано</th><th>Обліковий запис</th></tr></thead>
           <tbody>{series.readings.map(item => <tr key={item.id}>
-            <td>{item.date}</td><td>{format.format(item.value)}</td><td>Ручне спостереження</td>
+            <td>{item.date}</td><td>{channelNames[item.channel]}</td><td>{format.format(item.value)}</td><td>Ручне спостереження</td>
             <td>{new Date(item.recognizedAt).toLocaleString('uk-UA')}</td><td>{item.accountId}</td>
           </tr>)}</tbody>
         </table>}
         <h3>Розрахункова оцінка споживання</h3>
         {series.intervals.length === 0 ? <p>Потрібні два визнані показання.</p> : <table>
-          <thead><tr><th>Від</th><th>До</th><th>кВт·год</th></tr></thead>
+          <thead><tr><th>Від</th><th>До</th><th>Регістр</th><th>кВт·год</th></tr></thead>
           <tbody>{series.intervals.map(item => <tr key={item.fromReadingId + item.toReadingId}>
-            <td>{item.from}</td><td>{item.to}</td><td>{format.format(item.value)}</td>
+            <td>{item.from}</td><td>{item.to}</td><td>{channelNames[item.channel]}</td><td>{format.format(item.value)}</td>
           </tr>)}</tbody>
         </table>}
+        {installation.registerMode === 'dual' && <>
+          <h3>Зведена оцінка дня й ночі</h3>
+          <p>Сума доступна для інтервалів з однаковими датами початку й кінця в обох регістрах.</p>
+          {series.combinedIntervals.length === 0 ? <p>Зіставних інтервалів немає.</p> : <table>
+            <thead><tr><th>Від</th><th>До</th><th>День, кВт·год</th><th>Ніч, кВт·год</th><th>Разом, кВт·год</th></tr></thead>
+            <tbody>{series.combinedIntervals.map(item => <tr key={item.day.fromReadingId + item.day.toReadingId}>
+              <td>{item.day.from}</td><td>{item.day.to}</td><td>{format.format(item.day.value)}</td>
+              <td>{format.format(item.night.value)}</td><td>{format.format(item.value)}</td>
+            </tr>)}</tbody>
+          </table>}
+        </>}
       </>}
     </>}
     <p role="status">{message}</p>

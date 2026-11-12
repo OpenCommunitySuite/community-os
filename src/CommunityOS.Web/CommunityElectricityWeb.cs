@@ -44,7 +44,9 @@ internal static class CommunityElectricityWeb
         electricity.MapPost("/plots/{plot:guid}/installation", (Guid community, Guid plot, SetupInput input,
             HttpContext http, CancellationToken token) =>
         {
+            var mode = input.RegisterMode ?? ManualElectricity.Total;
             if (plot == Guid.Empty || input.StartsOn == default ||
+                mode is not (ManualElectricity.Total or ManualElectricity.Dual) ||
                 input.Designation?.Trim() is not { Length: > 0 and <= 128 } designation || designation.Contains('\0'))
             {
                 return Task.FromResult<IResult>(Results.BadRequest());
@@ -54,13 +56,13 @@ internal static class CommunityElectricityWeb
                 RegisterPermission.SetupElectricity, async actor =>
                 {
                     if (input.StartsOn > Today()) return Results.BadRequest(new { Outcome = "FutureDate" });
-                    return await store.SetupAsync(community, plot, designation, input.StartsOn, Actor(actor), token) switch
+                    return await store.SetupAsync(community, plot, designation, input.StartsOn, Actor(actor), token, mode) switch
                     {
                         ElectricitySetupOutcome.Created => Results.NoContent(),
                         ElectricitySetupOutcome.MissingPlot => Results.NotFound(),
                         _ => Results.Conflict(new { Outcome = "InstallationConflict" }),
                     };
-                }, Results.StatusCode(403), token, electricity: new(plot, input.StartsOn));
+                }, Results.StatusCode(403), token, electricity: new(plot, input.StartsOn, RegisterMode: mode));
         });
         electricity.MapGet("/installations/{installation:guid}/readings", (Guid community, Guid installation,
             HttpContext http, CancellationToken token) =>
@@ -76,11 +78,14 @@ internal static class CommunityElectricityWeb
             }
             if (!TryReadValue(input.Value, out var value))
                 return Task.FromResult<IResult>(Results.BadRequest(new { Outcome = "InvalidValue" }));
+            var channel = input.Channel ?? ManualElectricity.Total;
+            if (channel is not (ManualElectricity.Total or ManualElectricity.Day or ManualElectricity.Night))
+                return Task.FromResult<IResult>(Results.BadRequest(new { Outcome = "UnsupportedChannel" }));
 
             return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community,
                 RegisterPermission.RecognizeElectricity, async actor =>
                 {
-                    var result = await store.RecognizeAsync(community, installation, input.Date, value, Today(), Actor(actor), token);
+                    var result = await store.RecognizeAsync(community, installation, input.Date, value, Today(), Actor(actor), token, channel);
                     return result.Outcome switch
                     {
                         ReadingOutcome.Recognized or ReadingOutcome.AlreadyRecorded => Results.Ok(Response(result)),
@@ -88,7 +93,7 @@ internal static class CommunityElectricityWeb
                         ReadingOutcome.NotFound => Results.NotFound(),
                         _ => Results.BadRequest(Response(result)),
                     };
-                }, Results.StatusCode(403), token, electricity: new(installation, input.Date));
+                }, Results.StatusCode(403), token, electricity: new(installation, input.Date, Channel: channel));
         });
     }
 
@@ -109,7 +114,7 @@ internal static class CommunityElectricityWeb
             decimal.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out value);
     }
 
-    private sealed record SetupInput(string? Designation, DateOnly StartsOn);
-    private sealed record ReadingInput(DateOnly Date, string? Value);
+    private sealed record SetupInput(string? Designation, DateOnly StartsOn, string? RegisterMode);
+    private sealed record ReadingInput(DateOnly Date, string? Value, string? Channel);
     private sealed record ReplacementInput(Guid RequestId, DateOnly EffectiveOn, string? Designation, string? Reason);
 }

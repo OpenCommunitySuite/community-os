@@ -26,6 +26,21 @@ public class ManualElectricityTests
     }
 
     [Fact]
+    public void Combined_estimate_requires_identical_adjacent_bounds()
+    {
+        var date = new DateOnly(2026, 1, 1);
+        ElectricityReading Reading(int day, decimal value, string channel) =>
+            new(Guid.NewGuid(), date.AddDays(day), value, ManualElectricity.Source, ManualElectricity.DualRule,
+                DateTime.UtcNow, Guid.Empty, Guid.Empty, channel);
+        ElectricityReading[] readings = [Reading(0, 100, ManualElectricity.Day), Reading(0, 20, ManualElectricity.Night),
+            Reading(2, 106, ManualElectricity.Day), Reading(2, 23, ManualElectricity.Night)];
+        var combined = Assert.Single(ManualElectricity.CombinedIntervals(ManualElectricity.Intervals(readings)));
+        Assert.Equal(9m, combined.Value);
+        Assert.Empty(ManualElectricity.CombinedIntervals(ManualElectricity.Intervals(
+            [.. readings, Reading(1, 103, ManualElectricity.Day)])));
+    }
+
+    [Fact]
     public void Historical_installation_only_accepts_dates_before_replacement()
     {
         var start = new DateOnly(2026, 1, 1);

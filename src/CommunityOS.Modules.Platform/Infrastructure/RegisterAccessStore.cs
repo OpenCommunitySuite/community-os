@@ -8,7 +8,8 @@ public sealed record RegisterCommunity(Guid Id, string Name, bool CanRead, bool 
 public sealed record RegisterActor(Guid AccountId, Guid SubjectId, string? AdditionBasis, Guid AdmissionId);
 public sealed record RegisterImportTarget(Guid DraftId, int Revision, string PlanId);
 public sealed record OwnershipCorrectionTarget(Guid PlotId, Guid Revision, Guid OwnerId);
-public sealed record ElectricityTarget(Guid Id, DateOnly Date, Guid? RequestId = null);
+public sealed record ElectricityTarget(Guid Id, DateOnly Date, Guid? RequestId = null, string? RegisterMode = null,
+    string? Channel = null);
 public enum RegisterPermission
 {
     Read, Add, PrepareImport, WriteImportDraft, ReadImportApproval, SubmitImport, ApproveImport,
@@ -175,8 +176,9 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                 WHERE token_digest = @digest AND expires_at > clock_timestamp();
                 """ : electricityWrite ? """
                 INSERT INTO platform_provisioning.electricity_admission
-                    (id, community_id, account_id, subject_id, action, target_id, effective_on, basis, request_id)
-                SELECT @id, @community, @account, @subject, @action, @target, @date, @basis, @request
+                    (id, community_id, account_id, subject_id, action, target_id, effective_on, basis, request_id,
+                     register_mode, channel)
+                SELECT @id, @community, @account, @subject, @action, @target, @date, @basis, @request, @mode, @channel
                 FROM platform_provisioning.platform_session
                 WHERE token_digest = @digest AND expires_at > clock_timestamp();
                 """ : """
@@ -199,6 +201,10 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                 admit.Parameters.AddWithValue("action", setup ? "setup" : recognize ? "recognize" : "replace");
                 admit.Parameters.AddWithValue("target", electricity!.Id);
                 admit.Parameters.AddWithValue("date", electricity.Date);
+                admit.Parameters.AddWithValue("mode", NpgsqlTypes.NpgsqlDbType.Text,
+                    setup ? electricity.RegisterMode ?? "total" : DBNull.Value);
+                admit.Parameters.AddWithValue("channel", NpgsqlTypes.NpgsqlDbType.Text,
+                    recognize ? electricity.Channel ?? "total" : DBNull.Value);
                 admit.Parameters.AddWithValue("request", NpgsqlTypes.NpgsqlDbType.Uuid,
                     replace && electricity.RequestId is Guid request ? request : DBNull.Value);
             }

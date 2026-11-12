@@ -26,7 +26,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         var token = TestContext.Current.CancellationToken;
         await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
         foreach (var file in new[] { "001_manual_register.sql", "002_ownership_correction.sql",
-                     "009_electricity_readings.sql", "010_electricity_replacement.sql" })
+                     "009_electricity_readings.sql", "010_electricity_replacement.sql", "011_electricity_register_channels.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -112,6 +112,34 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
             (ElectricityReplacementOutcome.Replaced, ReadingOutcome.OutsideInstallation),
             (ElectricityReplacementOutcome.ExistingReading, ReadingOutcome.Recognized),
         });
+
+        await register.CreateAsync(community, null, "Synthetic dual owner", "02", "002", token);
+        var dualPlot = Assert.Single(await store.ListPlotsAsync(community, token), item => item.Number == "02");
+        Assert.Equal(ElectricitySetupOutcome.Created,
+            await store.SetupAsync(community, dualPlot.Id, "D1", starts, Actor(), token, ManualElectricity.Dual));
+        var dualId = Assert.IsType<ElectricityInstallation>(
+            Assert.Single(await store.InstallationsAsync(community, dualPlot.Id, token))).Id;
+        Task<ElectricityRecognition> Recognize(DateOnly date, decimal value, string channel) =>
+            store.RecognizeAsync(community, dualId, date, value, today, Actor(), token, channel);
+        var sameDay = await Task.WhenAll(Recognize(starts, 100, ManualElectricity.Day),
+            Recognize(starts, 20, ManualElectricity.Night));
+        Assert.All(sameDay, result => Assert.Equal(ReadingOutcome.Recognized, result.Outcome));
+        Assert.Equal(ReadingOutcome.UnsupportedChannel, (await Recognize(starts, 120, ManualElectricity.Total)).Outcome);
+        Assert.Equal(sameDay[0].ReadingId, (await Recognize(starts, 100, ManualElectricity.Day)).ReadingId);
+        Assert.Equal(ReadingOutcome.DateConflict, (await Recognize(starts, 101, ManualElectricity.Day)).Outcome);
+        await Recognize(starts.AddDays(2), 106, ManualElectricity.Day);
+        await Recognize(starts.AddDays(2), 23, ManualElectricity.Night);
+        var combined = Assert.Single((await store.SeriesAsync(community, dualId, token))!.CombinedIntervals);
+        Assert.Equal(9, combined.Value);
+        Assert.Equal(ReadingOutcome.Decreasing, (await Recognize(starts.AddDays(1), 107, ManualElectricity.Day)).Outcome);
+        await Recognize(starts.AddDays(1), 103, ManualElectricity.Day);
+        Assert.Empty((await store.SeriesAsync(community, dualId, token))!.CombinedIntervals);
+        var replacementDual = await store.ReplaceAsync(community,
+            new(Guid.NewGuid(), dualId, starts.AddDays(3), "D2", "Synthetic dual replacement"), today, Actor(), token);
+        Assert.Equal(ElectricityReplacementOutcome.Replaced, replacementDual.Outcome);
+        var newDual = (await store.InstallationsAsync(community, dualPlot.Id, token))[0];
+        Assert.Equal(ManualElectricity.Dual, newDual.RegisterMode);
+        Assert.Empty((await store.SeriesAsync(community, newDual.Id, token))!.Intervals);
     }
 
     [Fact]
@@ -485,7 +513,8 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
         foreach (var file in new[] { "001_community_reservation.sql", "005_platform_authentication.sql",
                      "009_register_access.sql", "010_register_import_preparation.sql", "011_register_import_approval.sql",
-                     "012_ownership_correction_access.sql", "013_electricity_access.sql", "014_electricity_replacement_access.sql" })
+                     "012_ownership_correction_access.sql", "013_electricity_access.sql", "014_electricity_replacement_access.sql",
+                     "015_electricity_register_admission.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);

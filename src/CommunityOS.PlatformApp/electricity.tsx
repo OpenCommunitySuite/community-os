@@ -1,9 +1,10 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
+import { MeteringTopology } from './metering-topology';
 
 type Channel = 'total' | 'day' | 'night';
 type Details = { model: string | null; serialNumber: string | null; location: string | null;
   mountedOn: string | null; sealSerialNumber: string | null; multiplierExact: string };
-type Installation = { id: string; meterDesignation: string; startsOn: string; endsBefore: string | null;
+type Installation = { id: string; pointId: string; meterDesignation: string; startsOn: string; endsBefore: string | null;
   registerMode: 'total' | 'dual'; details: Details;
   replacement?: { reason: string; recordedAt: string; accountId: string } };
 type Plot = { id: string; number: string; installation: Installation | null };
@@ -30,6 +31,7 @@ const messages: Record<string, string> = {
   Conflict: 'Установку вже закрито, позначення зайняте або дані повторного запиту відрізняються.',
   UnsupportedChannel: 'Цей лічильник не підтримує вибраний регістр.',
   CommonPointConflict: 'Позначення точки або лічильника вже використовується.',
+  InvalidTree: 'Перевірте підключення точок і назви ТП.',
 };
 function format(exact: string) {
   const [whole, fraction] = exact.split('.');
@@ -65,8 +67,9 @@ async function checked(response: Response) {
   throw new Error(messages[error?.outcome] ?? 'Перевірте дані та повторіть спробу.');
 }
 
-export function Electricity({ community, canSetup, canRecognize, canReplace, canSetupCommon }: {
+export function Electricity({ community, canSetup, canRecognize, canReplace, canSetupCommon, canPublishTopology }: {
   community: string; canSetup: boolean; canRecognize: boolean; canReplace: boolean; canSetupCommon: boolean;
+  canPublishTopology: boolean;
 }) {
   const endpoint = '/community/electricity/' + community;
   const [plots, setPlots] = useState<Plot[]>([]);
@@ -196,6 +199,14 @@ export function Electricity({ community, canSetup, canRecognize, canReplace, can
 
   return <section aria-labelledby="electricity-heading">
     <h2 id="electricity-heading">Облік електроенергії</h2>
+    <MeteringTopology canPublish={canPublishTopology} commonPoints={commonPoints}
+      individualPoints={plots.flatMap(plot => plot.installation ?
+        [{ id: plot.installation.pointId, designation: plot.number }] : [])}
+      read={async date => {
+        const response = await checked(await fetch(endpoint + '/topology?date=' + encodeURIComponent(date)));
+        return (await response.json()).topology;
+      }}
+      publish={data => post('/topology', data)} />
     <label>Точка або ділянка для обліку{' '}
       <select value={selected} disabled={pending} onChange={event => {
         const id = event.target.value;

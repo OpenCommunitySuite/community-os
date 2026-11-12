@@ -326,6 +326,8 @@ def up(docker, config, config_dir):
         GRANT UPDATE (lock_marker) ON community_electricity.installation TO {WEB_ROLE};
         GRANT UPDATE (ends_before) ON community_electricity.installation TO {WEB_ROLE};
         GRANT SELECT, INSERT ON community_electricity.replacement TO {WEB_ROLE};
+        GRANT SELECT, INSERT ON community_electricity.substation, community_electricity.topology_revision,
+            community_electricity.topology_point TO {WEB_ROLE};
     """)
     web = docker.ensure_container("web", image=config["image"], env=[
         "ASPNETCORE_ENVIRONMENT=Production", "ASPNETCORE_URLS=https://127.0.0.1:8443",

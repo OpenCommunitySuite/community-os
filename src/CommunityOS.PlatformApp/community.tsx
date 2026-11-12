@@ -8,7 +8,7 @@ import { Electricity } from './electricity';
 type Community = { id: string; name: string; canRead: boolean; canAdd: boolean; canPrepareImport: boolean;
   canApproveImport: boolean; canCorrectOwnership: boolean; canReadElectricity: boolean;
   canSetupElectricity: boolean; canRecognizeElectricity: boolean; canReplaceElectricity: boolean;
-  canSetupCommonElectricity: boolean };
+  canSetupCommonElectricity: boolean; canPublishElectricityTopology: boolean };
 type Entry = { plotId: string; plotNumber: string; ownerId: string; ownerName: string; accountNumber: string;
   ownershipRevision: string };
 
@@ -146,7 +146,8 @@ function Register() {
     {community?.canApproveImport && <ImportApproval key={community.id} community={community.id} />}
     {community?.canReadElectricity && <Electricity key={community.id} community={community.id}
       canSetup={community.canSetupElectricity} canRecognize={community.canRecognizeElectricity}
-      canReplace={community.canReplaceElectricity} canSetupCommon={community.canSetupCommonElectricity} />}
+      canReplace={community.canReplaceElectricity} canSetupCommon={community.canSetupCommonElectricity}
+      canPublishTopology={community.canPublishElectricityTopology} />}
   </>;
 }
 

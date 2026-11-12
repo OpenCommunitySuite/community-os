@@ -10,6 +10,31 @@ internal static class CommunityElectricityWeb
     public static void Map(RouteGroupBuilder routes, RegisterAccessStore access, PostgresElectricityStore store)
     {
         var electricity = routes.MapGroup("/electricity/{community:guid}");
+        electricity.MapGet("/topology", (Guid community, DateOnly date, HttpContext http, CancellationToken token) =>
+            access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadElectricity,
+                async _ => Results.Ok(new { Topology = await store.TopologyOnAsync(community, date, token) }),
+                Results.StatusCode(403), token));
+        electricity.MapPost("/topology", (Guid community, TopologyInput input, HttpContext http, CancellationToken token) =>
+        {
+            if (input.StartsOn == default || input.Substations is not { Length: <= 1000 } stations ||
+                input.Points is not { Length: <= 10000 } points ||
+                stations.Any(s => s is null || s.Designation?.Trim() is not { Length: > 0 and <= 128 } name ||
+                    name.Contains('\0')) || points.Any(p => p is null))
+                return Task.FromResult<IResult>(Results.BadRequest());
+
+            return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community,
+                RegisterPermission.PublishElectricityTopology, async actor =>
+                {
+                    var outcome = await store.PublishTopologyAsync(community, input.StartsOn,
+                        stations.Select(s => s with { Designation = s.Designation.Trim() }).ToArray(), points, Actor(actor), token);
+                    return outcome switch
+                    {
+                        TopologyPublicationOutcome.Published => Results.NoContent(),
+                        TopologyPublicationOutcome.DateConflict => Results.Conflict(new { Outcome = outcome.ToString() }),
+                        _ => Results.BadRequest(new { Outcome = outcome.ToString() }),
+                    };
+                }, Results.StatusCode(403), token, electricity: new(community, input.StartsOn));
+        });
         electricity.MapGet("/plots", (Guid community, HttpContext http, CancellationToken token) =>
             access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadElectricity,
                 async _ => Results.Ok(await store.ListPlotsAsync(community, token)), Results.StatusCode(403), token));
@@ -176,6 +201,7 @@ internal static class CommunityElectricityWeb
     }
 
     private sealed record SetupInput(string? Designation, DateOnly StartsOn, string? RegisterMode, DetailsInput? Details);
+    private sealed record TopologyInput(DateOnly StartsOn, TopologySubstation[]? Substations, TopologyPlacement[]? Points);
     private sealed record CommonSetupInput(string? PointDesignation, string? Boundary, string? Designation,
         DateOnly StartsOn, string? RegisterMode, DetailsInput? Details);
     private sealed record ReadingInput(DateOnly Date, string? Value, string? Channel);

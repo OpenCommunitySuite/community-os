@@ -19,7 +19,7 @@ public sealed record ElectricityReplacement(Guid RequestId, Guid InstallationId,
 public enum ElectricityReplacementOutcome { Replaced, Replayed, Missing, InvalidDate, ExistingReading, Conflict }
 public sealed record ElectricityReplacementResult(ElectricityReplacementOutcome Outcome, Guid? InstallationId = null);
 
-public sealed class PostgresElectricityStore(NpgsqlDataSource source)
+public sealed partial class PostgresElectricityStore(NpgsqlDataSource source)
 {
     public Task<IReadOnlyList<ElectricityInstallation>> InstallationsAsync(Guid community, Guid plot, CancellationToken token) =>
         ReadInstallationsAsync(community, plot, false, token);

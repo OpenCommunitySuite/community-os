@@ -27,7 +27,8 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
         foreach (var file in new[] { "001_manual_register.sql", "002_ownership_correction.sql",
                      "009_electricity_readings.sql", "010_electricity_replacement.sql", "011_electricity_register_channels.sql",
-                     "012_common_electricity_points.sql", "013_meter_installation_details.sql" })
+                     "012_common_electricity_points.sql", "013_meter_installation_details.sql",
+                     "014_electricity_metering_trees.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -162,6 +163,22 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Empty(await store.ListCommonPointsAsync(foreign, token));
         Assert.Empty(await store.CommonInstallationsAsync(foreign, secondCommon.Id, token));
         var shared = Assert.Single(await store.CommonInstallationsAsync(community, secondCommon.Id, token));
+        var station = new TopologySubstation(Guid.NewGuid(), "TP 1");
+        var root = points.Single(point => point.Id != secondCommon.Id);
+        TopologyPlacement[] tree = [new(root.Id, 0, null, station.Id), new(shared.PointId, 1, root.Id, null),
+            new(installation.PointId, 2, shared.PointId, null)];
+        Assert.Equal(TopologyPublicationOutcome.InvalidTree,
+            await store.PublishTopologyAsync(foreign, starts, [station], tree, Actor(), token));
+        Assert.Equal(TopologyPublicationOutcome.InvalidTree,
+            await store.PublishTopologyAsync(community, starts, [station], [tree[0], tree[2]], Actor(), token));
+        Assert.Null(await store.TopologyOnAsync(community, starts, token));
+        var publications = await Task.WhenAll(
+            store.PublishTopologyAsync(community, starts, [station], tree, Actor(), token),
+            store.PublishTopologyAsync(community, starts, [station], tree, Actor(), token));
+        Assert.Contains(TopologyPublicationOutcome.Published, publications);
+        Assert.Contains(TopologyPublicationOutcome.DateConflict, publications);
+        Assert.Null(await store.TopologyOnAsync(community, starts.AddDays(-1), token));
+        Assert.Null(await store.TopologyOnAsync(foreign, starts, token));
         Assert.Empty(await store.InstallationsAsync(community, secondCommon.Id, token));
         await store.RecognizeAsync(community, shared.Id, starts, 100, today, Actor(), token);
         await store.RecognizeAsync(community, shared.Id, starts.AddDays(1), 103, today, Actor(), token);
@@ -183,6 +200,13 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         var installations = await store.CommonInstallationsAsync(community, secondCommon.Id, token);
         Assert.Equal(replacementDetails, installations[0].Details);
         Assert.Equal(details, installations[1].Details);
+        var currentTree = Assert.IsType<ElectricityTopology>(await store.TopologyOnAsync(community, starts.AddDays(2), token));
+        Assert.Equal(shared.PointId, currentTree.Points.Single(point => point.Id == installation.PointId).ParentPointId);
+        Assert.Equal(shared.PointId, installations[0].PointId);
+        Assert.Equal(TopologyPublicationOutcome.Published, await store.PublishTopologyAsync(community, starts.AddDays(3),
+            [station], [tree[0], tree[1] with { Depth = 0, ParentPointId = null, SubstationId = station.Id }], Actor(), token));
+        Assert.Equal(2, (await store.TopologyOnAsync(community, starts.AddDays(3), token))!.Points.Count(point => point.Depth == 0));
+        Assert.Equal(3, (await store.TopologyOnAsync(community, starts.AddDays(2), token))!.Points.Count);
         Assert.Equal(120m, Assert.Single((await store.SeriesAsync(community, shared.Id, token))!.Intervals).Value);
         Assert.Empty((await store.SeriesAsync(community, newDual.Id, token))!.Intervals);
     }
@@ -559,7 +583,8 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         foreach (var file in new[] { "001_community_reservation.sql", "005_platform_authentication.sql",
                      "009_register_access.sql", "010_register_import_preparation.sql", "011_register_import_approval.sql",
                      "012_ownership_correction_access.sql", "013_electricity_access.sql", "014_electricity_replacement_access.sql",
-                     "015_electricity_register_admission.sql", "016_common_electricity_access.sql" })
+                     "015_electricity_register_admission.sql", "016_common_electricity_access.sql",
+                     "017_electricity_topology_access.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -606,6 +631,35 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.False(await access.WithAccessAsync(session, community, true, _ => Task.FromResult(true), false, token));
         Assert.True(await access.WithAccessAsync(session, community, false, _ => Task.FromResult(true), false, token));
         Assert.False(await access.WithAccessAsync(session, Guid.NewGuid(), false, _ => Task.FromResult(true), false, token));
+
+        var topologyDate = new DateOnly(2026, 1, 1);
+        Task<bool> TryPublishTopology(Guid id) => access.WithAccessAsync(session, id, RegisterPermission.PublishElectricityTopology,
+            async admitted =>
+            {
+                await using var committed = source.CreateCommand("""
+                    SELECT count(*) FROM platform_provisioning.electricity_admission
+                    WHERE id = @id AND action = 'publish-topology';
+                    """);
+                committed.Parameters.AddWithValue("id", admitted.AdmissionId);
+                return admitted.AdditionBasis == "synthetic topology" && await committed.ExecuteScalarAsync(token) is 1L;
+            }, false, token, electricity: new(id, topologyDate));
+        await using var topologyGrant = source.CreateCommand("""
+            UPDATE platform_provisioning.register_availability SET electricity_enabled = true;
+            UPDATE platform_provisioning.register_operator SET can_read_electricity = true;
+            """);
+        await topologyGrant.ExecuteNonQueryAsync(token);
+        Assert.False(await TryPublishTopology(community));
+        await using var publishGrant = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator SET topology_publication_basis = 'synthetic topology';
+            """);
+        await publishGrant.ExecuteNonQueryAsync(token);
+        Assert.True(await TryPublishTopology(community));
+        Assert.False(await TryPublishTopology(Guid.NewGuid()));
+        await using var publishRevocation = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator SET topology_publication_basis = NULL;
+            """);
+        await publishRevocation.ExecuteNonQueryAsync(token);
+        Assert.False(await TryPublishTopology(community));
 
         Task<bool> TryPrepare() => access.WithAccessAsync(session, community, RegisterPermission.WriteImportDraft,
             _ => Task.FromResult(true), false, token);

@@ -27,7 +27,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
         foreach (var file in new[] { "001_manual_register.sql", "002_ownership_correction.sql",
                      "009_electricity_readings.sql", "010_electricity_replacement.sql", "011_electricity_register_channels.sql",
-                     "012_common_electricity_points.sql" })
+                     "012_common_electricity_points.sql", "013_meter_installation_details.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -116,8 +116,9 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
 
         await register.CreateAsync(community, null, "Synthetic dual owner", "02", "002", token);
         var dualPlot = Assert.Single(await store.ListPlotsAsync(community, token), item => item.Number == "02");
+        var details = new MeterInstallationDetails("Test model", "00041", "Synthetic substation", starts.AddDays(-1), "00082", 40);
         Assert.Equal(ElectricitySetupOutcome.Created,
-            await store.SetupAsync(community, dualPlot.Id, "D1", starts, Actor(), token, ManualElectricity.Dual));
+            await store.SetupAsync(community, dualPlot.Id, "D1", starts, Actor(), token, ManualElectricity.Dual, details));
         var dualId = Assert.IsType<ElectricityInstallation>(
             Assert.Single(await store.InstallationsAsync(community, dualPlot.Id, token))).Id;
         Task<ElectricityRecognition> Recognize(DateOnly date, decimal value, string channel) =>
@@ -131,7 +132,9 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         await Recognize(starts.AddDays(2), 106, ManualElectricity.Day);
         await Recognize(starts.AddDays(2), 23, ManualElectricity.Night);
         var combined = Assert.Single((await store.SeriesAsync(community, dualId, token))!.CombinedIntervals);
-        Assert.Equal(9, combined.Value);
+        Assert.Equal(360m, combined.Value);
+        Assert.Equal(240m, combined.Day.Value);
+        Assert.Equal(120m, combined.Night.Value);
         Assert.Equal(ReadingOutcome.Decreasing, (await Recognize(starts.AddDays(1), 107, ManualElectricity.Day)).Outcome);
         await Recognize(starts.AddDays(1), 103, ManualElectricity.Day);
         Assert.Empty((await store.SeriesAsync(community, dualId, token))!.CombinedIntervals);
@@ -140,6 +143,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Equal(ElectricityReplacementOutcome.Replaced, replacementDual.Outcome);
         var newDual = (await store.InstallationsAsync(community, dualPlot.Id, token))[0];
         Assert.Equal(ManualElectricity.Dual, newDual.RegisterMode);
+        Assert.Equal(MeterInstallationDetails.Legacy, newDual.Details);
         Assert.Empty((await store.SeriesAsync(community, newDual.Id, token))!.Intervals);
 
         var common = new CommonElectricityPoint(Guid.NewGuid(), "Feeder A", "Input of branch A");
@@ -151,7 +155,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Contains(ElectricitySetupOutcome.Created, attempts);
         Assert.Contains(ElectricitySetupOutcome.Conflict, attempts);
         Assert.Equal(ElectricitySetupOutcome.Created,
-            await store.SetupCommonAsync(community, secondCommon, "Common B", starts, Actor(), token, ManualElectricity.Total));
+            await store.SetupCommonAsync(community, secondCommon, "Common B", starts, Actor(), token, ManualElectricity.Total, details));
         var points = await store.ListCommonPointsAsync(community, token);
         Assert.Equal(2, points.Count);
         Assert.Equal(2, (await register.ListAsync(community, token)).Count);
@@ -159,9 +163,27 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Empty(await store.CommonInstallationsAsync(foreign, secondCommon.Id, token));
         var shared = Assert.Single(await store.CommonInstallationsAsync(community, secondCommon.Id, token));
         Assert.Empty(await store.InstallationsAsync(community, secondCommon.Id, token));
-        await store.RecognizeAsync(community, shared.Id, starts, 50, today, Actor(), token);
-        await store.RecognizeAsync(community, shared.Id, starts.AddDays(1), 55, today, Actor(), token);
-        Assert.Equal(5m, Assert.Single((await store.SeriesAsync(community, shared.Id, token))!.Intervals).Value);
+        await store.RecognizeAsync(community, shared.Id, starts, 100, today, Actor(), token);
+        await store.RecognizeAsync(community, shared.Id, starts.AddDays(1), 103, today, Actor(), token);
+        var raw = (await store.SeriesAsync(community, shared.Id, token))!;
+        Assert.Equal(new[] { 100m, 103m }, raw.Readings.Select(item => item.Value));
+        Assert.Equal(120m, Assert.Single(raw.Intervals).Value);
+        Assert.Equal(details, shared.Details);
+        var replacementDetails = details with { SerialNumber = "00042", SealSerialNumber = "00083", Multiplier = 1 };
+        var commonReplacement = new ElectricityReplacement(Guid.NewGuid(), shared.Id, starts.AddDays(2), "Common B2",
+            "Synthetic replacement", replacementDetails);
+        var replaced = await store.ReplaceAsync(community, commonReplacement, today, Actor(), token);
+        Assert.Equal(ElectricityReplacementOutcome.Replaced, replaced.Outcome);
+        Assert.Equal(ElectricityReplacementOutcome.Replayed,
+            (await store.ReplaceAsync(community, commonReplacement with
+                { Details = replacementDetails with { Multiplier = 1.000000m } }, today, Actor(), token)).Outcome);
+        Assert.Equal(ElectricityReplacementOutcome.Conflict,
+            (await store.ReplaceAsync(community, commonReplacement with
+                { Details = replacementDetails with { Multiplier = 2 } }, today, Actor(), token)).Outcome);
+        var installations = await store.CommonInstallationsAsync(community, secondCommon.Id, token);
+        Assert.Equal(replacementDetails, installations[0].Details);
+        Assert.Equal(details, installations[1].Details);
+        Assert.Equal(120m, Assert.Single((await store.SeriesAsync(community, shared.Id, token))!.Intervals).Value);
         Assert.Empty((await store.SeriesAsync(community, newDual.Id, token))!.Intervals);
     }
 

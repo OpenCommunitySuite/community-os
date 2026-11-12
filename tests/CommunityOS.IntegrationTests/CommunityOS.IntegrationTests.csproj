@@ -68,6 +68,8 @@
           Link="011_electricity_register_channels.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/012_common_electricity_points.sql"
           Link="012_common_electricity_points.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/013_meter_installation_details.sql"
+          Link="013_meter_installation_details.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

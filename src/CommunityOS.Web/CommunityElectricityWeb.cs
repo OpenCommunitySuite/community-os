@@ -27,7 +27,8 @@ internal static class CommunityElectricityWeb
             if (input.StartsOn == default || mode is not (ManualElectricity.Total or ManualElectricity.Dual) ||
                 input.Designation?.Trim() is not { Length: > 0 and <= 128 } designation || designation.Contains('\0') ||
                 input.PointDesignation?.Trim() is not { Length: > 0 and <= 128 } name || name.Contains('\0') ||
-                input.Boundary?.Trim() is not { Length: > 0 and <= 500 } boundary || boundary.Contains('\0'))
+                input.Boundary?.Trim() is not { Length: > 0 and <= 500 } boundary || boundary.Contains('\0') ||
+                !TryDetails(input.Details, input.StartsOn, out var details))
                 return Task.FromResult<IResult>(Results.BadRequest());
 
             var point = new CommonElectricityPoint(Guid.CreateVersion7(), name, boundary);
@@ -35,7 +36,7 @@ internal static class CommunityElectricityWeb
                 RegisterPermission.SetupCommonElectricity, async actor =>
                 {
                     if (input.StartsOn > Today()) return Results.BadRequest(new { Outcome = "FutureDate" });
-                    var result = await store.SetupCommonAsync(community, point, designation, input.StartsOn, Actor(actor), token, mode);
+                    var result = await store.SetupCommonAsync(community, point, designation, input.StartsOn, Actor(actor), token, mode, details);
                     return result == ElectricitySetupOutcome.Created
                         ? Results.Created($"/community/electricity/{community}/common-points/{point.Id}/installations", new { point.Id })
                         : Results.Conflict(new { Outcome = "CommonPointConflict" });
@@ -50,14 +51,15 @@ internal static class CommunityElectricityWeb
         {
             if (installation == Guid.Empty || input.RequestId == Guid.Empty || input.EffectiveOn == default ||
                 input.Designation?.Trim() is not { Length: > 0 and <= 128 } designation || designation.Contains('\0') ||
-                input.Reason?.Trim() is not { Length: > 0 and <= 500 } reason || reason.Contains('\0'))
+                input.Reason?.Trim() is not { Length: > 0 and <= 500 } reason || reason.Contains('\0') ||
+                !TryDetails(input.Details, input.EffectiveOn, out var details))
                 return Task.FromResult<IResult>(Results.BadRequest());
 
             return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community,
                 RegisterPermission.ReplaceElectricity, async actor =>
                 {
                     var replacement = new ElectricityReplacement(input.RequestId, installation, input.EffectiveOn,
-                        designation, reason);
+                        designation, reason, details);
                     var result = await store.ReplaceAsync(community, replacement, Today(), Actor(actor), token);
                     var response = new { Outcome = result.Outcome.ToString(), result.InstallationId };
                     return result.Outcome switch
@@ -75,7 +77,8 @@ internal static class CommunityElectricityWeb
             var mode = input.RegisterMode ?? ManualElectricity.Total;
             if (plot == Guid.Empty || input.StartsOn == default ||
                 mode is not (ManualElectricity.Total or ManualElectricity.Dual) ||
-                input.Designation?.Trim() is not { Length: > 0 and <= 128 } designation || designation.Contains('\0'))
+                input.Designation?.Trim() is not { Length: > 0 and <= 128 } designation || designation.Contains('\0') ||
+                !TryDetails(input.Details, input.StartsOn, out var details))
             {
                 return Task.FromResult<IResult>(Results.BadRequest());
             }
@@ -84,7 +87,7 @@ internal static class CommunityElectricityWeb
                 RegisterPermission.SetupElectricity, async actor =>
                 {
                     if (input.StartsOn > Today()) return Results.BadRequest(new { Outcome = "FutureDate" });
-                    return await store.SetupAsync(community, plot, designation, input.StartsOn, Actor(actor), token, mode) switch
+                    return await store.SetupAsync(community, plot, designation, input.StartsOn, Actor(actor), token, mode, details) switch
                     {
                         ElectricitySetupOutcome.Created => Results.NoContent(),
                         ElectricitySetupOutcome.MissingPlot => Results.NotFound(),
@@ -142,9 +145,41 @@ internal static class CommunityElectricityWeb
             decimal.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out value);
     }
 
-    private sealed record SetupInput(string? Designation, DateOnly StartsOn, string? RegisterMode);
+    private static bool TryDetails(DetailsInput? input, DateOnly startsOn, out MeterInstallationDetails details)
+    {
+        details = MeterInstallationDetails.Legacy;
+        if (input is null) return true;
+        var multiplier = 1m;
+        if (input.Multiplier is { } text)
+        {
+            var point = text.IndexOf('.');
+            if (text.Length is < 1 or > 14 || (point >= 0 && text.Length - point - 1 > 6) ||
+                !decimal.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out multiplier) ||
+                !ManualElectricity.SupportsMultiplier(multiplier))
+                return false;
+        }
+
+        var model = Optional(input.Model);
+        var serial = Optional(input.SerialNumber);
+        var location = Optional(input.Location);
+        var seal = Optional(input.SealSerialNumber);
+        if (model is null || serial is null || location is null || input.MountedOn is null ||
+            !Valid(model, 128) || !Valid(serial, 128) || !Valid(location, 500) || !Valid(seal, 128) ||
+            input.MountedOn == DateOnly.MinValue || input.MountedOn > startsOn)
+            return false;
+
+        details = new(model, serial, location, input.MountedOn, seal, multiplier);
+        return true;
+
+        static string? Optional(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        static bool Valid(string? value, int limit) => value is null || (value.Length <= limit && !value.Contains('\0'));
+    }
+
+    private sealed record SetupInput(string? Designation, DateOnly StartsOn, string? RegisterMode, DetailsInput? Details);
     private sealed record CommonSetupInput(string? PointDesignation, string? Boundary, string? Designation,
-        DateOnly StartsOn, string? RegisterMode);
+        DateOnly StartsOn, string? RegisterMode, DetailsInput? Details);
     private sealed record ReadingInput(DateOnly Date, string? Value, string? Channel);
-    private sealed record ReplacementInput(Guid RequestId, DateOnly EffectiveOn, string? Designation, string? Reason);
+    private sealed record ReplacementInput(Guid RequestId, DateOnly EffectiveOn, string? Designation, string? Reason, DetailsInput? Details);
+    private sealed record DetailsInput(string? Model, string? SerialNumber, string? Location, DateOnly? MountedOn,
+        string? SealSerialNumber, string? Multiplier);
 }

@@ -1,16 +1,19 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 
 type Channel = 'total' | 'day' | 'night';
+type Details = { model: string | null; serialNumber: string | null; location: string | null;
+  mountedOn: string | null; sealSerialNumber: string | null; multiplierExact: string };
 type Installation = { id: string; meterDesignation: string; startsOn: string; endsBefore: string | null;
-  registerMode: 'total' | 'dual';
+  registerMode: 'total' | 'dual'; details: Details;
   replacement?: { reason: string; recordedAt: string; accountId: string } };
 type Plot = { id: string; number: string; installation: Installation | null };
 type CommonPoint = { id: string; designation: string; boundary: string };
-type Interval = { fromReadingId: string; toReadingId: string; from: string; to: string; value: number; channel: Channel };
+type Interval = { fromReadingId: string; toReadingId: string; from: string; to: string; valueExact: string;
+  rawDeltaExact: string; channel: Channel };
 type Series = {
-  readings: { id: string; date: string; value: number; recognizedAt: string; accountId: string; channel: Channel }[];
+  readings: { id: string; date: string; valueExact: string; recognizedAt: string; accountId: string; channel: Channel }[];
   intervals: Interval[];
-  combinedIntervals: { day: Interval; night: Interval; value: number }[];
+  combinedIntervals: { day: Interval; night: Interval; valueExact: string }[];
 };
 const channelNames: Record<Channel, string> = { total: 'Загальний', day: 'День', night: 'Ніч' };
 
@@ -28,7 +31,31 @@ const messages: Record<string, string> = {
   UnsupportedChannel: 'Цей лічильник не підтримує вибраний регістр.',
   CommonPointConflict: 'Позначення точки або лічильника вже використовується.',
 };
-const format = new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 3 });
+function format(exact: string) {
+  const [whole, fraction] = exact.split('.');
+  return whole.replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0') + (fraction ? ',' + fraction : '');
+}
+
+function installationInput(form: HTMLFormElement) {
+  const { model, serialNumber, location, mountedOn, sealSerialNumber, multiplier, ...input } =
+    Object.fromEntries(new FormData(form));
+  return { ...input, details: {
+    model, serialNumber, location, mountedOn, sealSerialNumber, multiplier: String(multiplier).replace(',', '.'),
+  } };
+}
+
+function InstallationFields() {
+  return <>
+    <label>Модель <input name="model" maxLength={128} required /></label>{' '}
+    <label>Серійний номер лічильника <input name="serialNumber" maxLength={128} required /></label>{' '}
+    <label>Місце встановлення <input name="location" maxLength={500} required /></label>{' '}
+    <label>Дата монтажу <input name="mountedOn" type="date" required /></label>{' '}
+    <label>Серійний номер пломби <input name="sealSerialNumber" maxLength={128} /></label>{' '}
+    <label>Коефіцієнт показань <input name="multiplier" inputMode="decimal" defaultValue="1"
+      pattern="[0-9]{1,7}([.,][0-9]{1,6})?" maxLength={14} required /></label>{' '}
+    <p>Якщо лічильник уже показує приведені значення, залиште коефіцієнт 1.</p>
+  </>;
+}
 
 async function checked(response: Response) {
   if (response.ok) return response;
@@ -105,9 +132,9 @@ export function Electricity({ community, canSetup, canRecognize, canReplace, can
   function setup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!plot) return;
-    const data = new FormData(event.currentTarget);
+    const data = installationInput(event.currentTarget);
     void run(async () => {
-      await post('/plots/' + plot.id + '/installation', Object.fromEntries(data));
+      await post('/plots/' + plot.id + '/installation', data);
       await loadPlots();
       await loadInstallations(plot.id);
       setMessage('Точку обліку та установку зареєстровано.');
@@ -117,7 +144,7 @@ export function Electricity({ community, canSetup, canRecognize, canReplace, can
   function replace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selected || !installation || installation.endsBefore) return;
-    const data = Object.fromEntries(new FormData(event.currentTarget));
+    const data = installationInput(event.currentTarget);
     const payload = JSON.stringify([installation.id, data]);
     if (replacementRequest.current?.payload !== payload)
       replacementRequest.current = { payload, id: crypto.randomUUID() };
@@ -135,7 +162,7 @@ export function Electricity({ community, canSetup, canRecognize, canReplace, can
   function setupCommon(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    const input = Object.fromEntries(new FormData(form));
+    const input = installationInput(form);
     void run(async () => {
       const response = await post('/common-points', input);
       const { id } = await response.json();
@@ -195,6 +222,7 @@ export function Electricity({ community, canSetup, canRecognize, canReplace, can
         <label>Регістри лічильника <select name="registerMode" defaultValue="total">
           <option value="total">Загальний</option><option value="dual">День і ніч</option>
         </select></label>{' '}
+        <InstallationFields />
         <button>Зареєструвати загальну точку</button>
       </fieldset>
     </form>}
@@ -206,6 +234,7 @@ export function Electricity({ community, canSetup, canRecognize, canReplace, can
         <label>Регістри лічильника <select name="registerMode" defaultValue="total">
           <option value="total">Загальний</option><option value="dual">День і ніч</option>
         </select></label>{' '}
+        <InstallationFields />
         <button>Зареєструвати установку</button>
       </fieldset>
     </form>}
@@ -224,6 +253,15 @@ export function Electricity({ community, canSetup, canRecognize, canReplace, can
     </label>}
     {installation && <>
       <p>Лічильник {installation.meterDesignation} · початок установки {installation.startsOn}</p>
+      <dl>
+        <dt>Модель</dt><dd>{installation.details.model ?? 'Не вказано'}</dd>
+        <dt>Серійний номер лічильника</dt><dd>{installation.details.serialNumber ?? 'Не вказано'}</dd>
+        <dt>Регістри</dt><dd>{installation.registerMode === 'dual' ? 'День і ніч' : 'Загальний'}</dd>
+        <dt>Місце встановлення</dt><dd>{installation.details.location ?? 'Не вказано'}</dd>
+        <dt>Дата монтажу</dt><dd>{installation.details.mountedOn ?? 'Не вказано'}</dd>
+        <dt>Серійний номер пломби</dt><dd>{installation.details.sealSerialNumber ?? 'Не вказано'}</dd>
+        <dt>Коефіцієнт показань</dt><dd>{format(installation.details.multiplierExact)}</dd>
+      </dl>
       {installation.endsBefore && <p>Установку закрито з {installation.endsBefore}. Кінцевого граничного показання немає.</p>}
       {installation.replacement && <p>Причина заміни · {installation.replacement.reason} · {' '}
         {new Date(installation.replacement.recordedAt).toLocaleString('uk-UA')} · {installation.replacement.accountId}.
@@ -234,6 +272,7 @@ export function Electricity({ community, canSetup, canRecognize, canReplace, can
           <label>Позначення нового лічильника <input name="designation" maxLength={128} required /></label>{' '}
           <label>Дата початку використання нового лічильника <input name="effectiveOn" type="date" required /></label>{' '}
           <label>Причина заміни <input name="reason" maxLength={500} required /></label>{' '}
+          <InstallationFields />
           <button>Зареєструвати заміну</button>
         </fieldset>
       </form>}
@@ -245,7 +284,7 @@ export function Electricity({ community, canSetup, canRecognize, canReplace, can
             <option value="day">День</option><option value="night">Ніч</option>
           </select></label>}{' '}
           <label>Дата вимірювання <input name="date" type="date" required /></label>{' '}
-          <label>Накопичувальне значення, кВт·год <input name="value" inputMode="decimal"
+          <label>Значення регістра без застосування коефіцієнта, кВт·год <input name="value" inputMode="decimal"
             pattern="[0-9]{1,12}([.,][0-9]{1,3})?" maxLength={16} required /></label>{' '}
           <button>Визнати показання</button>
         </fieldset>
@@ -255,15 +294,16 @@ export function Electricity({ community, canSetup, canRecognize, canReplace, can
         {series.readings.length === 0 ? <p>Показань ще немає.</p> : <table>
           <thead><tr><th>Дата вимірювання</th><th>Регістр</th><th>кВт·год</th><th>Джерело</th><th>Визнано</th><th>Обліковий запис</th></tr></thead>
           <tbody>{series.readings.map(item => <tr key={item.id}>
-            <td>{item.date}</td><td>{channelNames[item.channel]}</td><td>{format.format(item.value)}</td><td>Ручне спостереження</td>
+            <td>{item.date}</td><td>{channelNames[item.channel]}</td><td>{format(item.valueExact)}</td><td>Ручне спостереження</td>
             <td>{new Date(item.recognizedAt).toLocaleString('uk-UA')}</td><td>{item.accountId}</td>
           </tr>)}</tbody>
         </table>}
         <h3>Розрахункова оцінка споживання</h3>
         {series.intervals.length === 0 ? <p>Потрібні два визнані показання.</p> : <table>
-          <thead><tr><th>Від</th><th>До</th><th>Регістр</th><th>кВт·год</th></tr></thead>
+          <thead><tr><th>Від</th><th>До</th><th>Регістр</th><th>Різниця показань</th><th>кВт·год</th></tr></thead>
           <tbody>{series.intervals.map(item => <tr key={item.fromReadingId + item.toReadingId}>
-            <td>{item.from}</td><td>{item.to}</td><td>{channelNames[item.channel]}</td><td>{format.format(item.value)}</td>
+            <td>{item.from}</td><td>{item.to}</td><td>{channelNames[item.channel]}</td>
+            <td>{format(item.rawDeltaExact)}</td><td>{format(item.valueExact)}</td>
           </tr>)}</tbody>
         </table>}
         {installation.registerMode === 'dual' && <>
@@ -272,8 +312,8 @@ export function Electricity({ community, canSetup, canRecognize, canReplace, can
           {series.combinedIntervals.length === 0 ? <p>Зіставних інтервалів немає.</p> : <table>
             <thead><tr><th>Від</th><th>До</th><th>День, кВт·год</th><th>Ніч, кВт·год</th><th>Разом, кВт·год</th></tr></thead>
             <tbody>{series.combinedIntervals.map(item => <tr key={item.day.fromReadingId + item.day.toReadingId}>
-              <td>{item.day.from}</td><td>{item.day.to}</td><td>{format.format(item.day.value)}</td>
-              <td>{format.format(item.night.value)}</td><td>{format.format(item.value)}</td>
+              <td>{item.day.from}</td><td>{item.day.to}</td><td>{format(item.day.valueExact)}</td>
+              <td>{format(item.night.valueExact)}</td><td>{format(item.valueExact)}</td>
             </tr>)}</tbody>
           </table>}
         </>}

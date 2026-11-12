@@ -6,7 +6,7 @@ namespace CommunityOS.Modules.Community.Infrastructure;
 public sealed record ElectricityActor(Guid AccountId, Guid SubjectId, Guid AdmissionId, string Basis);
 public sealed record ElectricityInstallation(Guid Id, Guid PointId, Guid MeterId, string MeterDesignation, DateOnly StartsOn,
     DateOnly? EndsBefore = null, ElectricityReplacementHistory? Replacement = null,
-    string RegisterMode = ManualElectricity.Total);
+    string RegisterMode = ManualElectricity.Total, MeterInstallationDetails? Details = null);
 public sealed record ElectricityReplacementHistory(string Reason, DateTime RecordedAt, Guid AccountId, Guid SubjectId);
 public sealed record ElectricityPlot(Guid Id, string Number, ElectricityInstallation? Installation);
 public sealed record CommonElectricityPoint(Guid Id, string Designation, string Boundary);
@@ -14,7 +14,8 @@ public sealed record ElectricitySeries(IReadOnlyList<ElectricityReading> Reading
     string Unit, IReadOnlyList<ElectricityCombinedInterval> CombinedIntervals);
 public sealed record ElectricityRecognition(ReadingOutcome Outcome, Guid? ReadingId = null);
 public enum ElectricitySetupOutcome { Created, MissingPlot, Conflict }
-public sealed record ElectricityReplacement(Guid RequestId, Guid InstallationId, DateOnly EffectiveOn, string Designation, string Reason);
+public sealed record ElectricityReplacement(Guid RequestId, Guid InstallationId, DateOnly EffectiveOn, string Designation,
+    string Reason, MeterInstallationDetails? Details = null);
 public enum ElectricityReplacementOutcome { Replaced, Replayed, Missing, InvalidDate, ExistingReading, Conflict }
 public sealed record ElectricityReplacementResult(ElectricityReplacementOutcome Outcome, Guid? InstallationId = null);
 
@@ -32,7 +33,8 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
         {
             await using var query = Query(connection, transaction, community, """
                 SELECT i.id, i.point_id, i.meter_id, m.designation, i.starts_on, i.ends_before,
-                    r.reason, r.recorded_at, r.account_id, r.subject_id, m.register_mode
+                    r.reason, r.recorded_at, r.account_id, r.subject_id, m.register_mode,
+                    m.model, m.serial_number, i.location, i.mounted_on, i.seal_serial_number, i.reading_multiplier
                 FROM community_electricity.accounting_point p
                 JOIN community_electricity.installation i ON (i.community_id, i.point_id) = (p.community_id, p.id)
                 JOIN community_electricity.meter m ON (m.community_id, m.id) = (i.community_id, i.meter_id)
@@ -51,7 +53,7 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
                 installations.Add(new(reader.GetGuid(0), reader.GetGuid(1), reader.GetGuid(2), reader.GetString(3),
                     reader.GetFieldValue<DateOnly>(4), reader.IsDBNull(5) ? null : reader.GetFieldValue<DateOnly>(5),
                     reader.IsDBNull(6) ? null : new(reader.GetString(6), reader.GetDateTime(7), reader.GetGuid(8), reader.GetGuid(9)),
-                    reader.GetString(10)));
+                    reader.GetString(10), ReadDetails(reader, 11)));
             }
             return installations;
         }, token);
@@ -59,6 +61,7 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
     public async Task<ElectricityReplacementResult> ReplaceAsync(Guid community, ElectricityReplacement input,
         DateOnly today, ElectricityActor actor, CancellationToken token)
     {
+        var details = input.Details ?? MeterInstallationDetails.Legacy;
         try
         {
             return await RunAsync<ElectricityReplacementResult>(community, async (connection, transaction) =>
@@ -70,7 +73,8 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
                 await requestLock.ExecuteNonQueryAsync(token);
 
                 await using var existing = Query(connection, transaction, community, """
-                    SELECT r.old_installation_id, r.effective_on, m.designation, r.reason, r.new_installation_id
+                    SELECT r.old_installation_id, r.effective_on, m.designation, r.reason, r.new_installation_id,
+                        m.model, m.serial_number, i.location, i.mounted_on, i.seal_serial_number, i.reading_multiplier
                     FROM community_electricity.replacement r
                     JOIN community_electricity.installation i ON (i.community_id, i.id) = (r.community_id, r.new_installation_id)
                     JOIN community_electricity.meter m ON (m.community_id, m.id) = (i.community_id, i.meter_id)
@@ -81,7 +85,8 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
                 {
                     if (await reader.ReadAsync(token))
                         return reader.GetGuid(0) == input.InstallationId && reader.GetFieldValue<DateOnly>(1) == input.EffectiveOn &&
-                            reader.GetString(2) == input.Designation && reader.GetString(3) == input.Reason
+                            reader.GetString(2) == input.Designation && reader.GetString(3) == input.Reason &&
+                            ReadDetails(reader, 5) == details
                             ? new(ElectricityReplacementOutcome.Replayed, reader.GetGuid(4)) : new(ElectricityReplacementOutcome.Conflict);
                 }
 
@@ -114,11 +119,13 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
                 await using var replace = Query(connection, transaction, community, """
                     UPDATE community_electricity.installation SET ends_before = @date
                     WHERE community_id = @community AND id = @old;
-                    INSERT INTO community_electricity.meter (community_id, id, designation, register_mode)
-                    VALUES (@community, @meter, @designation, @mode);
+                    INSERT INTO community_electricity.meter (community_id, id, designation, register_mode, model, serial_number)
+                    VALUES (@community, @meter, @designation, @mode, @model, @serial);
                     INSERT INTO community_electricity.installation
-                        (community_id, id, point_id, meter_id, starts_on, admission_id, account_id, subject_id, basis)
-                    VALUES (@community, @new, @point, @meter, @date, @admission, @account, @subject, @basis);
+                        (community_id, id, point_id, meter_id, starts_on, admission_id, account_id, subject_id, basis,
+                         location, mounted_on, seal_serial_number, reading_multiplier)
+                    VALUES (@community, @new, @point, @meter, @date, @admission, @account, @subject, @basis,
+                        @location, @mounted, @seal, @multiplier);
                     INSERT INTO community_electricity.replacement
                         (community_id, request_id, point_id, old_installation_id, new_installation_id, effective_on,
                          reason, admission_id, account_id, subject_id, basis)
@@ -135,6 +142,7 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
                 replace.Parameters.AddWithValue("request", input.RequestId);
                 replace.Parameters.AddWithValue("reason", input.Reason);
                 BindActor(replace, actor);
+                BindDetails(replace, details);
                 await replace.ExecuteNonQueryAsync(token);
                 return new(ElectricityReplacementOutcome.Replaced, next);
             }, token);
@@ -150,7 +158,8 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
         RunAsync<IReadOnlyList<ElectricityPlot>>(community, async (connection, transaction) =>
         {
             await using var command = Query(connection, transaction, community, """
-                SELECT p.id, p.number, i.id, a.id, m.id, m.designation, i.starts_on, m.register_mode
+                SELECT p.id, p.number, i.id, a.id, m.id, m.designation, i.starts_on, m.register_mode,
+                    m.model, m.serial_number, i.location, i.mounted_on, i.seal_serial_number, i.reading_multiplier
                 FROM community_register.plot p
                 LEFT JOIN community_electricity.accounting_point a ON (a.community_id, a.plot_id) = (p.community_id, p.id)
                 LEFT JOIN community_electricity.installation i ON (i.community_id, i.point_id) = (a.community_id, a.id)
@@ -164,7 +173,7 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
             {
                 plots.Add(new(reader.GetGuid(0), reader.GetString(1), reader.IsDBNull(2) ? null :
                     new(reader.GetGuid(2), reader.GetGuid(3), reader.GetGuid(4), reader.GetString(5),
-                        reader.GetFieldValue<DateOnly>(6), RegisterMode: reader.GetString(7))));
+                        reader.GetFieldValue<DateOnly>(6), RegisterMode: reader.GetString(7), Details: ReadDetails(reader, 8))));
             }
             return plots;
         }, token);
@@ -186,15 +195,17 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
         }, token);
 
     public Task<ElectricitySetupOutcome> SetupAsync(Guid community, Guid plot, string designation,
-        DateOnly startsOn, ElectricityActor actor, CancellationToken token, string mode = ManualElectricity.Total) =>
-        SetupPointAsync(community, plot, null, designation, startsOn, actor, token, mode);
+        DateOnly startsOn, ElectricityActor actor, CancellationToken token, string mode = ManualElectricity.Total,
+        MeterInstallationDetails? details = null) =>
+        SetupPointAsync(community, plot, null, designation, startsOn, actor, token, mode, details ?? MeterInstallationDetails.Legacy);
 
     public Task<ElectricitySetupOutcome> SetupCommonAsync(Guid community, CommonElectricityPoint point, string designation,
-        DateOnly startsOn, ElectricityActor actor, CancellationToken token, string mode) =>
-        SetupPointAsync(community, null, point, designation, startsOn, actor, token, mode);
+        DateOnly startsOn, ElectricityActor actor, CancellationToken token, string mode, MeterInstallationDetails? details = null) =>
+        SetupPointAsync(community, null, point, designation, startsOn, actor, token, mode, details ?? MeterInstallationDetails.Legacy);
 
     private async Task<ElectricitySetupOutcome> SetupPointAsync(Guid community, Guid? plot, CommonElectricityPoint? common,
-        string designation, DateOnly startsOn, ElectricityActor actor, CancellationToken token, string mode)
+        string designation, DateOnly startsOn, ElectricityActor actor, CancellationToken token, string mode,
+        MeterInstallationDetails details)
     {
         try
         {
@@ -209,12 +220,14 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
                             SELECT 1 FROM community_register.plot WHERE community_id = @community AND id = @plot)
                         RETURNING id
                     ), meter AS (
-                        INSERT INTO community_electricity.meter (community_id, id, designation, register_mode)
-                        SELECT @community, @meter, @designation, @mode FROM point RETURNING id
+                        INSERT INTO community_electricity.meter (community_id, id, designation, register_mode, model, serial_number)
+                        SELECT @community, @meter, @designation, @mode, @model, @serial FROM point RETURNING id
                     )
                     INSERT INTO community_electricity.installation
-                        (community_id, id, point_id, meter_id, starts_on, admission_id, account_id, subject_id, basis)
-                    SELECT @community, @id, point.id, meter.id, @starts, @admission, @account, @subject, @basis
+                        (community_id, id, point_id, meter_id, starts_on, admission_id, account_id, subject_id, basis,
+                         location, mounted_on, seal_serial_number, reading_multiplier)
+                    SELECT @community, @id, point.id, meter.id, @starts, @admission, @account, @subject, @basis,
+                        @location, @mounted, @seal, @multiplier
                     FROM point CROSS JOIN meter;
                     """);
                 command.Parameters.AddWithValue("plot", NpgsqlTypes.NpgsqlDbType.Uuid, plot is Guid id ? id : DBNull.Value);
@@ -227,6 +240,7 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
                 command.Parameters.AddWithValue("mode", mode);
                 command.Parameters.AddWithValue("starts", startsOn);
                 BindActor(command, actor);
+                BindDetails(command, details);
                 return await command.ExecuteNonQueryAsync(token) == 1 ? ElectricitySetupOutcome.Created : ElectricitySetupOutcome.MissingPlot;
             }, token);
         }
@@ -242,7 +256,7 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
         {
             await using var command = Query(connection, transaction, community, """
                 SELECT r.id, r.measured_on, r.value_kwh, r.source, r.recognition_rule, r.recognized_at, r.account_id, r.subject_id,
-                    r.channel
+                    r.channel, i.reading_multiplier
                 FROM community_electricity.installation i
                 LEFT JOIN community_electricity.reading r ON (r.community_id, r.installation_id) = (i.community_id, i.id)
                 WHERE i.community_id = @community AND i.id = @installation
@@ -251,6 +265,7 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
             command.Parameters.AddWithValue("installation", installation);
             await using var reader = await command.ExecuteReaderAsync(token);
             if (!await reader.ReadAsync(token)) return null;
+            var multiplier = reader.GetDecimal(9);
             var readings = new List<ElectricityReading>();
             do
             {
@@ -259,7 +274,7 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
                         reader.GetString(3), reader.GetString(4), reader.GetDateTime(5), reader.GetGuid(6), reader.GetGuid(7),
                         reader.GetString(8)));
             } while (await reader.ReadAsync(token));
-            var intervals = ManualElectricity.Intervals(readings);
+            var intervals = ManualElectricity.Intervals(readings, multiplier);
             return new(readings, intervals, ManualElectricity.Unit, ManualElectricity.CombinedIntervals(intervals));
         }, token);
 
@@ -347,6 +362,24 @@ public sealed class PostgresElectricityStore(NpgsqlDataSource source)
         command.Parameters.AddWithValue("subject", actor.SubjectId);
         command.Parameters.AddWithValue("basis", actor.Basis);
     }
+
+    private static void BindDetails(NpgsqlCommand command, MeterInstallationDetails details)
+    {
+        command.Parameters.AddWithValue("model", NpgsqlTypes.NpgsqlDbType.Text, (object?)details.Model ?? DBNull.Value);
+        command.Parameters.AddWithValue("serial", NpgsqlTypes.NpgsqlDbType.Text, (object?)details.SerialNumber ?? DBNull.Value);
+        command.Parameters.AddWithValue("location", NpgsqlTypes.NpgsqlDbType.Text, (object?)details.Location ?? DBNull.Value);
+        command.Parameters.AddWithValue("mounted", NpgsqlTypes.NpgsqlDbType.Date, (object?)details.MountedOn ?? DBNull.Value);
+        command.Parameters.AddWithValue("seal", NpgsqlTypes.NpgsqlDbType.Text, (object?)details.SealSerialNumber ?? DBNull.Value);
+        command.Parameters.AddWithValue("multiplier", details.Multiplier);
+    }
+
+    private static MeterInstallationDetails ReadDetails(NpgsqlDataReader reader, int start) => new(
+        ReadOptionalText(reader, start), ReadOptionalText(reader, start + 1), ReadOptionalText(reader, start + 2),
+        reader.IsDBNull(start + 3) ? null : reader.GetFieldValue<DateOnly>(start + 3),
+        ReadOptionalText(reader, start + 4), reader.GetDecimal(start + 5));
+
+    private static string? ReadOptionalText(NpgsqlDataReader reader, int index) =>
+        reader.IsDBNull(index) ? null : reader.GetString(index);
 
     private static void BindReading(NpgsqlCommand command, Guid installation, DateOnly date)
     {

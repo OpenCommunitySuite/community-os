@@ -324,6 +324,8 @@ def up(docker, config, config_dir):
         GRANT SELECT, INSERT ON community_electricity.accounting_point, community_electricity.meter,
             community_electricity.installation, community_electricity.reading TO {WEB_ROLE};
         GRANT UPDATE (lock_marker) ON community_electricity.installation TO {WEB_ROLE};
+        GRANT UPDATE (ends_before) ON community_electricity.installation TO {WEB_ROLE};
+        GRANT SELECT, INSERT ON community_electricity.replacement TO {WEB_ROLE};
     """)
     web = docker.ensure_container("web", image=config["image"], env=[
         "ASPNETCORE_ENVIRONMENT=Production", "ASPNETCORE_URLS=https://127.0.0.1:8443",

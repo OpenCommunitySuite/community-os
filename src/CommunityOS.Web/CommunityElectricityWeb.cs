@@ -13,6 +13,34 @@ internal static class CommunityElectricityWeb
         electricity.MapGet("/plots", (Guid community, HttpContext http, CancellationToken token) =>
             access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadElectricity,
                 async _ => Results.Ok(await store.ListPlotsAsync(community, token)), Results.StatusCode(403), token));
+        electricity.MapGet("/plots/{plot:guid}/installations", (Guid community, Guid plot, HttpContext http,
+            CancellationToken token) =>
+            access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadElectricity,
+                async _ => Results.Ok(await store.InstallationsAsync(community, plot, token)), Results.StatusCode(403), token));
+        electricity.MapPost("/installations/{installation:guid}/replacement", (Guid community, Guid installation,
+            ReplacementInput input, HttpContext http, CancellationToken token) =>
+        {
+            if (installation == Guid.Empty || input.RequestId == Guid.Empty || input.EffectiveOn == default ||
+                input.Designation?.Trim() is not { Length: > 0 and <= 128 } designation || designation.Contains('\0') ||
+                input.Reason?.Trim() is not { Length: > 0 and <= 500 } reason || reason.Contains('\0'))
+                return Task.FromResult<IResult>(Results.BadRequest());
+
+            return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community,
+                RegisterPermission.ReplaceElectricity, async actor =>
+                {
+                    var replacement = new ElectricityReplacement(input.RequestId, installation, input.EffectiveOn,
+                        designation, reason);
+                    var result = await store.ReplaceAsync(community, replacement, Today(), Actor(actor), token);
+                    var response = new { Outcome = result.Outcome.ToString(), result.InstallationId };
+                    return result.Outcome switch
+                    {
+                        ElectricityReplacementOutcome.Replaced or ElectricityReplacementOutcome.Replayed => Results.Ok(response),
+                        ElectricityReplacementOutcome.Missing => Results.NotFound(),
+                        ElectricityReplacementOutcome.InvalidDate => Results.BadRequest(response),
+                        _ => Results.Conflict(response),
+                    };
+                }, Results.StatusCode(403), token, electricity: new(installation, input.EffectiveOn, input.RequestId));
+        });
         electricity.MapPost("/plots/{plot:guid}/installation", (Guid community, Guid plot, SetupInput input,
             HttpContext http, CancellationToken token) =>
         {
@@ -83,4 +111,5 @@ internal static class CommunityElectricityWeb
 
     private sealed record SetupInput(string? Designation, DateOnly StartsOn);
     private sealed record ReadingInput(DateOnly Date, string? Value);
+    private sealed record ReplacementInput(Guid RequestId, DateOnly EffectiveOn, string? Designation, string? Reason);
 }

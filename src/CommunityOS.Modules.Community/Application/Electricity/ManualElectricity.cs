@@ -14,9 +14,9 @@ public static class ManualElectricity
     public const string Unit = "kWh";
 
     public static ReadingOutcome Evaluate(DateOnly installationStart, DateOnly today, DateOnly date, decimal value,
-        decimal? sameDate, decimal? preceding, decimal? following)
+        decimal? sameDate, decimal? preceding, decimal? following, DateOnly? installationEnd = null)
     {
-        if (date < installationStart) return ReadingOutcome.OutsideInstallation;
+        if (date < installationStart || date >= installationEnd) return ReadingOutcome.OutsideInstallation;
         if (date > today) return ReadingOutcome.FutureDate;
         if (value is < 0 or > 999999999999.999m || decimal.Round(value, 3) != value)
             return ReadingOutcome.InvalidValue;

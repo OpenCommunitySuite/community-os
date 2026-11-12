@@ -26,6 +26,17 @@ public class ManualElectricityTests
     }
 
     [Fact]
+    public void Historical_installation_only_accepts_dates_before_replacement()
+    {
+        var start = new DateOnly(2026, 1, 1);
+        var end = start.AddDays(2);
+        Assert.Equal(ReadingOutcome.Recognized,
+            ManualElectricity.Evaluate(start, end, end.AddDays(-1), 10m, null, null, null, end));
+        Assert.Equal(ReadingOutcome.OutsideInstallation,
+            ManualElectricity.Evaluate(start, end, end, 10m, null, null, null, end));
+    }
+
+    [Fact]
     public void Intervals_preserve_dates_and_input_identifiers()
     {
         var start = new DateOnly(2026, 1, 1);

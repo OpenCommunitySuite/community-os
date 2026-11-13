@@ -21,7 +21,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "011_electricity_register_channels.sql", "012_common_electricity_points.sql", "013_meter_installation_details.sql",
                      "017_regular_billing.sql", "018_billing_recalculation.sql", "019_one_off_accrual.sql",
                      "020_manual_payment.sql", "021_cash_acceptance.sql", "022_bank_statement.sql", "023_bank_dbf.sql",
-                     "024_payment_reallocation.sql", "025_payment_correction.sql" })
+                     "024_payment_reallocation.sql", "025_payment_correction.sql", "026_overpayment_recognition.sql" })
         {
             await using var migration = source.CreateCommand(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token));
             await migration.ExecuteNonQueryAsync(token);
@@ -370,12 +370,31 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
             .Single(item => item.GetProperty("id").GetGuid() == electricityObligation);
         Assert.Equal(0m, paidObligation.GetProperty("outstanding").GetDecimal());
         Assert.Equal(20m, paidObligation.GetProperty("excessApplied").GetDecimal());
+        Assert.Equal(0, paidObligation.GetProperty("overpayments").GetArrayLength());
+        var recognize = new OverpaymentInput(Guid.NewGuid(), electricityObligation, 10m, "Synthetic recognition");
+        var recognitionPlan = await billing.PreviewOverpaymentAsync(community, recognize, token);
+        Assert.Equal((20m, 0m, 20m), (recognitionPlan.Excess, recognitionPlan.Recognized, recognitionPlan.Available));
+        Assert.Equal("NotFound", (await billing.PreviewOverpaymentAsync(foreign, recognize, token)).Outcome);
+        Assert.Equal("ExcessExceeded", (await billing.PreviewOverpaymentAsync(community, recognize with { Amount = 21m }, token)).Outcome);
+        var rivalRecognition = recognize with { RequestId = Guid.NewGuid() };
+        var rivalRecognitionPlan = await billing.PreviewOverpaymentAsync(community, rivalRecognition, token);
+        var recognitionRace = await Task.WhenAll(
+            billing.RecognizeOverpaymentAsync(community, recognize, recognitionPlan.Digest!, Actor(), token),
+            billing.RecognizeOverpaymentAsync(community, rivalRecognition, rivalRecognitionPlan.Digest!, Actor(), token));
+        Assert.Single(recognitionRace, item => item.Outcome == "Recognized");
+        Assert.Single(recognitionRace, item => item.Outcome == "StalePreview");
+        var replay = recognitionRace[0].Id == recognize.RequestId
+            ? (recognize, recognitionPlan) : (rivalRecognition, rivalRecognitionPlan);
+        Assert.Equal("Replayed", (await billing.RecognizeOverpaymentAsync(community, replay.Item1,
+            replay.Item2.Digest!, Actor(), token)).Outcome);
         var moveExcess = new ReallocationInput(Guid.NewGuid(), extraPayment.RequestId, extraAllocation.RequestId, false,
             electricityObligation, obligation, 20m, "Synthetic excess transfer");
+        Assert.Equal("RecognizedOverpayment", (await billing.PreviewReallocationAsync(community, moveExcess, token)).Outcome);
+        moveExcess = moveExcess with { Amount = 10m };
         var movePlan = await billing.PreviewReallocationAsync(community, moveExcess, token);
         Assert.Equal("Reallocated", (await billing.ReallocateAsync(community, moveExcess, movePlan.Digest!, Actor(), token)).Outcome);
         var settled = await billing.PaymentDeskAsync(community, token);
-        Assert.Equal(0m, settled.GetProperty("obligations").EnumerateArray()
+        Assert.Equal(10m, settled.GetProperty("obligations").EnumerateArray()
             .Single(item => item.GetProperty("id").GetGuid() == electricityObligation).GetProperty("excessApplied").GetDecimal());
         Assert.Equal(25m, settled.GetProperty("payments").EnumerateArray()
             .Single(item => item.GetProperty("id").GetGuid() == extraPayment.RequestId).GetProperty("available").GetDecimal());
@@ -1007,7 +1026,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "017_electricity_topology_access.sql", "018_water_access.sql", "019_billing_access.sql",
                      "020_recalculation_access.sql", "021_one_off_access.sql", "022_payment_access.sql",
                      "023_cash_acceptance_access.sql", "024_bank_statement_access.sql", "025_reallocation_access.sql",
-                     "026_payment_correction_access.sql" })
+                     "026_payment_correction_access.sql", "027_overpayment_access.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);

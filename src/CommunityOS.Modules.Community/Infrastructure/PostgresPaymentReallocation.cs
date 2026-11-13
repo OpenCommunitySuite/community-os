@@ -39,7 +39,9 @@ public sealed partial class PostgresBillingStore
         Guid community, ReallocationInput input, CancellationToken token)
     {
         await using var command = Command(connection, transaction, community, null, """
-            SELECT e.amount_uah,src.outstanding_uah,dst.outstanding_uah,sp.number,dp.number,p.available_uah
+            SELECT e.amount_uah,src.outstanding_uah,dst.outstanding_uah,sp.number,dp.number,p.available_uah,
+                (SELECT coalesce(sum(o.amount_uah),0) FROM community_billing.overpayment_recognition o
+                 WHERE (o.community_id,o.obligation_id)=(src.community_id,src.id))
             FROM community_billing.effective_allocation e
             JOIN community_billing.payment_remainder p ON (p.community_id,p.id)=(e.community_id,e.payment_id)
             JOIN community_billing.obligation_remainder src ON (src.community_id,src.id)=(e.community_id,e.obligation_id)
@@ -61,11 +63,13 @@ public sealed partial class PostgresBillingStore
         if (input.Amount > available) return new("SourceExceeded");
         if (input.Amount > target) return new("ObligationExceeded");
         var sourceAfter = source + input.Amount;
+        var recognized = reader.GetDecimal(6);
+        if (recognized > 0 && sourceAfter > -recognized) return new("RecognizedOverpayment");
         var sourceLine = new AllocationBalance(input.SourceObligationId, input.Amount,
             Math.Max(0, source), Math.Max(0, sourceAfter), reader.GetString(3));
         var targetLine = new AllocationBalance(input.TargetObligationId, input.Amount, target, target - input.Amount, reader.GetString(4));
         return new("Ready", Digest(new { community, Input = TransferIdentity(input), Available = Cents(available),
-            Source = Cents(source), Target = Cents(target), Unallocated = Cents(reader.GetDecimal(5)) }),
+            Source = Cents(source), Target = Cents(target), Unallocated = Cents(reader.GetDecimal(5)), Recognized = Cents(recognized) }),
             available, sourceLine, targetLine, input.Reason, Math.Max(0, -source), Math.Max(0, -sourceAfter));
     }
 

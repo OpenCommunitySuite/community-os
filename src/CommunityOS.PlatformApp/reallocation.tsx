@@ -10,6 +10,7 @@ type Preview = { outcome: string; digest: string; source: Balance; target: Balan
   sourceExcessBefore: number; sourceExcessAfter: number };
 const messages: Record<string, string> = {
   SourceExceeded: 'Сума перевищує доступну суму початкового розподілу.',
+  RecognizedOverpayment: 'Перенесення зачіпає визнану переплату.',
   ObligationExceeded: 'Сума перевищує залишок цільового зобов’язання.',
   NotFound: 'Вибраний розподіл або зобов’язання недоступні.',
 };

@@ -122,6 +122,8 @@
           Link="026_overpayment_recognition.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/027_member_fee_advance.sql"
           Link="027_member_fee_advance.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/028_member_fee_advance_release.sql"
+          Link="028_member_fee_advance_release.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

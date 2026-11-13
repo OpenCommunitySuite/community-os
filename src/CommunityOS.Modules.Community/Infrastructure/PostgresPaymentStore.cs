@@ -106,15 +106,18 @@ public sealed partial class PostgresBillingStore
                         'author',p.account_id,'recordedAt',p.recorded_at,
                         'advances',coalesce((SELECT jsonb_agg(jsonb_build_object('id',a.id,'amount',a.amount_uah,
                             'reason',a.reason,'author',a.account_id,'recordedAt',a.recorded_at,
-                            'available',a.amount_uah-coalesce((SELECT sum(u.amount_uah)
-                                FROM community_billing.member_fee_advance_application u
-                                WHERE (u.community_id,u.advance_id)=(a.community_id,a.id)),0),
+                            'available',remaining.available_uah,
+                            'releases',coalesce((SELECT jsonb_agg(jsonb_build_object('id',u.id,
+                                'amount',u.amount_uah,'reason',u.reason,'author',u.account_id,'recordedAt',u.recorded_at)
+                                ORDER BY u.recorded_at,u.id) FROM community_billing.member_fee_advance_release u
+                                WHERE (u.community_id,u.advance_id)=(a.community_id,a.id)),'[]'),
                             'applications',coalesce((SELECT jsonb_agg(jsonb_build_object('id',u.id,
                                 'obligationId',u.obligation_id,'amount',u.amount_uah,'reason',u.reason,
                                 'author',u.account_id,'recordedAt',u.recorded_at) ORDER BY u.recorded_at,u.id)
                                 FROM community_billing.member_fee_advance_application u
                                 WHERE (u.community_id,u.advance_id)=(a.community_id,a.id)),'[]'))
                             ORDER BY a.recorded_at,a.id) FROM community_billing.member_fee_advance a
+                            JOIN community_billing.member_fee_advance_remainder remaining USING (community_id,id)
                             WHERE (a.community_id,a.payment_id)=(p.community_id,p.id)),'[]'),
                         'effectiveLines',coalesce((SELECT jsonb_agg(jsonb_build_object('batchId',e.batch_id,
                             'obligationId',e.obligation_id,'amount',e.amount_uah,'isTransfer',e.is_transfer)

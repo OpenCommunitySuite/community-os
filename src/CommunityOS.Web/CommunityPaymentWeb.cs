@@ -150,6 +150,7 @@ internal static class CommunityPaymentWeb
 
     private static AdvanceInput? NormalizeAdvance(AdvanceInput? input) =>
         input is not null && input.RequestId != Guid.Empty && input.SourceId != Guid.Empty && input.ObligationId != Guid.Empty &&
+        (!input.Release || input.ObligationId is null) &&
         Amount(input.Amount) && Reason(input.Reason) is { } reason ? input with { Reason = reason } : null;
 
     private sealed record AdvanceConfirmation(AdvanceInput? Input, string? Digest);

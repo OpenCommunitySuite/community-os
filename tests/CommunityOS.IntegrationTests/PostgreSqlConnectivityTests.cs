@@ -369,8 +369,13 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         var paidDesk = await billing.PaymentDeskAsync(community, token);
         var reconciliation = await billing.ReconcilePeriodAsync(community, historical.Id, token);
         Assert.NotNull(reconciliation);
-        Assert.Contains(new PeriodReconciliationLine("electricity", 480m, 480m, 0m, 20m), reconciliation);
-        Assert.All(reconciliation, line => Assert.Equal(line.Charged, line.Settled + line.Outstanding));
+        Assert.Contains(new PeriodReconciliationLine("electricity", 480m, 480m, 0m, 20m), reconciliation.Totals);
+        Assert.Equal(20m, Assert.Single(reconciliation.Details, row => row.ObligationId == electricityObligation).Excess);
+        Assert.All(reconciliation.Totals, line =>
+        {
+            Assert.Equal(line.Charged, line.Settled + line.Outstanding);
+            Assert.Equal(line.Charged, reconciliation.Details.Where(row => row.Kind == line.Kind).Sum(row => row.Charged));
+        });
         Assert.Null(await billing.ReconcilePeriodAsync(foreign, historical.Id, token));
         Assert.Null(await billing.ReconcilePeriodAsync(community, Guid.NewGuid(), token));
         var paidObligation = paidDesk.GetProperty("obligations").EnumerateArray()

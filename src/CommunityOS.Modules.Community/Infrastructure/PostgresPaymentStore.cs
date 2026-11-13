@@ -100,6 +100,16 @@ public sealed partial class PostgresBillingStore
                     'payments', coalesce((SELECT jsonb_agg(jsonb_build_object('id',p.id,'payerId',p.payer_id,
                         'receivedOn',p.received_on,'amount',p.amount_uah,'available',r.available_uah,'reason',p.reason,
                         'author',p.account_id,'recordedAt',p.recorded_at,
+                        'effectiveLines',coalesce((SELECT jsonb_agg(jsonb_build_object('batchId',e.batch_id,
+                            'obligationId',e.obligation_id,'amount',e.amount_uah,'isTransfer',e.is_transfer)
+                            ORDER BY e.batch_id,e.obligation_id,e.is_transfer)
+                            FROM community_billing.effective_allocation e
+                            WHERE (e.community_id,e.payment_id)=(p.community_id,p.id) AND e.amount_uah>0),'[]'),
+                        'reallocations',coalesce((SELECT jsonb_agg(jsonb_build_object('id',t.id,'sourceBatchId',t.source_batch_id,
+                            'sourceIsTransfer',t.source_is_transfer,'sourceObligationId',t.source_obligation_id,
+                            'targetObligationId',t.target_obligation_id,'amount',t.amount_uah,'reason',t.reason,
+                            'author',t.account_id,'recordedAt',t.recorded_at) ORDER BY t.recorded_at,t.id)
+                            FROM community_billing.reallocation t WHERE (t.community_id,t.payment_id)=(p.community_id,p.id)),'[]'),
                         'bankTransactionId',(SELECT b.bank_transaction_id FROM community_billing.bank_payment b
                             WHERE (b.community_id,b.payment_id)=(p.community_id,p.id)),
                         'cashAcceptance',(SELECT jsonb_build_object('id',c.id,'paymentId',c.payment_id,'payerId',c.payer_id,

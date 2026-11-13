@@ -115,8 +115,8 @@ public sealed partial class PostgresBillingStore
         var obligation = reader.GetGuid(7);
         await reader.DisposeAsync();
         await using var allocated = Command(connection, transaction, community, null, """
-            SELECT EXISTS (SELECT 1 FROM community_billing.allocation
-                WHERE community_id=@community AND obligation_id=@obligation);
+            SELECT EXISTS (SELECT 1 FROM community_billing.effective_allocation
+                WHERE community_id=@community AND obligation_id=@obligation AND amount_uah > 0);
             """);
         allocated.Parameters.AddWithValue("obligation", obligation);
         if (await allocated.ExecuteScalarAsync(token) is true) return new("AllocatedObligation");

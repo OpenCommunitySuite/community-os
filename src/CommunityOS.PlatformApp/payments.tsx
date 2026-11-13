@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { money } from './billing';
+import { Reallocation, type TransferLine } from './reallocation';
 
 type Line = { obligationId: string; amount: number };
 type Allocation = { requestId: string; paymentId: string; reason: string; lines: Line[] };
@@ -8,6 +9,8 @@ type Entry = { id: string; reason: string; author: string; recordedAt: string };
 type Payment = Entry & { payerId: string; receivedOn: string; amount: number; available: number;
   bankTransactionId: string | null;
   cashAcceptance: { id: string; paymentId: string; acceptedOn: string; amount: number; cashier: string; recordedAt: string; reason: string } | null;
+  effectiveLines: TransferLine[];
+  reallocations: (Entry & { sourceBatchId: string; sourceObligationId: string; targetObligationId: string; amount: number })[];
   allocations: (Entry & { lines: Line[] })[] };
 type Obligation = { id: string; payerId: string; account: string; kind: string; outstanding: number };
 type Desk = { payers: { id: string; name: string }[]; payments: Payment[]; obligations: Obligation[] };
@@ -25,8 +28,8 @@ const errors: Record<string, string> = {
 const value = (input: FormDataEntryValue | null) => Number(String(input ?? '').trim().replace(',', '.'));
 const when = (date: string) => new Date(date).toLocaleString('uk-UA');
 
-export function Payments({ community, canRecord, canAllocate, canAcceptCash }: {
-  community: string; canRecord: boolean; canAllocate: boolean; canAcceptCash: boolean;
+export function Payments({ community, canRecord, canAllocate, canAcceptCash, canReallocate }: {
+  community: string; canRecord: boolean; canAllocate: boolean; canAcceptCash: boolean; canReallocate: boolean;
 }) {
   const base = '/community/billing/' + community + '/payments';
   const [desk, setDesk] = useState<Desk>();
@@ -106,6 +109,14 @@ export function Payments({ community, canRecord, canAllocate, canAcceptCash }: {
       </option>)}
     </select></label>}
     {payment && <div key={payment.id}>
+      <Reallocation paymentId={payment.id} lines={payment.effectiveLines} targets={obligations} canConfirm={canReallocate}
+        post={request} refresh={refresh} />
+      {payment.reallocations.length > 0 && <ul aria-label="Історія перерозподілів">
+        {payment.reallocations.map(entry => <li key={entry.id}>
+          {entry.id} · {entry.sourceBatchId} · {entry.sourceObligationId} → {entry.targetObligationId} · {money.format(entry.amount)}
+          {' · '}{entry.reason} · Автор {entry.author} · {when(entry.recordedAt)}
+        </li>)}
+      </ul>}
       <p>Нерозподілений залишок {money.format(payment.available)}</p>
       <p>{payment.reason} · Автор {payment.author} · {when(payment.recordedAt)}</p>
       {payment.bankTransactionId && <p>Банківська операція {payment.bankTransactionId} · Платіж {payment.id}</p>}

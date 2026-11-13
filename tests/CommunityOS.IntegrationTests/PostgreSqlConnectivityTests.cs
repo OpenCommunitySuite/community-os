@@ -20,7 +20,8 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "009_electricity_readings.sql", "010_electricity_replacement.sql",
                      "011_electricity_register_channels.sql", "012_common_electricity_points.sql", "013_meter_installation_details.sql",
                      "017_regular_billing.sql", "018_billing_recalculation.sql", "019_one_off_accrual.sql",
-                     "020_manual_payment.sql", "021_cash_acceptance.sql", "022_bank_statement.sql", "023_bank_dbf.sql" })
+                     "020_manual_payment.sql", "021_cash_acceptance.sql", "022_bank_statement.sql", "023_bank_dbf.sql",
+                     "024_payment_reallocation.sql" })
         {
             await using var migration = source.CreateCommand(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token));
             await migration.ExecuteNonQueryAsync(token);
@@ -273,6 +274,36 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Equal("AllocatedObligation", (await billing.PreviewRecalculationAsync(community, accrual.Id, "After allocation", token)).Outcome);
         Assert.Equal("StalePreview", (await billing.ConfirmRecalculationAsync(community, accrual.Id,
             "Before allocation", beforePayment.Digest!, Actor(), token)).Outcome);
+        var transfer = new ReallocationInput(Guid.NewGuid(), payment.RequestId, winner.Item1.RequestId, false,
+            obligation, electricityObligation, 20m, "Synthetic correction");
+        var transferPlan = await billing.PreviewReallocationAsync(community, transfer, token);
+        Assert.Equal("Ready", transferPlan.Outcome);
+        Assert.Equal((50m, 70m), (transferPlan.Source!.Before, transferPlan.Source.After));
+        Assert.Equal("NotFound", (await billing.PreviewReallocationAsync(foreign, transfer, token)).Outcome);
+        Assert.Equal("SourceExceeded", (await billing.PreviewReallocationAsync(community, transfer with { Amount = 201 }, token)).Outcome);
+        await using var denyTransfer = source.CreateCommand("ALTER TABLE community_billing.reallocation ADD CONSTRAINT deny_transfer CHECK (false);");
+        await denyTransfer.ExecuteNonQueryAsync(token);
+        await Assert.ThrowsAsync<PostgresException>(() => billing.ReallocateAsync(community, transfer, transferPlan.Digest!, Actor(), token));
+        Assert.Equal(transferPlan, await billing.PreviewReallocationAsync(community, transfer, token));
+        await using var allowTransfer = source.CreateCommand("ALTER TABLE community_billing.reallocation DROP CONSTRAINT deny_transfer;");
+        await allowTransfer.ExecuteNonQueryAsync(token);
+        var rival = transfer with { RequestId = Guid.NewGuid() };
+        var rivalPlan = await billing.PreviewReallocationAsync(community, rival, token);
+        var transfers = await Task.WhenAll(billing.ReallocateAsync(community, transfer, transferPlan.Digest!, Actor(), token),
+            billing.ReallocateAsync(community, rival, rivalPlan.Digest!, Actor(), token));
+        Assert.Contains(transfers, result => result.Outcome == "Reallocated");
+        Assert.Contains(transfers, result => result.Outcome == "StalePreview");
+        var appliedTransfer = transfers[0].Id is not null ? (transfer, transferPlan) : (rival, rivalPlan);
+        Assert.Equal("Replayed", (await billing.ReallocateAsync(community, appliedTransfer.Item1, appliedTransfer.Item2.Digest!, Actor(), token)).Outcome);
+        var full = transfer with { RequestId = Guid.NewGuid(), SourceBatchId = appliedTransfer.Item1.RequestId, SourceIsTransfer = true,
+            SourceObligationId = electricityObligation, TargetObligationId = obligation };
+        var fullPlan = await billing.PreviewReallocationAsync(community, full, token);
+        Assert.Equal(20m, fullPlan.Available);
+        Assert.Equal("Reallocated", (await billing.ReallocateAsync(community, full, fullPlan.Digest!, Actor(), token)).Outcome);
+        var currentPayment = (await billing.PaymentDeskAsync(community, token)).GetProperty("payments").EnumerateArray()
+            .Single(item => item.GetProperty("id").GetGuid() == payment.RequestId);
+        Assert.Equal(75m, currentPayment.GetProperty("available").GetDecimal());
+        Assert.Equal(2, currentPayment.GetProperty("reallocations").GetArrayLength());
     }
 
     private const string PostgreSqlImage =
@@ -900,7 +931,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "015_electricity_register_admission.sql", "016_common_electricity_access.sql",
                      "017_electricity_topology_access.sql", "018_water_access.sql", "019_billing_access.sql",
                      "020_recalculation_access.sql", "021_one_off_access.sql", "022_payment_access.sql",
-                     "023_cash_acceptance_access.sql", "024_bank_statement_access.sql" })
+                     "023_cash_acceptance_access.sql", "024_bank_statement_access.sql", "025_reallocation_access.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -1007,6 +1038,18 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         await paymentGrant.ExecuteNonQueryAsync(token);
         Assert.True(await TryPayment(RegisterPermission.RecordPayment, community));
         Assert.False(await TryPayment(RegisterPermission.AllocatePayment, community));
+        Assert.False(await TryPayment(RegisterPermission.ReallocatePayment, community));
+        await using var grantTransfer = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator SET payment_reallocate_basis = 'Synthetic transfer';
+            """);
+        await grantTransfer.ExecuteNonQueryAsync(token);
+        Assert.True(await TryPayment(RegisterPermission.ReallocatePayment, community));
+        Assert.False(await TryPayment(RegisterPermission.ReallocatePayment, Guid.NewGuid()));
+        await using var revokeTransfer = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator SET payment_reallocate_basis = NULL;
+            """);
+        await revokeTransfer.ExecuteNonQueryAsync(token);
+        Assert.False(await TryPayment(RegisterPermission.ReallocatePayment, community));
         Assert.False(await TryPayment(RegisterPermission.AcceptCash, community));
         await using var grantCash = source.CreateCommand("""
             UPDATE platform_provisioning.register_operator SET cash_acceptance_basis = 'synthetic cashier';

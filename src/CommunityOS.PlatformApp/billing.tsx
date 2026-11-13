@@ -11,6 +11,7 @@ type Line = { accountId: string; accountNumber: string; status: string;
 type Plan = { period: Period; lines: Line[]; ready: boolean };
 type Preview = { plan: Plan; digest: string };
 type Posted = { id: string; snapshot: Plan; accountId: string; postedAt: string };
+type PostedPeriod = Pick<Period, 'from' | 'until' | 'dueOn'> & { id: string; postedAt: string };
 
 export const labels: Record<string, string> = {
   RecognizedOverpayment: 'Зміна зачіпає визнану переплату.',
@@ -29,6 +30,7 @@ export function Billing({ community, canPost, canRecalculate }: { community: str
   const endpoint = '/community/billing/' + community;
   const [preview, setPreview] = useState<Preview>();
   const [posted, setPosted] = useState<Posted>();
+  const [periods, setPeriods] = useState<PostedPeriod[]>();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const plan = posted?.snapshot ?? preview?.plan;
@@ -72,12 +74,35 @@ export function Billing({ community, canPost, canRecalculate }: { community: str
         body: JSON.stringify({ period: preview.plan.period, digest: preview.digest }),
       }));
       setPosted(response.result);
+      setPeriods(undefined);
       setMessage(response.outcome === 'Replayed' ? 'Період уже проведено.' : 'Період проведено.');
     });
   }
 
   return <section aria-labelledby="billing-heading">
     <h2 id="billing-heading">Розрахунковий період</h2>
+    <details>
+      <summary>Проведені періоди</summary>
+      <button type="button" disabled={busy} onClick={() => {
+        setPeriods(undefined);
+        void run(async () => setPeriods(await checked(await fetch(endpoint + '/periods', { cache: 'no-store' }))));
+      }}>Завантажити проведені періоди</button>
+      {periods?.length === 0 && <p>Проведених періодів немає.</p>}
+      {periods && periods.length > 0 && <table>
+        <caption>Історія проведених періодів</caption>
+        <thead><tr><th>Початок</th><th>Кінець</th><th>Сплатити до</th><th>Проведено</th><th>Розрахунок</th></tr></thead>
+        <tbody>{periods.map(period => <tr key={period.id}>
+          <td>{period.from}</td><td>{period.until}</td><td>{period.dueOn}</td>
+          <td>{new Date(period.postedAt).toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv' })}</td>
+          <td><button type="button" disabled={busy} aria-label={`Відкрити період ${period.from} — ${period.until}`} onClick={() => {
+            setPreview(undefined);
+            setPosted(undefined);
+            const query = new URLSearchParams({ from: period.from, until: period.until });
+            void run(async () => setPosted(await checked(await fetch(endpoint + '/history?' + query, { cache: 'no-store' }))));
+          }}>Відкрити</button></td>
+        </tr>)}</tbody>
+      </table>}
+    </details>
     <form onSubmit={lookup} onChange={() => { setPreview(undefined); setPosted(undefined); setMessage(''); }}>
       <fieldset disabled={busy}>
         <label>Початок споживання <input type="date" name="from" required /></label>{' '}

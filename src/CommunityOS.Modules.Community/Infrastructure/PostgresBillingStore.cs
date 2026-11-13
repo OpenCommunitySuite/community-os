@@ -17,6 +17,7 @@ public sealed record BillingPlan(BillingPeriod Period, IReadOnlyList<BillingLine
 }
 public sealed record BillingSnapshot(BillingPlan Plan, string Digest);
 public sealed record PostedBilling(Guid Id, string Digest, JsonElement Snapshot, Guid AccountId, DateTime PostedAt);
+public sealed record PostedPeriodEntry(Guid Id, DateOnly From, DateOnly Until, DateOnly DueOn, DateTime PostedAt);
 public sealed record BillingPosting(string Outcome, PostedBilling? Result = null);
 
 public sealed partial class PostgresBillingStore(NpgsqlDataSource source)
@@ -28,6 +29,22 @@ public sealed partial class PostgresBillingStore(NpgsqlDataSource source)
 
     public Task<PostedBilling?> HistoryAsync(Guid community, BillingPeriod period, CancellationToken token) =>
         RunAsync(community, (connection, transaction) => ReadPostedAsync(connection, transaction, community, period, token), token);
+
+    public Task<IReadOnlyList<PostedPeriodEntry>> ListPostedPeriodsAsync(Guid community, CancellationToken token) =>
+        RunAsync<IReadOnlyList<PostedPeriodEntry>>(community, async (connection, transaction) =>
+        {
+            await using var command = Command(connection, transaction, community, null, """
+                SELECT id,starts_on,ends_on,due_on,posted_at
+                FROM community_billing.posted_period WHERE community_id=@community
+                ORDER BY ends_on DESC, starts_on DESC, id;
+                """);
+            await using var reader = await command.ExecuteReaderAsync(token);
+            var periods = new List<PostedPeriodEntry>();
+            while (await reader.ReadAsync(token))
+                periods.Add(new(reader.GetGuid(0), reader.GetFieldValue<DateOnly>(1), reader.GetFieldValue<DateOnly>(2),
+                    reader.GetFieldValue<DateOnly>(3), reader.GetDateTime(4)));
+            return periods;
+        }, token);
 
     public async Task<BillingPosting> PostAsync(Guid community, BillingPeriod period, string digest,
         ElectricityActor actor, CancellationToken token)

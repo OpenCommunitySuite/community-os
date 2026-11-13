@@ -17,9 +17,19 @@ public sealed partial class PostgresBillingStore
     public static string PaymentDigest(Guid community, PaymentInput input) =>
         Digest(new { community, input.RequestId, input.PayerId, input.ReceivedOn, Amount = Cents(input.Amount), input.Reason });
 
-    public Task<PaymentResult> RecordPaymentAsync(Guid community, PaymentInput input, ElectricityActor actor, CancellationToken token)
+    public static string CashDigest(Guid community, PaymentInput input) =>
+        Digest(new { Channel = "cash", Payment = PaymentDigest(community, input) });
+
+    public Task<PaymentResult> RecordPaymentAsync(Guid community, PaymentInput input, ElectricityActor actor, CancellationToken token) =>
+        RecordReceiptAsync(community, input, actor, false, token);
+
+    public Task<PaymentResult> AcceptCashAsync(Guid community, PaymentInput input, ElectricityActor actor, CancellationToken token) =>
+        RecordReceiptAsync(community, input, actor, true, token);
+
+    private Task<PaymentResult> RecordReceiptAsync(Guid community, PaymentInput input, ElectricityActor actor, bool cash,
+        CancellationToken token)
     {
-        var digest = PaymentDigest(community, input);
+        var digest = cash ? CashDigest(community, input) : PaymentDigest(community, input);
         return WritePaymentAsync(community, input.RequestId, digest, "payment", async (connection, transaction) =>
         {
             await using var command = Command(connection, transaction, community, null, """
@@ -32,7 +42,20 @@ public sealed partial class PostgresBillingStore
             command.Parameters.AddWithValue("payer", input.PayerId);
             command.Parameters.AddWithValue("date", input.ReceivedOn);
             command.Parameters.AddWithValue("amount", input.Amount);
-            return await command.ExecuteNonQueryAsync(token) == 1 ? new("Recorded", input.RequestId) : new("NotFound");
+            if (await command.ExecuteNonQueryAsync(token) != 1) return new("NotFound");
+            if (cash)
+            {
+                await using var acceptance = Command(connection, transaction, community, null, """
+                    INSERT INTO community_billing.cash_acceptance
+                        (community_id,id,payment_id,payer_id,accepted_on,amount_uah,reason,cashier_account_id,cashier_subject_id)
+                    SELECT community_id,@acceptance,id,payer_id,received_on,amount_uah,reason,account_id,subject_id
+                    FROM community_billing.payment WHERE community_id=@community AND id=@id;
+                    """);
+                acceptance.Parameters.AddWithValue("acceptance", Guid.CreateVersion7());
+                acceptance.Parameters.AddWithValue("id", input.RequestId);
+                await acceptance.ExecuteNonQueryAsync(token);
+            }
+            return new(cash ? "Accepted" : "Recorded", input.RequestId);
         }, token);
     }
 
@@ -77,6 +100,11 @@ public sealed partial class PostgresBillingStore
                     'payments', coalesce((SELECT jsonb_agg(jsonb_build_object('id',p.id,'payerId',p.payer_id,
                         'receivedOn',p.received_on,'amount',p.amount_uah,'available',r.available_uah,'reason',p.reason,
                         'author',p.account_id,'recordedAt',p.recorded_at,
+                        'cashAcceptance',(SELECT jsonb_build_object('id',c.id,'paymentId',c.payment_id,'payerId',c.payer_id,
+                            'acceptedOn',c.accepted_on,'amount',c.amount_uah,'reason',c.reason,
+                            'cashier',c.cashier_account_id,'recordedAt',c.recorded_at)
+                            FROM community_billing.cash_acceptance c
+                            WHERE (c.community_id,c.payment_id)=(p.community_id,p.id)),
                         'allocations',coalesce((SELECT jsonb_agg(jsonb_build_object('id',b.id,'reason',b.reason,
                             'author',b.account_id,'recordedAt',b.recorded_at,'lines',
                             (SELECT jsonb_agg(jsonb_build_object('obligationId',l.obligation_id,'amount',l.amount_uah)

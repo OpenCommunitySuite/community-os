@@ -58,6 +58,8 @@
           Link="021_one_off_access.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Platform/Infrastructure/Migrations/022_payment_access.sql"
           Link="022_payment_access.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Platform/Infrastructure/Migrations/023_cash_acceptance_access.sql"
+          Link="023_cash_acceptance_access.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/001_manual_register.sql"
           Link="001_manual_register.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/002_ownership_correction.sql"
@@ -96,6 +98,8 @@
           Link="019_one_off_accrual.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/020_manual_payment.sql"
           Link="020_manual_payment.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/021_cash_acceptance.sql"
+          Link="021_cash_acceptance.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

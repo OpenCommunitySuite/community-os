@@ -6,6 +6,7 @@ type Allocation = { requestId: string; paymentId: string; reason: string; lines:
 type Receipt = { requestId: string; payerId: string; receivedOn: string; amount: number; reason: string };
 type Entry = { id: string; reason: string; author: string; recordedAt: string };
 type Payment = Entry & { payerId: string; receivedOn: string; amount: number; available: number;
+  cashAcceptance: { id: string; paymentId: string; acceptedOn: string; amount: number; cashier: string; recordedAt: string; reason: string } | null;
   allocations: (Entry & { lines: Line[] })[] };
 type Obligation = { id: string; payerId: string; account: string; kind: string; outstanding: number };
 type Desk = { payers: { id: string; name: string }[]; payments: Payment[]; obligations: Obligation[] };
@@ -23,11 +24,13 @@ const errors: Record<string, string> = {
 const value = (input: FormDataEntryValue | null) => Number(String(input ?? '').trim().replace(',', '.'));
 const when = (date: string) => new Date(date).toLocaleString('uk-UA');
 
-export function Payments({ community, canRecord, canAllocate }: { community: string; canRecord: boolean; canAllocate: boolean }) {
+export function Payments({ community, canRecord, canAllocate, canAcceptCash }: {
+  community: string; canRecord: boolean; canAllocate: boolean; canAcceptCash: boolean;
+}) {
   const base = '/community/billing/' + community + '/payments';
   const [desk, setDesk] = useState<Desk>();
   const [selected, setSelected] = useState('');
-  const [receipt, setReceipt] = useState<Receipt>();
+  const [receipt, setReceipt] = useState<{ input: Receipt; cash: boolean }>();
   const [draft, setDraft] = useState<{ input: Allocation; preview: Preview }>();
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -61,13 +64,18 @@ export function Payments({ community, canRecord, canAllocate }: { community: str
   return <section aria-labelledby="payments-heading">
     <h2 id="payments-heading">Платежі та розподіл</h2>
     <button disabled={busy} onClick={() => void run(refresh)}>Завантажити платежі та зобов’язання</button>
-    {desk && canRecord && <form onChange={() => setReceipt(undefined)} onSubmit={event => {
+    {desk && (canRecord || canAcceptCash) && <form onChange={() => setReceipt(undefined)} onSubmit={event => {
       event.preventDefault();
       const fields = new FormData(event.currentTarget);
-      setReceipt({ requestId: crypto.randomUUID(), payerId: String(fields.get('payer')),
-        receivedOn: String(fields.get('date')), amount: value(fields.get('amount')), reason: String(fields.get('reason')) });
+      setReceipt({ cash: fields.get('channel') === 'cash', input: { requestId: crypto.randomUUID(),
+        payerId: String(fields.get('payer')), receivedOn: String(fields.get('date')),
+        amount: value(fields.get('amount')), reason: String(fields.get('reason')) } });
     }}>
       <fieldset disabled={busy}><legend>Новий платіж</legend>
+        <label>Операція <select name="channel">
+          {canRecord && <option value="manual">Ручна реєстрація платежу</option>}
+          {canAcceptCash && <option value="cash">Прийом готівки</option>}
+        </select></label>{' '}
         <label>Платник <select name="payer" required><option value="">Оберіть платника</option>
           {desk.payers.map(payer => <option key={payer.id} value={payer.id}>{payer.name}</option>)}
         </select></label>{' '}
@@ -78,16 +86,16 @@ export function Payments({ community, canRecord, canAllocate }: { community: str
       </fieldset>
     </form>}
     {receipt && <div>
-      <p>{desk?.payers.find(payer => payer.id === receipt.payerId)?.name} · {receipt.receivedOn} ·
-        {' '}{money.format(receipt.amount)} · {receipt.reason}</p>
+      <p>{receipt.cash && 'Прийом готівки · '}{desk?.payers.find(payer => payer.id === receipt.input.payerId)?.name} ·
+        {' '}{receipt.input.receivedOn} · {money.format(receipt.input.amount)} · {receipt.input.reason}</p>
       <button disabled={busy} onClick={() => void run(async () => {
-        const result = await request('/record', receipt);
+        const result = await request(receipt.cash ? '/accept-cash' : '/record', receipt.input);
         setReceipt(undefined);
         setSelected(result.id);
         setDraft(undefined);
         await refresh();
-        setMessage('Платіж зареєстровано.');
-      })}>Підтвердити реєстрацію платежу</button>
+        setMessage(receipt.cash ? 'Прийом готівки та платіж зареєстровано.' : 'Платіж зареєстровано.');
+      })}>{receipt.cash ? 'Підтвердити прийом готівки' : 'Підтвердити реєстрацію платежу'}</button>
     </div>}
     {desk && <label>Визнаний платіж <select value={selected} disabled={busy} onChange={event => {
       setSelected(event.target.value); setDraft(undefined);
@@ -99,6 +107,9 @@ export function Payments({ community, canRecord, canAllocate }: { community: str
     {payment && <div key={payment.id}>
       <p>Нерозподілений залишок {money.format(payment.available)}</p>
       <p>{payment.reason} · Автор {payment.author} · {when(payment.recordedAt)}</p>
+      {payment.cashAcceptance && <p>Прийом готівки {payment.cashAcceptance.id} · Платіж {payment.id} ·
+        {' '}{money.format(payment.cashAcceptance.amount)} · {payment.cashAcceptance.acceptedOn} ·
+        {' '}{payment.cashAcceptance.reason} · Касир {payment.cashAcceptance.cashier} · {when(payment.cashAcceptance.recordedAt)}</p>}
       {payment.allocations.length > 0 && <ul aria-label="Історія розподілів">
         {payment.allocations.map(entry => <li key={entry.id}>
           {entry.reason} · Автор {entry.author} · {when(entry.recordedAt)}

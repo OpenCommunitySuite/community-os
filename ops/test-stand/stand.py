@@ -347,6 +347,7 @@ def up(docker, config, config_dir):
         GRANT SELECT, INSERT ON community_billing.payment, community_billing.allocation_batch,
             community_billing.allocation TO {WEB_ROLE};
         GRANT SELECT ON community_billing.payment_remainder, community_billing.obligation_remainder TO {WEB_ROLE};
+        GRANT SELECT, INSERT ON community_billing.cash_acceptance TO {WEB_ROLE};
     """)
     web = docker.ensure_container("web", image=config["image"], env=[
         "ASPNETCORE_ENVIRONMENT=Production", "ASPNETCORE_URLS=https://127.0.0.1:8443",

@@ -5,7 +5,7 @@ using System.Text;
 namespace CommunityOS.Modules.Community.Infrastructure;
 
 public sealed record BankStatementRow(int Line, string Raw, string ExternalId, DateOnly? Date, string Direction,
-    decimal? Amount, string Currency, string? Error);
+    decimal? Amount, string Currency, string? Error, string? StatementAccount = null);
 
 public sealed record BankStatementCsv(string Digest, IReadOnlyList<BankStatementRow> Rows)
 {

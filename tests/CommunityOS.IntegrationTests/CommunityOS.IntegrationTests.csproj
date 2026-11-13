@@ -104,6 +104,8 @@
           Link="021_cash_acceptance.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/022_bank_statement.sql"
           Link="022_bank_statement.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/023_bank_dbf.sql"
+          Link="023_bank_dbf.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

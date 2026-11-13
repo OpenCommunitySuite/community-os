@@ -15,6 +15,9 @@ const labels: Record<string, string> = {
   InvalidEncoding: 'Збережіть CSV у UTF-8.', FileTooLarge: 'Файл перевищує 128 КіБ.',
   TooManyRows: 'У файлі може бути щонайбільше 500 рядків.', RequestConflict: 'Операцію вже зіставлено з платежем.',
   Unavailable: 'Операція або платник недоступні.',
+  InvalidDbf: 'Непідтримувана або пошкоджена структура DBF.',
+  InvalidBankAccount: 'Некоректний рахунок у DBF.',
+  BankAccountMismatch: 'Рахунок у DBF не збігається з вибраним рахунком.',
 };
 
 export function Bank({ community, canImport, canRecognize }: { community: string; canImport: boolean; canRecognize: boolean }) {
@@ -64,7 +67,7 @@ export function Bank({ community, canImport, canRecognize }: { community: string
         <option value="">Оберіть рахунок</option>
         {desk.accounts.map(item => <option key={item.id} value={item.id}>{item.name} · {item.source}</option>)}
       </select></label>{' '}
-      <label>Файл виписки <input type="file" accept=".csv,text/csv" disabled={pending} onChange={event => {
+      <label>Файл виписки (CSV або DBF) <input type="file" accept=".csv,.dbf" disabled={pending} onChange={event => {
         setFile(event.target.files?.[0]); setPreview(undefined);
       }} /></label>{' '}
       <button disabled={!account || !file || pending} onClick={() => void run(async () => {

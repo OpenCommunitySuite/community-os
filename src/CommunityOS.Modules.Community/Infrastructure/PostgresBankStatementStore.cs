@@ -22,7 +22,7 @@ public sealed partial class PostgresBillingStore
                     'transactions', coalesce((SELECT jsonb_agg(jsonb_build_object(
                         'id',t.id,'bankAccountId',t.bank_account_id,'externalId',t.external_id,'date',t.booked_on,
                         'direction',t.direction,'amount',t.amount_uah,'currency',t.currency,'raw',t.raw_line,
-                        'line',t.line_number,'fileDigest',t.file_digest,'source',t.source,
+                        'line',t.line_number,'fileDigest',t.file_digest,'source',t.source,'format',t.source_format,
                         'author',t.account_id,'recordedAt',t.recorded_at,'basis',t.basis,'paymentId',p.payment_id)
                         ORDER BY t.booked_on DESC,t.id)
                         FROM community_billing.bank_transaction t LEFT JOIN community_billing.bank_payment p
@@ -83,9 +83,9 @@ public sealed partial class PostgresBillingStore
                     await using var insert = Command(connection, transaction, community, null, """
                         INSERT INTO community_billing.bank_transaction
                             (community_id,id,bank_account_id,source,external_id,booked_on,direction,amount_uah,currency,
-                             raw_line,line_number,file_digest,admission_id,account_id,subject_id,basis)
+                             raw_line,line_number,file_digest,admission_id,account_id,subject_id,basis,source_format)
                         SELECT @community,@id,id,source,@external,@date,@direction,@amount,@currency,
-                               @raw,@line,@file,@admission,@account,@subject,@basis
+                               @raw,@line,@file,@admission,@account,@subject,@basis,@format
                         FROM community_billing.bank_account WHERE community_id=@community AND id=@bank;
                         """);
                     BindPayment(insert, Guid.CreateVersion7(), digest, row.Raw, actor);
@@ -98,6 +98,7 @@ public sealed partial class PostgresBillingStore
                     insert.Parameters.AddWithValue("raw", row.Raw);
                     insert.Parameters.AddWithValue("line", row.Line);
                     insert.Parameters.AddWithValue("file", csv.Digest);
+                    insert.Parameters.AddWithValue("format", row.StatementAccount is null ? "csv" : "p24-dbf");
                     await insert.ExecuteNonQueryAsync(token);
                 }
                 return plan with { Outcome = "Imported" };
@@ -118,34 +119,43 @@ public sealed partial class PostgresBillingStore
         Guid community, Guid account, BankStatementCsv csv, CancellationToken token)
     {
         await using var source = Command(connection, transaction, community, null, """
-            SELECT source FROM community_billing.bank_account WHERE community_id=@community AND id=@bank;
+            SELECT source,iban FROM community_billing.bank_account WHERE community_id=@community AND id=@bank;
             """);
         source.Parameters.AddWithValue("bank", account);
-        if (await source.ExecuteScalarAsync(token) is not string bankSource)
-            return new("NotFound", null, []);
+        string bankSource;
+        string? iban;
+        await using (var reader = await source.ExecuteReaderAsync(token))
+        {
+            if (!await reader.ReadAsync(token)) return new("NotFound", null, []);
+            bankSource = reader.GetString(0);
+            iban = reader.IsDBNull(1) ? null : reader.GetString(1);
+        }
 
         await using var existing = Command(connection, transaction, community, null, """
-            SELECT external_id,booked_on,direction,amount_uah,currency
+            SELECT external_id,booked_on,direction,amount_uah,currency,
+                CASE WHEN source_format='p24-dbf' THEN raw_line END
             FROM community_billing.bank_transaction
             WHERE community_id=@community AND bank_account_id=@bank AND source=@source AND external_id=ANY(@ids);
             """);
         existing.Parameters.AddWithValue("bank", account);
         existing.Parameters.AddWithValue("source", bankSource);
         existing.Parameters.AddWithValue("ids", csv.Rows.Select(row => row.ExternalId).Distinct().ToArray());
-        var known = new Dictionary<string, (DateOnly? Date, string Direction, decimal? Amount, string Currency)>(StringComparer.Ordinal);
+        var known = new Dictionary<string, (DateOnly? Date, string Direction, decimal? Amount, string Currency, string? Raw)>(StringComparer.Ordinal);
         await using (var reader = await existing.ExecuteReaderAsync(token))
             while (await reader.ReadAsync(token))
-                known.Add(reader.GetString(0), (reader.GetFieldValue<DateOnly>(1), reader.GetString(2), reader.GetDecimal(3), reader.GetString(4)));
+                known.Add(reader.GetString(0), (reader.GetFieldValue<DateOnly>(1), reader.GetString(2), reader.GetDecimal(3),
+                    reader.GetString(4), reader.IsDBNull(5) ? null : reader.GetString(5)));
         var rows = new List<BankImportRow>();
         foreach (var row in csv.Rows)
         {
-            var identity = (row.Date, row.Direction, row.Amount, row.Currency);
-            var status = row.Error ?? (known.TryGetValue(row.ExternalId, out var prior)
+            var identity = (row.Date, row.Direction, row.Amount, row.Currency, row.StatementAccount is null ? null : row.Raw);
+            var status = row.Error ?? (row.StatementAccount is not null && row.StatementAccount != iban
+                ? "BankAccountMismatch" : known.TryGetValue(row.ExternalId, out var prior)
                 ? prior == identity ? "Duplicate" : "Conflict" : "New");
             if (status == "New") known.Add(row.ExternalId, identity);
             rows.Add(new(row, status));
         }
-        var digest = Digest(new { Import = BankImportDigest(community, account, csv.Digest), Source = bankSource });
+        var digest = Digest(new { Import = BankImportDigest(community, account, csv.Digest), Source = bankSource, Iban = iban });
         return new(rows.All(row => row.Status is "New" or "Duplicate") ? "Ready" : "InvalidRows", digest, rows);
     }
 }

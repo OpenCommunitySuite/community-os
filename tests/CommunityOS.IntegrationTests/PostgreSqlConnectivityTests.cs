@@ -20,7 +20,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "009_electricity_readings.sql", "010_electricity_replacement.sql",
                      "011_electricity_register_channels.sql", "012_common_electricity_points.sql", "013_meter_installation_details.sql",
                      "017_regular_billing.sql", "018_billing_recalculation.sql", "019_one_off_accrual.sql",
-                     "020_manual_payment.sql", "021_cash_acceptance.sql", "022_bank_statement.sql" })
+                     "020_manual_payment.sql", "021_cash_acceptance.sql", "022_bank_statement.sql", "023_bank_dbf.sql" })
         {
             await using var migration = source.CreateCommand(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token));
             await migration.ExecuteNonQueryAsync(token);
@@ -185,10 +185,12 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         var desk = await billing.PaymentDeskAsync(community, token);
         var bank = Guid.NewGuid();
         await using var seedBank = source.CreateCommand("""
-            INSERT INTO community_billing.bank_account VALUES (@community,@bank,'Synthetic bank','fixture');
+            INSERT INTO community_billing.bank_account (community_id,id,name,source,iban)
+            VALUES (@community,@bank,'Synthetic bank','fixture',@iban);
             """);
         seedBank.Parameters.AddWithValue("community", community);
         seedBank.Parameters.AddWithValue("bank", bank);
+        seedBank.Parameters.AddWithValue("iban", BankStatementDbfTests.Iban);
         await seedBank.ExecuteNonQueryAsync(token);
         BankStatementCsv Statement(string rows) => BankStatementCsv.Parse(System.Text.Encoding.UTF8.GetBytes(
             "external_id,booked_on,direction,amount,currency\n" + rows));
@@ -223,6 +225,13 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Contains(recognitionAttempts, result => result.Outcome == "Recognized");
         Assert.Contains(recognitionAttempts, result => result.Outcome == "Replayed");
         Assert.Equal("Unavailable", (await billing.RecognizeBankPaymentAsync(foreign, recognition, Actor(), token)).Outcome);
+        var dbf = BankStatementDbf.Parse(BankStatementDbfTests.Create());
+        var dbfPlan = await billing.PreviewBankAsync(community, bank, dbf, token);
+        Assert.Equal("Ready", dbfPlan.Outcome);
+        Assert.Equal("Imported", (await billing.ImportBankAsync(community, bank, dbf, dbfPlan.Digest!, Actor(), token)).Outcome);
+        Assert.All((await billing.PreviewBankAsync(community, bank, dbf, token)).Rows, row => Assert.Equal("Duplicate", row.Status));
+        var wrongAccount = dbf with { Rows = [dbf.Rows[0] with { StatementAccount = "UA000000000000000000000000002" }] };
+        Assert.Equal("BankAccountMismatch", Assert.Single((await billing.PreviewBankAsync(community, bank, wrongAccount, token)).Rows).Status);
         var cashRow = desk.GetProperty("payments").EnumerateArray().Single(item => item.GetProperty("id").GetGuid() == cash.RequestId);
         Assert.Equal(300m, cashRow.GetProperty("available").GetDecimal());
         Assert.Equal(cash.RequestId, cashRow.GetProperty("cashAcceptance").GetProperty("paymentId").GetGuid());

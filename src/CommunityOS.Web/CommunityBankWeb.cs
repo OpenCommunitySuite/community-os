@@ -21,7 +21,8 @@ internal static class CommunityBankWeb
             {
                 var buffer = new byte[BankStatementCsv.MaximumBytes + 1];
                 var length = await http.Request.Body.ReadAtLeastAsync(buffer, buffer.Length, false, token);
-                csv = BankStatementCsv.Parse(buffer.AsSpan(0, length));
+                var bytes = buffer.AsSpan(0, length);
+                csv = length > 0 && bytes[0] == 3 ? BankStatementDbf.Parse(bytes) : BankStatementCsv.Parse(bytes);
             }
             catch (FormatException error)
             {

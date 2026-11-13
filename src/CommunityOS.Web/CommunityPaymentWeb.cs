@@ -6,6 +6,9 @@ internal static class CommunityPaymentWeb
     public static void Map(RouteGroupBuilder billing, RegisterAccessStore access, PostgresBillingStore store)
     {
         var routes = billing.MapGroup("/payments");
+        routes.MapGet("/today", (Guid community, HttpContext http, CancellationToken token) =>
+            access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
+                _ => Task.FromResult<IResult>(Results.Ok(CommunityElectricityWeb.Today())), Results.StatusCode(403), token));
         MapReallocation(routes, access, store);
         routes.MapPost("/correction/preview", (Guid community, PaymentCorrectionInput input, HttpContext http, CancellationToken token) =>
             NormalizeCorrection(input) is { } valid

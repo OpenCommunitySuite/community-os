@@ -14,7 +14,7 @@ type Payment = Entry & { payerId: string; receivedOn: string; amount: number; av
   effectiveLines: TransferLine[];
   reallocations: (Entry & { sourceBatchId: string; sourceObligationId: string; targetObligationId: string; amount: number })[];
   allocations: (Entry & { lines: Line[] })[] };
-type Obligation = { id: string; payerId: string; account: string; kind: string; outstanding: number };
+type Obligation = { id: string; payerId: string; account: string; kind: string; outstanding: number; dueOn: string };
 type Desk = { payers: { id: string; name: string }[]; payments: Payment[]; obligations: Obligation[] };
 type Preview = { outcome: string; digest: string; before: number; after: number;
   lines: (Line & { account: string; before: number; after: number })[] };
@@ -35,6 +35,8 @@ export function Payments({ community, canRecord, canAllocate, canAcceptCash, can
 }) {
   const base = '/community/billing/' + community + '/payments';
   const [desk, setDesk] = useState<Desk>();
+  const [today, setToday] = useState('');
+  const [balancePayer, setBalancePayer] = useState('');
   const [selected, setSelected] = useState('');
   const [receipt, setReceipt] = useState<{ input: Receipt; cash: boolean }>();
   const [draft, setDraft] = useState<{ input: Allocation; preview: Preview }>();
@@ -58,7 +60,11 @@ export function Payments({ community, canRecord, canAllocate, canAcceptCash, can
     return data;
   }
 
-  async function refresh() { setDesk(await request('/')); }
+  async function refresh() {
+    const [data, date] = await Promise.all([request('/'), request('/today')]);
+    setDesk(data);
+    setToday(date);
+  }
   async function run(action: () => Promise<void>) {
     setBusy(true);
     setMessage('');
@@ -70,6 +76,32 @@ export function Payments({ community, canRecord, canAllocate, canAcceptCash, can
   return <section aria-labelledby="payments-heading">
     <h2 id="payments-heading">Платежі та розподіл</h2>
     <button disabled={busy} onClick={() => void run(refresh)}>Завантажити платежі та зобов’язання</button>
+    {desk && <details>
+      <summary>Залишки розрахунків</summary>
+      <label>Платник для звірки <select value={balancePayer} onChange={event => setBalancePayer(event.target.value)}>
+        <option value="">Оберіть платника</option>
+        {desk.payers.map(payer => <option key={payer.id} value={payer.id}>{payer.name}</option>)}
+      </select></label>
+      {balancePayer && (() => {
+        const open = desk.obligations.filter(item => item.payerId === balancePayer && item.outstanding > 0);
+        const unallocated = desk.payments.filter(item => item.payerId === balancePayer && item.available > 0);
+        return <>
+          <dl>
+            <dt>Заборгованість</dt><dd>{money.format(open.reduce((sum, item) => sum + item.outstanding, 0))}</dd>
+            <dt>Прострочена заборгованість</dt><dd>{money.format(open.reduce((sum, item) =>
+              sum + (item.dueOn < today ? item.outstanding : 0), 0))}</dd>
+            <dt>Нерозподілені платежі</dt><dd>{money.format(unallocated.reduce((sum, item) => sum + item.available, 0))}</dd>
+          </dl>
+          <table><caption>Непогашені зобов’язання</caption><thead><tr><th>Рахунок</th><th>Вид</th><th>Строк оплати</th><th>Залишок</th></tr></thead>
+            <tbody>{open.map(item => <tr key={item.id}><td>{item.account}</td><td>{item.kind}</td>
+              <td>{item.dueOn}</td><td>{money.format(item.outstanding)}</td></tr>)}</tbody>
+          </table>
+          <ul aria-label="Нерозподілені платежі">{unallocated.map(item => <li key={item.id}>
+            {item.receivedOn} · {item.reason} · {money.format(item.available)}
+          </li>)}</ul>
+        </>;
+      })()}
+    </details>}
     {desk && (canRecord || canAcceptCash) && <form onChange={() => setReceipt(undefined)} onSubmit={event => {
       event.preventDefault();
       const fields = new FormData(event.currentTarget);

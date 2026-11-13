@@ -11,7 +11,8 @@ type Community = { id: string; name: string; canRead: boolean; canAdd: boolean; 
   canApproveImport: boolean; canCorrectOwnership: boolean; canReadElectricity: boolean;
   canSetupElectricity: boolean; canRecognizeElectricity: boolean; canReplaceElectricity: boolean;
   canSetupCommonElectricity: boolean; canPublishElectricityTopology: boolean;
-  canReadWater: boolean; canSetupWater: boolean; canRecognizeWater: boolean; canReadBilling: boolean; canPostBilling: boolean };
+  canReadWater: boolean; canSetupWater: boolean; canRecognizeWater: boolean; canReadBilling: boolean; canPostBilling: boolean;
+  canRecalculateBilling: boolean };
 type Entry = { plotId: string; plotNumber: string; ownerId: string; ownerName: string; accountNumber: string;
   ownershipRevision: string };
 
@@ -154,7 +155,7 @@ function Register() {
     {community?.canReadWater && <Water key={'water:' + community.id} community={community.id}
       canSetup={community.canSetupWater} canRecognize={community.canRecognizeWater} />}
     {community?.canReadBilling && <Billing key={'billing:' + community.id} community={community.id}
-      canPost={community.canPostBilling} />}
+      canPost={community.canPostBilling} canRecalculate={community.canRecalculateBilling} />}
   </>;
 }
 

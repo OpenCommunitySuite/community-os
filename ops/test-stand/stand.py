@@ -306,6 +306,7 @@ def up(docker, config, config_dir):
         GRANT INSERT ON platform_provisioning.electricity_admission TO {WEB_ROLE};
         GRANT INSERT ON platform_provisioning.water_admission TO {WEB_ROLE};
         GRANT INSERT ON platform_provisioning.billing_admission TO {WEB_ROLE};
+        GRANT INSERT ON platform_provisioning.recalculation_admission TO {WEB_ROLE};
     """, private=True)
     psql(docker, postgres, REGISTER, f"""
         GRANT USAGE ON SCHEMA community_register TO {WEB_ROLE};
@@ -338,6 +339,8 @@ def up(docker, config, config_dir):
         GRANT SELECT ON community_billing.tariff, community_billing.member_fee TO {WEB_ROLE};
         GRANT SELECT, INSERT ON community_billing.posted_period, community_billing.accrual,
             community_billing.obligation TO {WEB_ROLE};
+        GRANT SELECT, INSERT ON community_billing.recalculation TO {WEB_ROLE};
+        GRANT SELECT ON community_billing.effective_obligation TO {WEB_ROLE};
     """)
     web = docker.ensure_container("web", image=config["image"], env=[
         "ASPNETCORE_ENVIRONMENT=Production", "ASPNETCORE_URLS=https://127.0.0.1:8443",

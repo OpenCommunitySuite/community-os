@@ -6,7 +6,7 @@ public sealed record RegisterCommunity(Guid Id, string Name, bool CanRead, bool 
     bool CanApproveImport, bool CanCorrectOwnership, bool CanReadElectricity, bool CanSetupElectricity,
     bool CanRecognizeElectricity, bool CanReplaceElectricity, bool CanSetupCommonElectricity,
     bool CanPublishElectricityTopology = false, bool CanReadWater = false, bool CanSetupWater = false,
-    bool CanRecognizeWater = false, bool CanReadBilling = false, bool CanPostBilling = false);
+    bool CanRecognizeWater = false, bool CanReadBilling = false, bool CanPostBilling = false, bool CanRecalculateBilling = false);
 public sealed record RegisterActor(Guid AccountId, Guid SubjectId, string? AdditionBasis, Guid AdmissionId);
 public sealed record RegisterImportTarget(Guid DraftId, int Revision, string PlanId);
 public sealed record OwnershipCorrectionTarget(Guid PlotId, Guid Revision, Guid OwnerId);
@@ -14,11 +14,12 @@ public sealed record ElectricityTarget(Guid Id, DateOnly Date, Guid? RequestId =
     string? Channel = null);
 public sealed record WaterTarget(Guid Id, DateOnly Date);
 public sealed record BillingTarget(DateOnly From, DateOnly Until, string Digest);
+public sealed record RecalculationTarget(Guid AccrualId, string Digest);
 public enum RegisterPermission
 {
     Read, Add, PrepareImport, WriteImportDraft, ReadImportApproval, SubmitImport, ApproveImport,
     ReadCorrectionCandidates, CorrectOwnership, ReadElectricity, SetupElectricity, RecognizeElectricity, ReplaceElectricity,
-    SetupCommonElectricity, PublishElectricityTopology, ReadWater, SetupWater, RecognizeWater, ReadBilling, PostBilling
+    SetupCommonElectricity, PublishElectricityTopology, ReadWater, SetupWater, RecognizeWater, ReadBilling, PostBilling, RecalculateBilling
 }
 
 public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
@@ -47,7 +48,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                 v.water_enabled AND o.can_read_water AND o.water_setup_basis IS NOT NULL,
                 v.water_enabled AND o.can_read_water AND o.water_recognition_basis IS NOT NULL,
                 v.billing_enabled AND o.can_read_billing,
-                v.billing_enabled AND o.can_read_billing AND o.billing_post_basis IS NOT NULL
+                v.billing_enabled AND o.can_read_billing AND o.billing_post_basis IS NOT NULL,
+                v.billing_enabled AND o.can_read_billing AND o.billing_recalculate_basis IS NOT NULL
             FROM platform_provisioning.platform_session s
             JOIN platform_provisioning.platform_account a ON a.id = s.account_id
             LEFT JOIN (
@@ -79,7 +81,7 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                     reader.GetBoolean(4), reader.GetBoolean(5), reader.GetBoolean(6), reader.GetBoolean(7),
                     reader.GetBoolean(8), reader.GetBoolean(9), reader.GetBoolean(10), reader.GetBoolean(11), reader.GetBoolean(12),
                     reader.GetBoolean(13), reader.GetBoolean(14), reader.GetBoolean(15),
-                    reader.GetBoolean(16), reader.GetBoolean(17)));
+                    reader.GetBoolean(16), reader.GetBoolean(17), reader.GetBoolean(18)));
             }
         } while (await reader.ReadAsync(token));
 
@@ -93,7 +95,7 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
     public async Task<T> WithAccessAsync<T>(string? session, Guid community, RegisterPermission permission,
         Func<RegisterActor, Task<T>> action, T denied, CancellationToken token, RegisterImportTarget? target = null,
         OwnershipCorrectionTarget? correction = null, ElectricityTarget? electricity = null, WaterTarget? water = null,
-        BillingTarget? billing = null)
+        BillingTarget? billing = null, RecalculationTarget? recalculation = null)
     {
         if (PlatformAuthenticationStore.Digest(session) is not { } digest)
         {
@@ -113,9 +115,10 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
         var recognizeWater = permission == RegisterPermission.RecognizeWater;
         var waterWrite = setupWater || recognizeWater;
         var postBilling = permission == RegisterPermission.PostBilling;
+        var recalculate = permission == RegisterPermission.RecalculateBilling;
         if (((submitting || approving) && target is null) || (correcting && correction is null) ||
             (electricityWrite && electricity is null) || (replace && electricity?.RequestId is null) ||
-            (waterWrite && water is null) || (postBilling && billing is null))
+            (waterWrite && water is null) || (postBilling && billing is null) || (recalculate && recalculation is null))
         {
             return denied;
         }
@@ -123,7 +126,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
         await using var connection = await dataSource.OpenConnectionAsync(token);
         await using var transaction = await connection.BeginTransactionAsync(token);
         await using var authorization = new NpgsqlCommand("""
-            SELECT a.id, o.subject_id, CASE WHEN @post_billing THEN o.billing_post_basis
+            SELECT a.id, o.subject_id, CASE WHEN @recalculate THEN o.billing_recalculate_basis
+                WHEN @post_billing THEN o.billing_post_basis
                 WHEN @setup_water THEN o.water_setup_basis
                 WHEN @recognize_water THEN o.water_recognition_basis
                 WHEN @publish_topology THEN o.topology_publication_basis
@@ -153,7 +157,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                         OR (@setup_water AND o.water_setup_basis IS NOT NULL)
                         OR (@recognize_water AND o.water_recognition_basis IS NOT NULL)))
                     OR (v.billing_enabled AND o.can_read_billing AND
-                        (@read_billing OR (@post_billing AND o.billing_post_basis IS NOT NULL))))
+                        (@read_billing OR (@post_billing AND o.billing_post_basis IS NOT NULL)
+                            OR (@recalculate AND o.billing_recalculate_basis IS NOT NULL))))
             FOR SHARE OF a, s, o, v;
             """, connection, transaction);
         authorization.Parameters.AddWithValue("digest", digest);
@@ -176,7 +181,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
         authorization.Parameters.AddWithValue("recognize_water", recognizeWater);
         authorization.Parameters.AddWithValue("read_billing", permission == RegisterPermission.ReadBilling);
         authorization.Parameters.AddWithValue("post_billing", postBilling);
-        var writing = adding || writingDraft || submitting || approving || correcting || electricityWrite || waterWrite || postBilling;
+        authorization.Parameters.AddWithValue("recalculate", recalculate);
+        var writing = adding || writingDraft || submitting || approving || correcting || electricityWrite || waterWrite || postBilling || recalculate;
         RegisterActor actor;
         await using (var reader = await authorization.ExecuteReaderAsync(token))
         {
@@ -236,6 +242,12 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                 SELECT @id, @community, @account, @subject, @starts, @ends, @plan_digest, @basis
                 FROM platform_provisioning.platform_session
                 WHERE token_digest = @digest AND expires_at > clock_timestamp();
+                """ : recalculate ? """
+                INSERT INTO platform_provisioning.recalculation_admission
+                    (id, community_id, account_id, subject_id, accrual_id, digest, basis)
+                SELECT @id, @community, @account, @subject, @accrual, @plan_digest, @basis
+                FROM platform_provisioning.platform_session
+                WHERE token_digest = @digest AND expires_at > clock_timestamp();
                 """ : """
                 INSERT INTO platform_provisioning.register_import_admission
                     (id, community_id, account_id, subject_id, draft_id, revision, plan_id, action, basis)
@@ -247,7 +259,7 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
             admit.Parameters.AddWithValue("community", community);
             admit.Parameters.AddWithValue("account", actor.AccountId);
             admit.Parameters.AddWithValue("subject", actor.SubjectId);
-            if (adding || correcting || electricityWrite || waterWrite || postBilling)
+            if (adding || correcting || electricityWrite || waterWrite || postBilling || recalculate)
             {
                 admit.Parameters.AddWithValue("basis", actor.AdditionBasis!);
             }
@@ -281,6 +293,11 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                 admit.Parameters.AddWithValue("starts", billing!.From);
                 admit.Parameters.AddWithValue("ends", billing.Until);
                 admit.Parameters.AddWithValue("plan_digest", billing.Digest);
+            }
+            if (recalculate)
+            {
+                admit.Parameters.AddWithValue("accrual", recalculation!.AccrualId);
+                admit.Parameters.AddWithValue("plan_digest", recalculation.Digest);
             }
             if (submitting || approving)
             {

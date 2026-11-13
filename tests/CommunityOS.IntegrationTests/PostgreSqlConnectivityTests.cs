@@ -19,7 +19,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         foreach (var file in new[] { "001_manual_register.sql", "002_ownership_correction.sql",
                      "009_electricity_readings.sql", "010_electricity_replacement.sql",
                      "011_electricity_register_channels.sql", "012_common_electricity_points.sql", "013_meter_installation_details.sql",
-                     "017_regular_billing.sql" })
+                     "017_regular_billing.sql", "018_billing_recalculation.sql" })
         {
             await using var migration = source.CreateCommand(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token));
             await migration.ExecuteNonQueryAsync(token);
@@ -83,6 +83,45 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Equal(current.Digest, historical!.Digest);
         Assert.Equal(600m, historical.Snapshot.GetProperty("lines")[0].GetProperty("electricity").GetProperty("amountUah").GetDecimal());
         Assert.Null(await billing.HistoryAsync(foreign, period, token));
+        var accrual = Assert.Single(await billing.AccrualsAsync(community, historical.Id, token));
+        Assert.Empty(await billing.AccrualsAsync(foreign, historical.Id, token));
+        var proposal = await billing.PreviewRecalculationAsync(community, accrual.Id, "Synthetic increase", token);
+        Assert.Equal(120m, proposal.Plan!.Difference);
+        await using var rejectChange = source.CreateCommand("""
+            ALTER TABLE community_billing.recalculation ADD CONSTRAINT reject_change CHECK (false);
+            """);
+        await rejectChange.ExecuteNonQueryAsync(token);
+        await Assert.ThrowsAsync<PostgresException>(() => billing.ConfirmRecalculationAsync(community, accrual.Id,
+            "Synthetic increase", proposal.Digest!, Actor(), token));
+        var afterFailure = Assert.Single(await billing.AccrualsAsync(community, historical.Id, token));
+        Assert.Empty(afterFailure.Changes);
+        Assert.Equal(600m, afterFailure.EffectiveAmount);
+        await using var permitChange = source.CreateCommand("""
+            ALTER TABLE community_billing.recalculation DROP CONSTRAINT reject_change;
+            """);
+        await permitChange.ExecuteNonQueryAsync(token);
+        var attempts = await Task.WhenAll(
+            billing.ConfirmRecalculationAsync(community, accrual.Id, "Synthetic increase", proposal.Digest!, Actor(), token),
+            billing.ConfirmRecalculationAsync(community, accrual.Id, "Synthetic increase", proposal.Digest!, Actor(), token));
+        Assert.Contains(attempts, result => result.Outcome == "Applied");
+        Assert.Contains(attempts, result => result.Outcome == "Replayed");
+        Assert.Equal(attempts[0].Change!.Id, attempts[1].Change!.Id);
+        Assert.Equal("NotFound", (await billing.PreviewRecalculationAsync(foreign, accrual.Id, "Foreign", token)).Outcome);
+        var unchanged = await billing.PreviewRecalculationAsync(community, accrual.Id, "Synthetic check", token);
+        Assert.Equal("Unchanged", (await billing.ConfirmRecalculationAsync(community, accrual.Id, "Synthetic check",
+            unchanged.Digest!, Actor(), token)).Outcome);
+        var stale = await billing.PreviewRecalculationAsync(community, accrual.Id, "Synthetic reduction", token);
+        await change.ExecuteNonQueryAsync(token);
+        Assert.Equal("StalePreview", (await billing.ConfirmRecalculationAsync(community, accrual.Id, "Synthetic reduction",
+            stale.Digest!, Actor(), token)).Outcome);
+        var decrease = await billing.PreviewRecalculationAsync(community, accrual.Id, "Synthetic reduction", token);
+        Assert.Equal(-120m, decrease.Plan!.Difference);
+        Assert.Equal("Applied", (await billing.ConfirmRecalculationAsync(community, accrual.Id, "Synthetic reduction",
+            decrease.Digest!, Actor(), token)).Outcome);
+        var final = Assert.Single(await billing.AccrualsAsync(community, historical.Id, token));
+        Assert.Equal(600m, final.EffectiveAmount);
+        Assert.Equal(600m, final.OriginalAmount);
+        Assert.Equal(3, final.Changes.Count);
     }
 
     private const string PostgreSqlImage =
@@ -708,7 +747,8 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "009_register_access.sql", "010_register_import_preparation.sql", "011_register_import_approval.sql",
                      "012_ownership_correction_access.sql", "013_electricity_access.sql", "014_electricity_replacement_access.sql",
                      "015_electricity_register_admission.sql", "016_common_electricity_access.sql",
-                     "017_electricity_topology_access.sql", "018_water_access.sql", "019_billing_access.sql" })
+                     "017_electricity_topology_access.sql", "018_water_access.sql", "019_billing_access.sql",
+                     "020_recalculation_access.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -797,12 +837,25 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                 return admitted.AdditionBasis == "synthetic billing" && await committed.ExecuteScalarAsync(token) is 1L;
             }, false, token, billing: billingTarget);
         Assert.False(await TryPostBilling(community));
+        Task<bool> TryRecalculate() => access.WithAccessAsync(session, community, RegisterPermission.RecalculateBilling,
+            _ => Task.FromResult(true), false, token, recalculation: new(Guid.NewGuid(), billingTarget.Digest));
+        Assert.False(await TryRecalculate());
         await using var billingGrant = source.CreateCommand("""
             UPDATE platform_provisioning.register_availability SET billing_enabled = true;
             UPDATE platform_provisioning.register_operator SET can_read_billing = true, billing_post_basis = 'synthetic billing';
             """);
         await billingGrant.ExecuteNonQueryAsync(token);
         Assert.True(await TryPostBilling(community));
+        await using var recalculateGrant = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator SET billing_recalculate_basis = 'synthetic recalculation';
+            """);
+        await recalculateGrant.ExecuteNonQueryAsync(token);
+        Assert.True(await TryRecalculate());
+        await using var recalculateRevoke = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator SET billing_recalculate_basis = NULL;
+            """);
+        await recalculateRevoke.ExecuteNonQueryAsync(token);
+        Assert.False(await TryRecalculate());
         Assert.False(await TryPostBilling(Guid.NewGuid()));
         await using var billingRevocation = source.CreateCommand("""
             UPDATE platform_provisioning.register_operator SET billing_post_basis = NULL;

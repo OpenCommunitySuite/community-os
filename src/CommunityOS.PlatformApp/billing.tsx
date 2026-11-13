@@ -1,7 +1,8 @@
 import { FormEvent, useState } from 'react';
+import { Recalculation } from './billing-recalculation';
 
 type Period = { from: string; until: string; calculatedOn: string; dueOn: string };
-type Register = { channel: string; startValue: number; endValue: number; consumption: number; rate: number; amount: number };
+export type Register = { channel: string; startValue: number; endValue: number; consumption: number; rate: number; amount: number };
 type Line = { accountId: string; accountNumber: string; status: string;
   electricity: { installationId: string; multiplier: number; tariff: { id: string; basis: string; from: string; until: string | null };
     registers: Register[]; amountUah: number } | null;
@@ -10,7 +11,7 @@ type Plan = { period: Period; lines: Line[]; ready: boolean };
 type Preview = { plan: Plan; digest: string };
 type Posted = { id: string; snapshot: Plan; accountId: string; postedAt: string };
 
-const labels: Record<string, string> = {
+export const labels: Record<string, string> = {
   Ready: 'Готово', MissingBoundary: 'Бракує граничних показань або змінився лічильник',
   MissingInstallation: 'Немає однозначної установки', MissingTariff: 'Немає тарифу',
   AmbiguousTariff: 'Кілька чинних тарифів', TariffChanges: 'Тариф змінюється в межах періоду',
@@ -20,9 +21,9 @@ const labels: Record<string, string> = {
   PeriodAlreadyPosted: 'Цей період уже проведено.', Incomplete: 'Розрахунок містить неповні рядки.',
   total: 'Загальний', day: 'День', night: 'Ніч',
 };
-const money = new Intl.NumberFormat('uk-UA', { style: 'currency', currency: 'UAH' });
+export const money = new Intl.NumberFormat('uk-UA', { style: 'currency', currency: 'UAH' });
 
-export function Billing({ community, canPost }: { community: string; canPost: boolean }) {
+export function Billing({ community, canPost, canRecalculate }: { community: string; canPost: boolean; canRecalculate: boolean }) {
   const endpoint = '/community/billing/' + community;
   const [preview, setPreview] = useState<Preview>();
   const [posted, setPosted] = useState<Posted>();
@@ -86,6 +87,7 @@ export function Billing({ community, canPost }: { community: string; canPost: bo
       </fieldset>
     </form>
     {posted && <p>Проведено {new Date(posted.postedAt).toLocaleString('uk-UA')}. Ідентифікатор {posted.id}.</p>}
+    {posted && <Recalculation key={posted.id} endpoint={endpoint} period={posted.id} canConfirm={canRecalculate} />}
     {plan && <>
       <p>{plan.period.from} — {plan.period.until}. Розрахунок {plan.period.calculatedOn}, сплатити до {plan.period.dueOn}.</p>
       <p>Підсумок електроенергії округлюється до копійок після сумування регістрів.</p>

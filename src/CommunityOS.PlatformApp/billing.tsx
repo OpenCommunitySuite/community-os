@@ -89,6 +89,7 @@ export function Billing({ community, canPost, canRecalculate }: { community: str
     </form>
     {posted && <p>Проведено {new Date(posted.postedAt).toLocaleString('uk-UA')}. Ідентифікатор {posted.id}.</p>}
     {posted && <Recalculation key={posted.id} endpoint={endpoint} period={posted.id} canConfirm={canRecalculate}
+      from={posted.snapshot.period.from} until={posted.snapshot.period.until}
       fees={posted.snapshot.lines.flatMap(line => line.fee ? [{ account: line.accountNumber, amount: line.fee.amountUah }] : [])} />}
     {plan && <>
       <p>{plan.period.from} — {plan.period.until}. Розрахунок {plan.period.calculatedOn}, сплатити до {plan.period.dueOn}.</p>

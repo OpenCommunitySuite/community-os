@@ -4,6 +4,7 @@ import { Reallocation, type TransferLine } from './reallocation';
 import { PaymentCorrection } from './payment-correction';
 import { Overpayment } from './overpayment';
 import { AdvanceForm } from './advance';
+import { PaymentSummary } from './payment-summary';
 
 type Line = { obligationId: string; amount: number };
 type Allocation = { requestId: string; paymentId: string; reason: string; lines: Line[] };
@@ -92,6 +93,7 @@ export function Payments({ community, canRecord, canAllocate, canAcceptCash, can
   return <section aria-labelledby="payments-heading">
     <h2 id="payments-heading">Платежі та розподіл</h2>
     <button disabled={busy} onClick={() => void run(refresh)}>Завантажити платежі та зобов’язання</button>
+    {desk && <PaymentSummary payments={desk.payments} />}
     {desk && <details>
       <summary>Реєстр заборгованості</summary>
       <p>Поточні залишки станом на {today} за датою Києва.</p>

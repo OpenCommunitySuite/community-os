@@ -6,6 +6,7 @@ import { Overpayment } from './overpayment';
 import { AdvanceForm } from './advance';
 import { PaymentSummary } from './payment-summary';
 import { AccountStatement, debtKinds } from './account-statement';
+import { csvAmount, csvText, downloadCsv } from './report-csv';
 
 type Line = { obligationId: string; amount: number };
 type Allocation = { requestId: string; paymentId: string; reason: string; lines: Line[] };
@@ -62,6 +63,22 @@ export function Payments({ community, communityName, canRecord, canAllocate, can
   const debtTotal = debtRows.reduce((sum, item) => sum + Math.round(item.outstanding * 100), 0);
   const overdueTotal = debtRows.reduce((sum, item) => sum + (item.dueOn < today ? Math.round(item.outstanding * 100) : 0), 0);
   const payerNames = new Map(desk?.payers.map(payer => [payer.id, payer.name]));
+  const debtStatus = (item: Obligation) => item.dueOn < today ? 'Прострочено' : 'Строк не минув';
+
+  function downloadDebts() {
+    const date = csvText(today);
+    const row = (account: string, kind: string, dueOn: string, status: string, amount: number, overdue: number) =>
+      [date, ...[account, kind, dueOn, status].map(csvText), csvAmount(amount), csvAmount(overdue)].join(';');
+    downloadCsv(`debts-${today}.csv`, [
+      'Дата звірки за Києвом;Рахунок;Вид;Строк оплати;Стан;Залишок (грн);Прострочено (грн)',
+      ...debtRows.map(item => {
+        const amount = Math.round(item.outstanding * 100);
+        return row(item.account, debtKinds[item.kind] ?? item.kind, item.dueOn, debtStatus(item),
+          amount, item.dueOn < today ? amount : 0);
+      }),
+      row('', 'Усього', '', '', debtTotal, overdueTotal),
+    ]);
+  }
 
   async function request(path: string, body?: object) {
     const headers: Record<string, string> = {};
@@ -101,6 +118,7 @@ export function Payments({ community, communityName, canRecord, canAllocate, can
       <p>Поточні залишки станом на {today} за датою Києва.</p>
       <label>Пошук за номером рахунку <input value={debtAccount} onChange={event => setDebtAccount(event.target.value)} /></label>{' '}
       <label><input type="checkbox" checked={overdueOnly} onChange={event => setOverdueOnly(event.target.checked)} /> Лише прострочені</label>
+      <button type="button" disabled={busy} onClick={downloadDebts}>Завантажити заборгованість CSV</button>
       <dl>
         <dt>Заборгованість за вибіркою</dt><dd>{money.format(debtTotal / 100)}</dd>
         <dt>Прострочено за вибіркою</dt><dd>{money.format(overdueTotal / 100)}</dd>
@@ -113,7 +131,7 @@ export function Payments({ community, communityName, canRecord, canAllocate, can
             <td>{item.account}</td><td>{payerNames.get(item.payerId)}</td>
             <td>{debtKinds[item.kind] ?? item.kind}</td>
             <td>{item.dueOn}</td><td>{money.format(item.outstanding)}</td>
-            <td>{item.dueOn < today ? 'Прострочено' : 'Строк не минув'}</td>
+            <td>{debtStatus(item)}</td>
           </tr>)}</tbody>
         </table>}
     </details>}

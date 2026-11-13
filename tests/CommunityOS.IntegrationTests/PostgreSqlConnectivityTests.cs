@@ -21,7 +21,8 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "011_electricity_register_channels.sql", "012_common_electricity_points.sql", "013_meter_installation_details.sql",
                      "017_regular_billing.sql", "018_billing_recalculation.sql", "019_one_off_accrual.sql",
                      "020_manual_payment.sql", "021_cash_acceptance.sql", "022_bank_statement.sql", "023_bank_dbf.sql",
-                     "024_payment_reallocation.sql", "025_payment_correction.sql", "026_overpayment_recognition.sql" })
+                     "024_payment_reallocation.sql", "025_payment_correction.sql", "026_overpayment_recognition.sql",
+                     "027_member_fee_advance.sql" })
         {
             await using var migration = source.CreateCommand(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token));
             await migration.ExecuteNonQueryAsync(token);
@@ -398,6 +399,61 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
             .Single(item => item.GetProperty("id").GetGuid() == electricityObligation).GetProperty("excessApplied").GetDecimal());
         Assert.Equal(25m, settled.GetProperty("payments").EnumerateArray()
             .Single(item => item.GetProperty("id").GetGuid() == extraPayment.RequestId).GetProperty("available").GetDecimal());
+
+        var advancePayment = payment with { RequestId = Guid.NewGuid() };
+        Assert.Equal("Recorded", (await billing.RecordPaymentAsync(community, advancePayment, Actor(), token)).Outcome);
+        var reserve = new AdvanceInput(Guid.NewGuid(), advancePayment.RequestId, null, 200m, "Synthetic future dues");
+        var reservePlan = await billing.PreviewAdvanceAsync(community, reserve, token);
+        Assert.Equal("Ready", reservePlan.Outcome);
+        Assert.Equal("NotFound", (await billing.PreviewAdvanceAsync(foreign, reserve, token)).Outcome);
+        Assert.Equal("Reserved", (await billing.ConfirmAdvanceAsync(community, reserve, reservePlan.Digest!, Actor(), token)).Outcome);
+        Assert.Equal("Replayed", (await billing.ConfirmAdvanceAsync(community, reserve, reservePlan.Digest!, Actor(), token)).Outcome);
+        Assert.Equal("NotFound", (await billing.PreviewAdvanceAsync(community,
+            new(Guid.NewGuid(), reserve.RequestId, electricityObligation, 10m, "Wrong kind"), token)).Outcome);
+
+        // Prepare a later posted membership obligation for the same payer.
+        var fee = Guid.NewGuid();
+        await using var laterPeriod = source.CreateCommand("""
+            INSERT INTO community_billing.posted_period
+                (community_id,id,starts_on,ends_on,calculated_on,due_on,digest,snapshot,admission_id,account_id,subject_id,basis)
+            VALUES (@community,@fee,'2030-01-01','2030-02-01','2030-02-01','2030-02-15',repeat('A',64),'{}',@fee,@fee,@fee,'synthetic');
+            INSERT INTO community_billing.accrual (community_id,id,period_id,personal_account_id,debtor_id,kind,amount_uah)
+            SELECT @community,@fee,@fee,a.personal_account_id,@payer,'member-fee',150
+            FROM community_billing.accrual a WHERE (a.community_id,a.debtor_id)=(@community,@payer) LIMIT 1;
+            INSERT INTO community_billing.obligation (community_id,id,accrual_id) VALUES (@community,@fee,@fee);
+            """);
+        laterPeriod.Parameters.AddWithValue("community", community);
+        laterPeriod.Parameters.AddWithValue("fee", fee);
+        laterPeriod.Parameters.AddWithValue("payer", payer);
+        await laterPeriod.ExecuteNonQueryAsync(token);
+        var apply = new AdvanceInput(Guid.NewGuid(), reserve.RequestId, fee, 150m, "Synthetic application");
+        var applyPlan = await billing.PreviewAdvanceAsync(community, apply, token);
+        Assert.Equal((200m, (decimal?)150m), (applyPlan.Available, applyPlan.Outstanding));
+        await using var rejectAdvance = source.CreateCommand("""
+            ALTER TABLE community_billing.member_fee_advance_application ADD CONSTRAINT reject_advance CHECK (false);
+            """);
+        await rejectAdvance.ExecuteNonQueryAsync(token);
+        await Assert.ThrowsAsync<PostgresException>(() =>
+            billing.ConfirmAdvanceAsync(community, apply, applyPlan.Digest!, Actor(), token));
+        Assert.Equal(applyPlan, await billing.PreviewAdvanceAsync(community, apply, token));
+        await using var allowAdvance = source.CreateCommand("""
+            ALTER TABLE community_billing.member_fee_advance_application DROP CONSTRAINT reject_advance;
+            """);
+        await allowAdvance.ExecuteNonQueryAsync(token);
+        var rivalApplication = apply with { RequestId = Guid.NewGuid() };
+        var rivalApplicationPlan = await billing.PreviewAdvanceAsync(community, rivalApplication, token);
+        var applicationRace = await Task.WhenAll(
+            billing.ConfirmAdvanceAsync(community, apply, applyPlan.Digest!, Actor(), token),
+            billing.ConfirmAdvanceAsync(community, rivalApplication, rivalApplicationPlan.Digest!, Actor(), token));
+        Assert.Single(applicationRace, item => item.Outcome == "Applied");
+        Assert.Single(applicationRace, item => item.Outcome == "StalePreview");
+        var balances = await billing.PaymentDeskAsync(community, token);
+        var paymentRow = balances.GetProperty("payments").EnumerateArray()
+            .Single(item => item.GetProperty("id").GetGuid() == advancePayment.RequestId);
+        Assert.Equal(100m, paymentRow.GetProperty("available").GetDecimal());
+        Assert.Equal(50m, Assert.Single(paymentRow.GetProperty("advances").EnumerateArray()).GetProperty("available").GetDecimal());
+        Assert.Equal(0m, balances.GetProperty("obligations").EnumerateArray()
+            .Single(item => item.GetProperty("id").GetGuid() == fee).GetProperty("outstanding").GetDecimal());
     }
 
     private const string PostgreSqlImage =
@@ -1026,7 +1082,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "017_electricity_topology_access.sql", "018_water_access.sql", "019_billing_access.sql",
                      "020_recalculation_access.sql", "021_one_off_access.sql", "022_payment_access.sql",
                      "023_cash_acceptance_access.sql", "024_bank_statement_access.sql", "025_reallocation_access.sql",
-                     "026_payment_correction_access.sql", "027_overpayment_access.sql" })
+                     "026_payment_correction_access.sql", "027_overpayment_access.sql", "028_member_fee_advance_access.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);

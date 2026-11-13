@@ -44,6 +44,8 @@ public sealed partial class PostgresBillingStore
                 EXISTS (SELECT 1 FROM community_billing.cash_acceptance c WHERE (c.community_id,c.payment_id)=(p.community_id,p.id))
                     OR EXISTS (SELECT 1 FROM community_billing.bank_payment b WHERE (b.community_id,b.payment_id)=(p.community_id,p.id)),
                 EXISTS (SELECT 1 FROM community_billing.allocation_batch a WHERE (a.community_id,a.payment_id)=(p.community_id,p.id))
+                    OR EXISTS (SELECT 1 FROM community_billing.member_fee_advance a
+                        WHERE (a.community_id,a.payment_id)=(p.community_id,p.id))
             FROM community_billing.payment p JOIN community_billing.payment_remainder r USING (community_id,id)
             WHERE p.community_id=@community AND p.id=@payment;
             """);

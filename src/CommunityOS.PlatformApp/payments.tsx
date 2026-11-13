@@ -3,6 +3,7 @@ import { money } from './billing';
 import { Reallocation, type TransferLine } from './reallocation';
 import { PaymentCorrection } from './payment-correction';
 import { Overpayment } from './overpayment';
+import { AdvanceForm } from './advance';
 
 type Line = { obligationId: string; amount: number };
 type Allocation = { requestId: string; paymentId: string; reason: string; lines: Line[] };
@@ -10,6 +11,7 @@ type Receipt = { requestId: string; payerId: string; receivedOn: string; amount:
 type Entry = { id: string; reason: string; author: string; recordedAt: string };
 type Payment = Entry & { payerId: string; receivedOn: string; amount: number; available: number;
   originalAmount: number; corrections: (Entry & { prior: number; amount: number })[];
+  advances: (Entry & { amount: number; available: number; applications: (Entry & { amount: number; obligationId: string })[] })[];
   bankTransactionId: string | null;
   cashAcceptance: { id: string; paymentId: string; acceptedOn: string; amount: number; cashier: string; recordedAt: string; reason: string } | null;
   effectiveLines: TransferLine[];
@@ -32,9 +34,10 @@ const errors: Record<string, string> = {
 const value = (input: FormDataEntryValue | null) => Number(String(input ?? '').trim().replace(',', '.'));
 const when = (date: string) => new Date(date).toLocaleString('uk-UA');
 
-export function Payments({ community, canRecord, canAllocate, canAcceptCash, canReallocate, canCorrect, canRecognizeOverpayment }: {
+export function Payments({ community, canRecord, canAllocate, canAcceptCash, canReallocate, canCorrect, canRecognizeOverpayment, canManageAdvance }: {
   community: string; canRecord: boolean; canAllocate: boolean; canAcceptCash: boolean; canReallocate: boolean; canCorrect: boolean;
   canRecognizeOverpayment: boolean;
+  canManageAdvance: boolean;
 }) {
   const base = '/community/billing/' + community + '/payments';
   const [desk, setDesk] = useState<Desk>();
@@ -159,7 +162,7 @@ export function Payments({ community, canRecord, canAllocate, canAcceptCash, can
     </select></label>}
     {payment && <div key={payment.id}>
       <p>Початкова сума {money.format(payment.originalAmount)} · Чинна сума {money.format(payment.amount)}</p>
-      {canCorrect && !payment.bankTransactionId && !payment.cashAcceptance && payment.allocations.length === 0 &&
+      {canCorrect && !payment.bankTransactionId && !payment.cashAcceptance && payment.allocations.length === 0 && payment.advances.length === 0 &&
         <PaymentCorrection paymentId={payment.id} post={request} refresh={refresh} />}
       {payment.corrections.length > 0 && <ul aria-label="Історія виправлень платежу">
         {payment.corrections.map(entry => <li key={entry.id}>
@@ -175,6 +178,16 @@ export function Payments({ community, canRecord, canAllocate, canAcceptCash, can
         </li>)}
       </ul>}
       <p>Нерозподілений залишок {money.format(payment.available)}</p>
+      {canManageAdvance && payment.available > 0 && <AdvanceForm sourceId={payment.id} post={request} refresh={refresh} />}
+      {payment.advances.map(advance => <details key={advance.id}>
+        <summary>Аванс на членські внески · залишок {money.format(advance.available)}</summary>
+        <p>{money.format(advance.amount)} · {advance.reason} · Автор {advance.author} · {when(advance.recordedAt)}</p>
+        {advance.applications.map(item => <p key={item.id}>
+          {money.format(item.amount)} · {item.obligationId} · {item.reason} · Автор {item.author} · {when(item.recordedAt)}
+        </p>)}
+        {canManageAdvance && advance.available > 0 && <AdvanceForm sourceId={advance.id} post={request} refresh={refresh}
+          targets={obligations.filter(item => item.kind === 'member-fee')} />}
+      </details>)}
       <p>{payment.reason} · Автор {payment.author} · {when(payment.recordedAt)}</p>
       {payment.bankTransactionId && <p>Банківська операція {payment.bankTransactionId} · Платіж {payment.id}</p>}
       {payment.cashAcceptance && <p>Прийом готівки {payment.cashAcceptance.id} · Платіж {payment.id} ·

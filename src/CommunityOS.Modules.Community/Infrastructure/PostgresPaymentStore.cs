@@ -100,6 +100,8 @@ public sealed partial class PostgresBillingStore
                     'payments', coalesce((SELECT jsonb_agg(jsonb_build_object('id',p.id,'payerId',p.payer_id,
                         'receivedOn',p.received_on,'amount',p.amount_uah,'available',r.available_uah,'reason',p.reason,
                         'author',p.account_id,'recordedAt',p.recorded_at,
+                        'bankTransactionId',(SELECT b.bank_transaction_id FROM community_billing.bank_payment b
+                            WHERE (b.community_id,b.payment_id)=(p.community_id,p.id)),
                         'cashAcceptance',(SELECT jsonb_build_object('id',c.id,'paymentId',c.payment_id,'payerId',c.payer_id,
                             'acceptedOn',c.accepted_on,'amount',c.amount_uah,'reason',c.reason,
                             'cashier',c.cashier_account_id,'recordedAt',c.recorded_at)

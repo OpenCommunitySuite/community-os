@@ -20,7 +20,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "009_electricity_readings.sql", "010_electricity_replacement.sql",
                      "011_electricity_register_channels.sql", "012_common_electricity_points.sql", "013_meter_installation_details.sql",
                      "017_regular_billing.sql", "018_billing_recalculation.sql", "019_one_off_accrual.sql",
-                     "020_manual_payment.sql", "021_cash_acceptance.sql" })
+                     "020_manual_payment.sql", "021_cash_acceptance.sql", "022_bank_statement.sql" })
         {
             await using var migration = source.CreateCommand(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token));
             await migration.ExecuteNonQueryAsync(token);
@@ -183,6 +183,46 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Equal("RequestConflict", (await billing.RecordPaymentAsync(community, cash, Actor(), token)).Outcome);
         Assert.Equal("RequestConflict", (await billing.AcceptCashAsync(community, cash with { Amount = 301m }, Actor(), token)).Outcome);
         var desk = await billing.PaymentDeskAsync(community, token);
+        var bank = Guid.NewGuid();
+        await using var seedBank = source.CreateCommand("""
+            INSERT INTO community_billing.bank_account VALUES (@community,@bank,'Synthetic bank','fixture');
+            """);
+        seedBank.Parameters.AddWithValue("community", community);
+        seedBank.Parameters.AddWithValue("bank", bank);
+        await seedBank.ExecuteNonQueryAsync(token);
+        BankStatementCsv Statement(string rows) => BankStatementCsv.Parse(System.Text.Encoding.UTF8.GetBytes(
+            "external_id,booked_on,direction,amount,currency\n" + rows));
+        var csv = Statement("B-1,2026-02-01,incoming,300,UAH\nB-2,2026-02-02,outgoing,2,UAH");
+        var bankPlan = await billing.PreviewBankAsync(community, bank, csv, token);
+        Assert.Equal("Ready", bankPlan.Outcome);
+        Assert.Equal("NotFound", (await billing.PreviewBankAsync(foreign, bank, csv, token)).Outcome);
+        Assert.Equal("InvalidRows", (await billing.PreviewBankAsync(community, bank,
+            Statement("B-1,2026-02-01,incoming,300,UAH\ninvalid"), token)).Outcome);
+        await using var rejectBank = source.CreateCommand("""
+            ALTER TABLE community_billing.bank_transaction ADD CHECK (external_id <> 'B-2');
+            """);
+        await rejectBank.ExecuteNonQueryAsync(token);
+        await Assert.ThrowsAsync<PostgresException>(() => billing.ImportBankAsync(community, bank, csv, bankPlan.Digest!, Actor(), token));
+        Assert.Equal(0, (await billing.BankDeskAsync(community, token)).GetProperty("transactions").GetArrayLength());
+        await using var allowBank = source.CreateCommand("""
+            ALTER TABLE community_billing.bank_transaction DROP CONSTRAINT bank_transaction_external_id_check;
+            """);
+        await allowBank.ExecuteNonQueryAsync(token);
+        var imports = await Task.WhenAll(billing.ImportBankAsync(community, bank, csv, bankPlan.Digest!, Actor(), token),
+            billing.ImportBankAsync(community, bank, csv, bankPlan.Digest!, Actor(), token));
+        Assert.All(imports, result => Assert.Equal("Imported", result.Outcome));
+        var bankRows = (await billing.BankDeskAsync(community, token)).GetProperty("transactions");
+        Assert.Equal(2, bankRows.GetArrayLength());
+        Assert.All(bankRows.EnumerateArray(), item => Assert.Equal(System.Text.Json.JsonValueKind.Null, item.GetProperty("paymentId").ValueKind));
+        var conflictBank = await billing.PreviewBankAsync(community, bank, Statement("B-1,2026-02-01,incoming,301,UAH"), token);
+        Assert.Equal("Conflict", Assert.Single(conflictBank.Rows).Status);
+        var bankId = bankRows.EnumerateArray().Single(item => item.GetProperty("externalId").GetString() == "B-1").GetProperty("id").GetGuid();
+        var recognition = new BankRecognition(bankId, payer, "Synthetic match");
+        var recognitionAttempts = await Task.WhenAll(billing.RecognizeBankPaymentAsync(community, recognition, Actor(), token),
+            billing.RecognizeBankPaymentAsync(community, recognition, Actor(), token));
+        Assert.Contains(recognitionAttempts, result => result.Outcome == "Recognized");
+        Assert.Contains(recognitionAttempts, result => result.Outcome == "Replayed");
+        Assert.Equal("Unavailable", (await billing.RecognizeBankPaymentAsync(foreign, recognition, Actor(), token)).Outcome);
         var cashRow = desk.GetProperty("payments").EnumerateArray().Single(item => item.GetProperty("id").GetGuid() == cash.RequestId);
         Assert.Equal(300m, cashRow.GetProperty("available").GetDecimal());
         Assert.Equal(cash.RequestId, cashRow.GetProperty("cashAcceptance").GetProperty("paymentId").GetGuid());
@@ -850,7 +890,8 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "012_ownership_correction_access.sql", "013_electricity_access.sql", "014_electricity_replacement_access.sql",
                      "015_electricity_register_admission.sql", "016_common_electricity_access.sql",
                      "017_electricity_topology_access.sql", "018_water_access.sql", "019_billing_access.sql",
-                     "020_recalculation_access.sql", "021_one_off_access.sql", "022_payment_access.sql", "023_cash_acceptance_access.sql" })
+                     "020_recalculation_access.sql", "021_one_off_access.sql", "022_payment_access.sql",
+                     "023_cash_acceptance_access.sql", "024_bank_statement_access.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);

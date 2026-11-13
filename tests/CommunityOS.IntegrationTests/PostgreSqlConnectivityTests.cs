@@ -21,7 +21,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "011_electricity_register_channels.sql", "012_common_electricity_points.sql", "013_meter_installation_details.sql",
                      "017_regular_billing.sql", "018_billing_recalculation.sql", "019_one_off_accrual.sql",
                      "020_manual_payment.sql", "021_cash_acceptance.sql", "022_bank_statement.sql", "023_bank_dbf.sql",
-                     "024_payment_reallocation.sql" })
+                     "024_payment_reallocation.sql", "025_payment_correction.sql" })
         {
             await using var migration = source.CreateCommand(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token));
             await migration.ExecuteNonQueryAsync(token);
@@ -304,6 +304,49 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
             .Single(item => item.GetProperty("id").GetGuid() == payment.RequestId);
         Assert.Equal(75m, currentPayment.GetProperty("available").GetDecimal());
         Assert.Equal(2, currentPayment.GetProperty("reallocations").GetArrayLength());
+        var manual = payment with { RequestId = Guid.NewGuid() };
+        Assert.Equal("Recorded", (await billing.RecordPaymentAsync(community, manual, Actor(), token)).Outcome);
+        var correction = new PaymentCorrectionInput(Guid.NewGuid(), manual.RequestId, 280m, "Synthetic correction");
+        var correctionPlan = await billing.PreviewPaymentCorrectionAsync(community, correction, token);
+        Assert.Equal((300m, 300m, 280m, -20m, 280m),
+            (correctionPlan.Original, correctionPlan.Current, correctionPlan.Corrected, correctionPlan.Difference, correctionPlan.Available));
+        Assert.Equal("NotFound", (await billing.PreviewPaymentCorrectionAsync(foreign, correction, token)).Outcome);
+        Assert.Equal("UnsupportedChannel", (await billing.PreviewPaymentCorrectionAsync(community, correction with
+            { PaymentId = cash.RequestId }, token)).Outcome);
+        Assert.Equal("UnsupportedChannel", (await billing.PreviewPaymentCorrectionAsync(community, correction with
+            { PaymentId = bankId }, token)).Outcome);
+        Assert.Equal("AllocatedPayment", (await billing.PreviewPaymentCorrectionAsync(community, correction with
+            { PaymentId = payment.RequestId }, token)).Outcome);
+        Assert.Equal("Unchanged", (await billing.PreviewPaymentCorrectionAsync(community, correction with { Amount = 300m }, token)).Outcome);
+        await using var denyCorrection = source.CreateCommand("""
+            ALTER TABLE community_billing.payment_correction ADD CONSTRAINT deny_correction CHECK (false);
+            """);
+        await denyCorrection.ExecuteNonQueryAsync(token);
+        await Assert.ThrowsAsync<PostgresException>(() => billing.CorrectPaymentAsync(community, correction, correctionPlan.Digest!, Actor(), token));
+        Assert.Equal(correctionPlan, await billing.PreviewPaymentCorrectionAsync(community, correction, token));
+        await using var allowCorrection = source.CreateCommand("""
+            ALTER TABLE community_billing.payment_correction DROP CONSTRAINT deny_correction;
+            """);
+        await allowCorrection.ExecuteNonQueryAsync(token);
+        var competingCorrection = correction with { RequestId = Guid.NewGuid() };
+        var competingCorrectionPlan = await billing.PreviewPaymentCorrectionAsync(community, competingCorrection, token);
+        var corrections = await Task.WhenAll(billing.CorrectPaymentAsync(community, correction, correctionPlan.Digest!, Actor(), token),
+            billing.CorrectPaymentAsync(community, competingCorrection, competingCorrectionPlan.Digest!, Actor(), token));
+        Assert.Contains(corrections, result => result.Outcome == "Corrected");
+        Assert.Contains(corrections, result => result.Outcome == "StalePreview");
+        var fixedPayment = corrections[0].Id is not null ? (correction, correctionPlan) : (competingCorrection, competingCorrectionPlan);
+        Assert.Equal("Replayed", (await billing.CorrectPaymentAsync(community, fixedPayment.Item1, fixedPayment.Item2.Digest!, Actor(), token)).Outcome);
+        Assert.Equal("RequestConflict", (await billing.CorrectPaymentAsync(community, fixedPayment.Item1 with { Amount = 281m },
+            fixedPayment.Item2.Digest!, Actor(), token)).Outcome);
+        var newCorrection = correction with { RequestId = Guid.NewGuid(), Amount = 270m };
+        var newPlan = await billing.PreviewPaymentCorrectionAsync(community, newCorrection, token);
+        var splitManual = allocation with { RequestId = Guid.NewGuid(), PaymentId = manual.RequestId, Lines = [new(obligation, 10m)] };
+        var splitManualPlan = await billing.PreviewAllocationAsync(community, splitManual, token);
+        Assert.Equal(280m, splitManualPlan.Before);
+        var racing = await Task.WhenAll(billing.CorrectPaymentAsync(community, newCorrection, newPlan.Digest!, Actor(), token),
+            billing.AllocateAsync(community, splitManual, splitManualPlan.Digest!, Actor(), token));
+        Assert.Single(racing, result => result.Id is not null);
+        Assert.Contains(racing, result => result.Outcome == "StalePreview");
     }
 
     private const string PostgreSqlImage =
@@ -931,7 +974,8 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "015_electricity_register_admission.sql", "016_common_electricity_access.sql",
                      "017_electricity_topology_access.sql", "018_water_access.sql", "019_billing_access.sql",
                      "020_recalculation_access.sql", "021_one_off_access.sql", "022_payment_access.sql",
-                     "023_cash_acceptance_access.sql", "024_bank_statement_access.sql", "025_reallocation_access.sql" })
+                     "023_cash_acceptance_access.sql", "024_bank_statement_access.sql", "025_reallocation_access.sql",
+                     "026_payment_correction_access.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -1039,6 +1083,18 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.True(await TryPayment(RegisterPermission.RecordPayment, community));
         Assert.False(await TryPayment(RegisterPermission.AllocatePayment, community));
         Assert.False(await TryPayment(RegisterPermission.ReallocatePayment, community));
+        Assert.False(await TryPayment(RegisterPermission.CorrectPayment, community));
+        await using var grantCorrection = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator SET payment_correct_basis = 'Synthetic payment correction';
+            """);
+        await grantCorrection.ExecuteNonQueryAsync(token);
+        Assert.True(await TryPayment(RegisterPermission.CorrectPayment, community));
+        Assert.False(await TryPayment(RegisterPermission.CorrectPayment, Guid.NewGuid()));
+        await using var revokeCorrection = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator SET payment_correct_basis = NULL;
+            """);
+        await revokeCorrection.ExecuteNonQueryAsync(token);
+        Assert.False(await TryPayment(RegisterPermission.CorrectPayment, community));
         await using var grantTransfer = source.CreateCommand("""
             UPDATE platform_provisioning.register_operator SET payment_reallocate_basis = 'Synthetic transfer';
             """);

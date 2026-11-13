@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { money } from './billing';
 import { Reallocation, type TransferLine } from './reallocation';
+import { PaymentCorrection } from './payment-correction';
 
 type Line = { obligationId: string; amount: number };
 type Allocation = { requestId: string; paymentId: string; reason: string; lines: Line[] };
 type Receipt = { requestId: string; payerId: string; receivedOn: string; amount: number; reason: string };
 type Entry = { id: string; reason: string; author: string; recordedAt: string };
 type Payment = Entry & { payerId: string; receivedOn: string; amount: number; available: number;
+  originalAmount: number; corrections: (Entry & { prior: number; amount: number })[];
   bankTransactionId: string | null;
   cashAcceptance: { id: string; paymentId: string; acceptedOn: string; amount: number; cashier: string; recordedAt: string; reason: string } | null;
   effectiveLines: TransferLine[];
@@ -28,8 +30,8 @@ const errors: Record<string, string> = {
 const value = (input: FormDataEntryValue | null) => Number(String(input ?? '').trim().replace(',', '.'));
 const when = (date: string) => new Date(date).toLocaleString('uk-UA');
 
-export function Payments({ community, canRecord, canAllocate, canAcceptCash, canReallocate }: {
-  community: string; canRecord: boolean; canAllocate: boolean; canAcceptCash: boolean; canReallocate: boolean;
+export function Payments({ community, canRecord, canAllocate, canAcceptCash, canReallocate, canCorrect }: {
+  community: string; canRecord: boolean; canAllocate: boolean; canAcceptCash: boolean; canReallocate: boolean; canCorrect: boolean;
 }) {
   const base = '/community/billing/' + community + '/payments';
   const [desk, setDesk] = useState<Desk>();
@@ -109,6 +111,14 @@ export function Payments({ community, canRecord, canAllocate, canAcceptCash, can
       </option>)}
     </select></label>}
     {payment && <div key={payment.id}>
+      <p>Початкова сума {money.format(payment.originalAmount)} · Чинна сума {money.format(payment.amount)}</p>
+      {canCorrect && !payment.bankTransactionId && !payment.cashAcceptance && payment.allocations.length === 0 &&
+        <PaymentCorrection paymentId={payment.id} post={request} refresh={refresh} />}
+      {payment.corrections.length > 0 && <ul aria-label="Історія виправлень платежу">
+        {payment.corrections.map(entry => <li key={entry.id}>
+          {money.format(entry.prior)} → {money.format(entry.amount)} · {entry.reason} · Автор {entry.author} · {when(entry.recordedAt)}
+        </li>)}
+      </ul>}
       <Reallocation paymentId={payment.id} lines={payment.effectiveLines} targets={obligations} canConfirm={canReallocate}
         post={request} refresh={refresh} />
       {payment.reallocations.length > 0 && <ul aria-label="Історія перерозподілів">

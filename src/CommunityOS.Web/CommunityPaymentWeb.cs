@@ -7,6 +7,20 @@ internal static class CommunityPaymentWeb
     {
         var routes = billing.MapGroup("/payments");
         MapReallocation(routes, access, store);
+        routes.MapPost("/correction/preview", (Guid community, PaymentCorrectionInput input, HttpContext http, CancellationToken token) =>
+            NormalizeCorrection(input) is { } valid
+                ? access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
+                    async _ => Results.Ok(await store.PreviewPaymentCorrectionAsync(community, valid, token)), Results.StatusCode(403), token)
+                : Task.FromResult(Invalid()));
+        routes.MapPost("/correction/confirm", (Guid community, CorrectionConfirmation confirmation, HttpContext http, CancellationToken token) =>
+        {
+            if (NormalizeCorrection(confirmation.Input) is not { } input || confirmation.Digest is not { Length: 64 } digest ||
+                !digest.All(c => c is >= '0' and <= '9' or >= 'A' and <= 'F'))
+                return Task.FromResult(Invalid());
+            return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.CorrectPayment,
+                async actor => Response(await store.CorrectPaymentAsync(community, input, digest, CommunityElectricityWeb.Actor(actor), token)),
+                Results.StatusCode(403), token, payment: new(input.RequestId, digest));
+        });
         routes.MapGet("/", (Guid community, HttpContext http, CancellationToken token) =>
             access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
                 async _ => Results.Ok(await store.PaymentDeskAsync(community, token)), Results.StatusCode(403), token));
@@ -90,4 +104,10 @@ internal static class CommunityPaymentWeb
         ? input with { Reason = reason } : null;
 
     private sealed record TransferConfirmation(ReallocationInput? Input, string? Digest);
+
+    private static PaymentCorrectionInput? NormalizeCorrection(PaymentCorrectionInput? input) =>
+        input is not null && input.RequestId != Guid.Empty && input.PaymentId != Guid.Empty &&
+        Amount(input.Amount) && Reason(input.Reason) is { } reason ? input with { Reason = reason } : null;
+
+    private sealed record CorrectionConfirmation(PaymentCorrectionInput? Input, string? Digest);
 }

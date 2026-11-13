@@ -6,6 +6,7 @@ internal static class CommunityPaymentWeb
     public static void Map(RouteGroupBuilder billing, RegisterAccessStore access, PostgresBillingStore store)
     {
         var routes = billing.MapGroup("/payments");
+        MapReallocation(routes, access, store);
         routes.MapGet("/", (Guid community, HttpContext http, CancellationToken token) =>
             access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
                 async _ => Results.Ok(await store.PaymentDeskAsync(community, token)), Results.StatusCode(403), token));
@@ -63,4 +64,30 @@ internal static class CommunityPaymentWeb
     private static IResult Response(PaymentResult result) => result.Id is not null ? Results.Ok(result) :
         result.Outcome == "NotFound" ? Results.NotFound(result) : Results.Conflict(result);
     private sealed record Confirmation(AllocationInput? Input, string? Digest);
+
+    private static void MapReallocation(RouteGroupBuilder routes, RegisterAccessStore access, PostgresBillingStore store)
+    {
+        routes.MapPost("/reallocation/preview", (Guid community, ReallocationInput input, HttpContext http, CancellationToken token) =>
+            NormalizeTransfer(input) is { } valid
+                ? access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
+                    async _ => Results.Ok(await store.PreviewReallocationAsync(community, valid, token)), Results.StatusCode(403), token)
+                : Task.FromResult(Invalid()));
+        routes.MapPost("/reallocation/confirm", (Guid community, TransferConfirmation confirmation, HttpContext http, CancellationToken token) =>
+        {
+            if (NormalizeTransfer(confirmation.Input) is not { } input || confirmation.Digest is not { Length: 64 } digest ||
+                !digest.All(c => c is >= '0' and <= '9' or >= 'A' and <= 'F'))
+                return Task.FromResult(Invalid());
+            return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReallocatePayment,
+                async actor => Response(await store.ReallocateAsync(community, input, digest, CommunityElectricityWeb.Actor(actor), token)),
+                Results.StatusCode(403), token, payment: new(input.RequestId, digest));
+        });
+    }
+
+    private static ReallocationInput? NormalizeTransfer(ReallocationInput? input) =>
+        input is not null && input.RequestId != Guid.Empty && input.PaymentId != Guid.Empty &&
+        input.SourceBatchId != Guid.Empty && input.SourceObligationId != Guid.Empty && input.TargetObligationId != Guid.Empty &&
+        input.SourceObligationId != input.TargetObligationId && Amount(input.Amount) && Reason(input.Reason) is { } reason
+        ? input with { Reason = reason } : null;
+
+    private sealed record TransferConfirmation(ReallocationInput? Input, string? Digest);
 }

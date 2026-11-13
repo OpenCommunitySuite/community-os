@@ -25,8 +25,8 @@ function Details({ plan }: { plan: Plan }) {
   </>;
 }
 
-export function Recalculation({ endpoint, period, canConfirm, fees }: {
-  endpoint: string; period: string; canConfirm: boolean; fees: { account: string; amount: number }[];
+export function Recalculation({ endpoint, period, canConfirm, fees, from, until }: {
+  endpoint: string; period: string; canConfirm: boolean; fees: { account: string; amount: number }[]; from: string; until: string;
 }) {
   const [loadedAccruals, setAccruals] = useState<Accrual[]>();
   const accruals = loadedAccruals ?? [];
@@ -71,7 +71,7 @@ export function Recalculation({ endpoint, period, canConfirm, fees }: {
   }
 
   return <>
-    {loadedAccruals && <AccrualSummary electricity={loadedAccruals} fees={fees} />}
+    {loadedAccruals && <AccrualSummary electricity={loadedAccruals} fees={fees} from={from} until={until} />}
     <section aria-labelledby="recalculation-heading">
     <h3 id="recalculation-heading">Перерахунок електроенергії</h3>
     <label>Нарахування за рахунком <select value={selected} disabled={busy} onChange={event => {

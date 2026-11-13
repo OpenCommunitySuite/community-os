@@ -1,5 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { Recalculation } from './billing-recalculation';
+import { PeriodReconciliation } from './period-reconciliation';
 
 type Period = { from: string; until: string; calculatedOn: string; dueOn: string };
 export type Register = { channel: string; startValue: number; endValue: number; consumption: number; rate: number; amount: number };
@@ -88,6 +89,7 @@ export function Billing({ community, canPost, canRecalculate }: { community: str
       </fieldset>
     </form>
     {posted && <p>Проведено {new Date(posted.postedAt).toLocaleString('uk-UA')}. Ідентифікатор {posted.id}.</p>}
+    {posted && <PeriodReconciliation key={'reconciliation:' + posted.id} endpoint={endpoint + '/periods/' + posted.id + '/reconciliation'} />}
     {posted && <Recalculation key={posted.id} endpoint={endpoint} period={posted.id} canConfirm={canRecalculate}
       from={posted.snapshot.period.from} until={posted.snapshot.period.until}
       fees={posted.snapshot.lines.flatMap(line => line.fee ? [{ account: line.accountNumber, amount: line.fee.amountUah }] : [])} />}

@@ -10,6 +10,10 @@ internal static class CommunityBillingWeb
         CommunityOneOffWeb.Map(billing, access, store);
         CommunityPaymentWeb.Map(billing, access, store);
         CommunityBankWeb.Map(billing, access, store);
+        billing.MapGet("/periods/{period:guid}/reconciliation", (Guid community, Guid period, HttpContext http, CancellationToken token) =>
+            access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
+                async _ => await store.ReconcilePeriodAsync(community, period, token) is { } lines
+                    ? Results.Ok(lines) : Results.NotFound(), Results.StatusCode(403), token));
         billing.MapGet("/preview", (Guid community, DateOnly from, DateOnly until, DateOnly calculatedOn, DateOnly dueOn,
             HttpContext http, CancellationToken token) =>
         {

@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { money } from './billing';
 
-type Input = { requestId: string; sourceId: string; obligationId: string | null; amount: number; reason: string };
+type Input = { requestId: string; sourceId: string; obligationId: string | null; amount: number; reason: string; release: boolean };
 type Preview = { outcome: string; digest: string; available: number; outstanding: number | null };
 
-export function AdvanceForm({ sourceId, targets, post, refresh }: {
+export function AdvanceForm({ sourceId, targets, post, refresh, release = false }: {
   sourceId: string; targets?: { id: string; account: string; outstanding: number }[];
+  release?: boolean;
   post: (path: string, body: object) => Promise<unknown>; refresh: () => Promise<void>;
 }) {
   const [draft, setDraft] = useState<{ input: Input; preview: Preview }>();
@@ -22,11 +23,11 @@ export function AdvanceForm({ sourceId, targets, post, refresh }: {
   }
 
   return <details>
-    <summary>{applying ? 'Застосувати аванс' : 'Визнати аванс на членські внески'}</summary>
+    <summary>{release ? 'Зняти невикористаний резерв' : applying ? 'Застосувати аванс' : 'Визнати аванс на членські внески'}</summary>
     <form onChange={() => setDraft(undefined)} onSubmit={event => {
       event.preventDefault();
       const fields = new FormData(event.currentTarget);
-      const input = { requestId: crypto.randomUUID(), sourceId, obligationId: applying ? String(fields.get('obligation')) : null,
+      const input = { requestId: crypto.randomUUID(), sourceId, release, obligationId: applying ? String(fields.get('obligation')) : null,
         amount: Number(String(fields.get('amount')).replace(',', '.')), reason: String(fields.get('reason')) };
       setDraft(undefined);
       void run(async () => {
@@ -49,11 +50,12 @@ export function AdvanceForm({ sourceId, targets, post, refresh }: {
     {draft && <>
       <p>Залишок {money.format(draft.preview.available)} → {money.format(draft.preview.available - draft.input.amount)}
         {draft.preview.outstanding !== null && <> · Залишок внеску {money.format(draft.preview.outstanding - draft.input.amount)}</>}</p>
+      {release && <p>Нерозподілений залишок платежу збільшиться на {money.format(draft.input.amount)}.</p>}
       <button type="button" disabled={busy} onClick={() => void run(async () => {
         await post('/advance/confirm', { input: draft.input, digest: draft.preview.digest });
         setDraft(undefined);
         await refresh();
-        setMessage(applying ? 'Аванс застосовано.' : 'Аванс визнано.');
+        setMessage(release ? 'Резерв знято.' : applying ? 'Аванс застосовано.' : 'Аванс визнано.');
       })}>Підтвердити операцію з авансом</button>
     </>}
     <p role="status">{message}</p>

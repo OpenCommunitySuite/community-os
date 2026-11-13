@@ -11,7 +11,8 @@ type Receipt = { requestId: string; payerId: string; receivedOn: string; amount:
 type Entry = { id: string; reason: string; author: string; recordedAt: string };
 type Payment = Entry & { payerId: string; receivedOn: string; amount: number; available: number;
   originalAmount: number; corrections: (Entry & { prior: number; amount: number })[];
-  advances: (Entry & { amount: number; available: number; applications: (Entry & { amount: number; obligationId: string })[] })[];
+  advances: (Entry & { amount: number; available: number; applications: (Entry & { amount: number; obligationId: string })[];
+    releases: (Entry & { amount: number })[] })[];
   bankTransactionId: string | null;
   cashAcceptance: { id: string; paymentId: string; acceptedOn: string; amount: number; cashier: string; recordedAt: string; reason: string } | null;
   effectiveLines: TransferLine[];
@@ -185,8 +186,12 @@ export function Payments({ community, canRecord, canAllocate, canAcceptCash, can
         {advance.applications.map(item => <p key={item.id}>
           {money.format(item.amount)} · {item.obligationId} · {item.reason} · Автор {item.author} · {when(item.recordedAt)}
         </p>)}
+        {advance.releases.map(item => <p key={item.id}>
+          Знято з резерву {money.format(item.amount)} · {item.reason} · Автор {item.author} · {when(item.recordedAt)}
+        </p>)}
         {canManageAdvance && advance.available > 0 && <AdvanceForm sourceId={advance.id} post={request} refresh={refresh}
           targets={obligations.filter(item => item.kind === 'member-fee')} />}
+        {canManageAdvance && advance.available > 0 && <AdvanceForm sourceId={advance.id} post={request} refresh={refresh} release />}
       </details>)}
       <p>{payment.reason} · Автор {payment.author} · {when(payment.recordedAt)}</p>
       {payment.bankTransactionId && <p>Банківська операція {payment.bankTransactionId} · Платіж {payment.id}</p>}

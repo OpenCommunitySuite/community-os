@@ -22,7 +22,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "017_regular_billing.sql", "018_billing_recalculation.sql", "019_one_off_accrual.sql",
                      "020_manual_payment.sql", "021_cash_acceptance.sql", "022_bank_statement.sql", "023_bank_dbf.sql",
                      "024_payment_reallocation.sql", "025_payment_correction.sql", "026_overpayment_recognition.sql",
-                     "027_member_fee_advance.sql" })
+                     "027_member_fee_advance.sql", "028_member_fee_advance_release.sql" })
         {
             await using var migration = source.CreateCommand(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token));
             await migration.ExecuteNonQueryAsync(token);
@@ -429,6 +429,8 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         var apply = new AdvanceInput(Guid.NewGuid(), reserve.RequestId, fee, 150m, "Synthetic application");
         var applyPlan = await billing.PreviewAdvanceAsync(community, apply, token);
         Assert.Equal((200m, (decimal?)150m), (applyPlan.Available, applyPlan.Outstanding));
+        var release = new AdvanceInput(Guid.NewGuid(), reserve.RequestId, null, 50m, "Synthetic change of purpose", Release: true);
+        var earlyReleasePlan = await billing.PreviewAdvanceAsync(community, release, token);
         await using var rejectAdvance = source.CreateCommand("""
             ALTER TABLE community_billing.member_fee_advance_application ADD CONSTRAINT reject_advance CHECK (false);
             """);
@@ -454,6 +456,48 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Equal(50m, Assert.Single(paymentRow.GetProperty("advances").EnumerateArray()).GetProperty("available").GetDecimal());
         Assert.Equal(0m, balances.GetProperty("obligations").EnumerateArray()
             .Single(item => item.GetProperty("id").GetGuid() == fee).GetProperty("outstanding").GetDecimal());
+        Assert.Equal("StalePreview", (await billing.ConfirmAdvanceAsync(community, release, earlyReleasePlan.Digest!, Actor(), token)).Outcome);
+        Assert.Equal("NotFound", (await billing.PreviewAdvanceAsync(foreign, release, token)).Outcome);
+        Assert.Equal("AmountExceeded", (await billing.PreviewAdvanceAsync(community, release with { Amount = 51m }, token)).Outcome);
+        var releasePlan = await billing.PreviewAdvanceAsync(community, release, token);
+        var rivalRelease = release with { RequestId = Guid.NewGuid() };
+        var rivalReleasePlan = await billing.PreviewAdvanceAsync(community, rivalRelease, token);
+        var releaseRace = await Task.WhenAll(
+            billing.ConfirmAdvanceAsync(community, release, releasePlan.Digest!, Actor(), token),
+            billing.ConfirmAdvanceAsync(community, rivalRelease, rivalReleasePlan.Digest!, Actor(), token));
+        Assert.Single(releaseRace, item => item.Outcome == "Released");
+        Assert.Single(releaseRace, item => item.Outcome == "StalePreview");
+        var released = releaseRace[0].Id == release.RequestId ? (release, releasePlan) : (rivalRelease, rivalReleasePlan);
+        Assert.Equal("Replayed", (await billing.ConfirmAdvanceAsync(community, released.Item1, released.Item2.Digest!, Actor(), token)).Outcome);
+        var finalDesk = await billing.PaymentDeskAsync(community, token);
+        var finalPayment = finalDesk.GetProperty("payments").EnumerateArray()
+            .Single(item => item.GetProperty("id").GetGuid() == advancePayment.RequestId);
+        Assert.Equal(150m, finalPayment.GetProperty("available").GetDecimal());
+        var finalAdvance = Assert.Single(finalPayment.GetProperty("advances").EnumerateArray());
+        Assert.Equal(0m, finalAdvance.GetProperty("available").GetDecimal());
+        Assert.Equal(50m, Assert.Single(finalAdvance.GetProperty("releases").EnumerateArray()).GetProperty("amount").GetDecimal());
+        Assert.Equal(0m, finalDesk.GetProperty("obligations").EnumerateArray()
+            .Single(item => item.GetProperty("id").GetGuid() == fee).GetProperty("outstanding").GetDecimal());
+
+        var secondReserve = reserve with { RequestId = Guid.NewGuid(), Amount = 150m };
+        var secondReservePlan = await billing.PreviewAdvanceAsync(community, secondReserve, token);
+        Assert.Equal("Reserved", (await billing.ConfirmAdvanceAsync(community, secondReserve,
+            secondReservePlan.Digest!, Actor(), token)).Outcome);
+        var secondFee = Guid.NewGuid();
+        laterPeriod.CommandText = laterPeriod.CommandText.Replace("2030-", "2031-");
+        laterPeriod.Parameters["fee"].Value = secondFee;
+        await laterPeriod.ExecuteNonQueryAsync(token);
+        var applyAll = apply with { RequestId = Guid.NewGuid(), SourceId = secondReserve.RequestId, ObligationId = secondFee };
+        var releaseSome = release with { RequestId = Guid.NewGuid(), SourceId = secondReserve.RequestId };
+        var applyAllPlan = await billing.PreviewAdvanceAsync(community, applyAll, token);
+        var releaseSomePlan = await billing.PreviewAdvanceAsync(community, releaseSome, token);
+        Assert.Equal("Ready", applyAllPlan.Outcome);
+        Assert.Equal("Ready", releaseSomePlan.Outcome);
+        var mixedRace = await Task.WhenAll(
+            billing.ConfirmAdvanceAsync(community, applyAll, applyAllPlan.Digest!, Actor(), token),
+            billing.ConfirmAdvanceAsync(community, releaseSome, releaseSomePlan.Digest!, Actor(), token));
+        Assert.Single(mixedRace, item => item.Outcome is "Applied" or "Released");
+        Assert.Single(mixedRace, item => item.Outcome == "StalePreview");
     }
 
     private const string PostgreSqlImage =

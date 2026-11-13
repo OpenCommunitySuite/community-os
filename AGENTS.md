@@ -69,6 +69,7 @@ Mandatory workflow rules:
 8. Pull requests normally target main.
 9. Use a concise PR title and body explaining what changed and why.
 10. Creating or updating a PR never implies permission to merge it.
+    After explicit merge authorization, use one GitHub query to verify the PR state, target branch, mergeability, head commit and CI results together (for example, `gh pr view <number> --json state,baseRefName,mergeable,headRefOid,statusCheckRollup`). Confirm the head matches the commit previously verified and the required checks passed. Merge with `--match-head-commit` using that SHA. Reuse successful results for the same commit without repeating the status query or rerunning checks when nothing relevant has changed.
 11. If Git or GitHub authentication is unavailable, report the exact failure.
 12. Do not install tools, modify system credentials, ACLs or GitHub authentication automatically.
 13. Never place passwords, access tokens, private keys, secrets or credentials into:

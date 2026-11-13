@@ -22,6 +22,7 @@ internal static class CommunityRegisterWeb
         CommunityImportApprovalWeb.Map(routes, access, new PostgresImportApprovalStore(database));
         CommunityElectricityWeb.Map(routes, access, new PostgresElectricityStore(database));
         CommunityWaterWeb.Map(routes, access, new PostgresWaterStore(database));
+        CommunityBillingWeb.Map(routes, access, new PostgresBillingStore(database));
         MapCorrections(routes, access, new PostgresOwnershipCorrectionStore(database));
         var index = Path.GetFullPath(Path.Combine(frontend, "community.html"));
         var script = Path.GetFullPath(Path.Combine(frontend, "community.js"));

@@ -277,7 +277,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         var beforePayment = await billing.PreviewRecalculationAsync(community, accrual.Id, "Before allocation", token);
         var regularPreview = await billing.PreviewAllocationAsync(community, regularAllocation, token);
         Assert.Equal("Allocated", (await billing.AllocateAsync(community, regularAllocation, regularPreview.Digest!, Actor(), token)).Outcome);
-        Assert.Equal("AllocatedObligation", (await billing.PreviewRecalculationAsync(community, accrual.Id, "After allocation", token)).Outcome);
+        Assert.Equal(25m, (await billing.PreviewRecalculationAsync(community, accrual.Id, "After allocation", token)).Plan!.AppliedAmount);
         Assert.Equal("StalePreview", (await billing.ConfirmRecalculationAsync(community, accrual.Id,
             "Before allocation", beforePayment.Digest!, Actor(), token)).Outcome);
         var transfer = new ReallocationInput(Guid.NewGuid(), payment.RequestId, winner.Item1.RequestId, false,
@@ -353,6 +353,32 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
             billing.AllocateAsync(community, splitManual, splitManualPlan.Digest!, Actor(), token));
         Assert.Single(racing, result => result.Id is not null);
         Assert.Contains(racing, result => result.Outcome == "StalePreview");
+        var extraPayment = payment with { RequestId = Guid.NewGuid(), Amount = 500m };
+        Assert.Equal("Recorded", (await billing.RecordPaymentAsync(community, extraPayment, Actor(), token)).Outcome);
+        var extraAllocation = new AllocationInput(Guid.NewGuid(), extraPayment.RequestId, "Synthetic paid accrual",
+            [new(electricityObligation, 475m)]);
+        var extraPlan = await billing.PreviewAllocationAsync(community, extraAllocation, token);
+        Assert.Equal("Allocated", (await billing.AllocateAsync(community, extraAllocation, extraPlan.Digest!, Actor(), token)).Outcome);
+        await using var reduceRate = source.CreateCommand("""UPDATE community_billing.tariff SET rates = '{"total":4}';""");
+        await reduceRate.ExecuteNonQueryAsync(token);
+        var paidPlan = await billing.PreviewRecalculationAsync(community, accrual.Id, "Synthetic decrease after payment", token);
+        Assert.Equal((500m, 0m, 20m), (paidPlan.Plan!.AppliedAmount, paidPlan.Plan.ExcessBefore, paidPlan.Plan.ExcessAfter));
+        Assert.Equal("Applied", (await billing.ConfirmRecalculationAsync(community, accrual.Id, "Synthetic decrease after payment",
+            paidPlan.Digest!, Actor(), token)).Outcome);
+        var paidDesk = await billing.PaymentDeskAsync(community, token);
+        var paidObligation = paidDesk.GetProperty("obligations").EnumerateArray()
+            .Single(item => item.GetProperty("id").GetGuid() == electricityObligation);
+        Assert.Equal(0m, paidObligation.GetProperty("outstanding").GetDecimal());
+        Assert.Equal(20m, paidObligation.GetProperty("excessApplied").GetDecimal());
+        var moveExcess = new ReallocationInput(Guid.NewGuid(), extraPayment.RequestId, extraAllocation.RequestId, false,
+            electricityObligation, obligation, 20m, "Synthetic excess transfer");
+        var movePlan = await billing.PreviewReallocationAsync(community, moveExcess, token);
+        Assert.Equal("Reallocated", (await billing.ReallocateAsync(community, moveExcess, movePlan.Digest!, Actor(), token)).Outcome);
+        var settled = await billing.PaymentDeskAsync(community, token);
+        Assert.Equal(0m, settled.GetProperty("obligations").EnumerateArray()
+            .Single(item => item.GetProperty("id").GetGuid() == electricityObligation).GetProperty("excessApplied").GetDecimal());
+        Assert.Equal(25m, settled.GetProperty("payments").EnumerateArray()
+            .Single(item => item.GetProperty("id").GetGuid() == extraPayment.RequestId).GetProperty("available").GetDecimal());
     }
 
     private const string PostgreSqlImage =

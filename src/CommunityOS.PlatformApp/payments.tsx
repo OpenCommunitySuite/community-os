@@ -14,7 +14,7 @@ type Payment = Entry & { payerId: string; receivedOn: string; amount: number; av
   effectiveLines: TransferLine[];
   reallocations: (Entry & { sourceBatchId: string; sourceObligationId: string; targetObligationId: string; amount: number })[];
   allocations: (Entry & { lines: Line[] })[] };
-type Obligation = { id: string; payerId: string; account: string; kind: string; outstanding: number; dueOn: string };
+type Obligation = { id: string; payerId: string; account: string; kind: string; outstanding: number; excessApplied: number; dueOn: string };
 type Desk = { payers: { id: string; name: string }[]; payments: Payment[]; obligations: Obligation[] };
 type Preview = { outcome: string; digest: string; before: number; after: number;
   lines: (Line & { account: string; before: number; after: number })[] };
@@ -84,6 +84,7 @@ export function Payments({ community, canRecord, canAllocate, canAcceptCash, can
       </select></label>
       {balancePayer && (() => {
         const open = desk.obligations.filter(item => item.payerId === balancePayer && item.outstanding > 0);
+        const excess = desk.obligations.filter(item => item.payerId === balancePayer && item.excessApplied > 0);
         const unallocated = desk.payments.filter(item => item.payerId === balancePayer && item.available > 0);
         return <>
           <dl>
@@ -92,6 +93,9 @@ export function Payments({ community, canRecord, canAllocate, canAcceptCash, can
               sum + (item.dueOn < today ? item.outstanding : 0), 0))}</dd>
             <dt>Нерозподілені платежі</dt><dd>{money.format(unallocated.reduce((sum, item) => sum + item.available, 0))}</dd>
           </dl>
+          {excess.length > 0 && <ul aria-label="Надлишок застосованої оплати">{excess.map(item => <li key={item.id}>
+            {item.account} · {item.kind} · {money.format(item.excessApplied)}
+          </li>)}</ul>}
           <table><caption>Непогашені зобов’язання</caption><thead><tr><th>Рахунок</th><th>Вид</th><th>Строк оплати</th><th>Залишок</th></tr></thead>
             <tbody>{open.map(item => <tr key={item.id}><td>{item.account}</td><td>{item.kind}</td>
               <td>{item.dueOn}</td><td>{money.format(item.outstanding)}</td></tr>)}</tbody>

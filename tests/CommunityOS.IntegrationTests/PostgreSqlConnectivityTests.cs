@@ -19,7 +19,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         foreach (var file in new[] { "001_manual_register.sql", "002_ownership_correction.sql",
                      "009_electricity_readings.sql", "010_electricity_replacement.sql",
                      "011_electricity_register_channels.sql", "012_common_electricity_points.sql", "013_meter_installation_details.sql",
-                     "017_regular_billing.sql", "018_billing_recalculation.sql" })
+                     "017_regular_billing.sql", "018_billing_recalculation.sql", "019_one_off_accrual.sql" })
         {
             await using var migration = source.CreateCommand(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token));
             await migration.ExecuteNonQueryAsync(token);
@@ -56,7 +56,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Null(await billing.HistoryAsync(community, period, token));
         var current = await billing.PreviewAsync(community, period, token);
         await using var forceFailure = source.CreateCommand("""
-            ALTER TABLE community_billing.obligation ADD CONSTRAINT force_rollback CHECK (false);
+            ALTER TABLE community_billing.obligation ADD CONSTRAINT force_rollback CHECK (false) NOT VALID;
             """);
         await forceFailure.ExecuteNonQueryAsync(token);
         var rollback = await Assert.ThrowsAsync<PostgresException>(() => billing.PostAsync(community, period, current.Digest, Actor(), token));
@@ -122,6 +122,38 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Equal(600m, final.EffectiveAmount);
         Assert.Equal(600m, final.OriginalAmount);
         Assert.Equal(3, final.Changes.Count);
+        await register.CreateAsync(community, null, "Second owner", "02", "002", token);
+        var targets = await billing.OneOffAccountsAsync(community, token);
+        Assert.Equal(2, targets.Count);
+        var batch = new OneOffInput(Guid.NewGuid(), targets.Select(target => target.Id).ToArray(),
+            250m, "Synthetic fund", "Test decision", until);
+        Assert.False((await billing.PreviewOneOffAsync(foreign, batch, token)).Ready);
+        var previewBatch = await billing.PreviewOneOffAsync(community, batch, token);
+        Assert.Equal(500m, previewBatch.Total);
+        Assert.Empty(await billing.OneOffHistoryAsync(community, token));
+        await forceFailure.ExecuteNonQueryAsync(token);
+        await Assert.ThrowsAsync<PostgresException>(() => billing.PostOneOffAsync(community, batch, previewBatch.Digest, Actor(), token));
+        Assert.Empty(await billing.OneOffHistoryAsync(community, token));
+        await afterRollback.ExecuteScalarAsync(token);
+        var batchAttempts = await Task.WhenAll(billing.PostOneOffAsync(community, batch, previewBatch.Digest, Actor(), token),
+            billing.PostOneOffAsync(community, batch, previewBatch.Digest, Actor(), token));
+        Assert.Contains(batchAttempts, result => result.Outcome == "Posted");
+        Assert.Contains(batchAttempts, result => result.Outcome == "Replayed");
+        Assert.Equal("RequestConflict", (await billing.PostOneOffAsync(community, batch with { Amount = 251m },
+            previewBatch.Digest, Actor(), token)).Outcome);
+        Assert.Single(await billing.OneOffHistoryAsync(community, token));
+        Assert.Empty(await billing.OneOffHistoryAsync(foreign, token));
+        await using var oneOffRows = source.CreateCommand("""
+            SELECT o.amount_uah FROM community_billing.effective_obligation o
+            JOIN community_billing.accrual a ON (a.community_id,a.id)=(o.community_id,o.accrual_id)
+            WHERE a.kind='one-off';
+            """);
+        await using var amounts = await oneOffRows.ExecuteReaderAsync(token);
+        Assert.True(await amounts.ReadAsync(token));
+        Assert.Equal(250m, amounts.GetDecimal(0));
+        Assert.True(await amounts.ReadAsync(token));
+        Assert.Equal(250m, amounts.GetDecimal(0));
+        Assert.False(await amounts.ReadAsync(token));
     }
 
     private const string PostgreSqlImage =
@@ -748,7 +780,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "012_ownership_correction_access.sql", "013_electricity_access.sql", "014_electricity_replacement_access.sql",
                      "015_electricity_register_admission.sql", "016_common_electricity_access.sql",
                      "017_electricity_topology_access.sql", "018_water_access.sql", "019_billing_access.sql",
-                     "020_recalculation_access.sql" })
+                     "020_recalculation_access.sql", "021_one_off_access.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -846,6 +878,20 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
             """);
         await billingGrant.ExecuteNonQueryAsync(token);
         Assert.True(await TryPostBilling(community));
+        Task<bool> TryOneOff(Guid id) => access.WithAccessAsync(session, id, RegisterPermission.PostOneOff,
+            _ => Task.FromResult(true), false, token, oneOff: new(Guid.NewGuid(), billingTarget.Digest));
+        Assert.False(await TryOneOff(community));
+        await using var oneOffGrant = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator SET one_off_post_basis = 'synthetic one-off';
+            """);
+        await oneOffGrant.ExecuteNonQueryAsync(token);
+        Assert.True(await TryOneOff(community));
+        Assert.False(await TryOneOff(Guid.NewGuid()));
+        await using var oneOffRevoke = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator SET one_off_post_basis = NULL;
+            """);
+        await oneOffRevoke.ExecuteNonQueryAsync(token);
+        Assert.False(await TryOneOff(community));
         await using var recalculateGrant = source.CreateCommand("""
             UPDATE platform_provisioning.register_operator SET billing_recalculate_basis = 'synthetic recalculation';
             """);

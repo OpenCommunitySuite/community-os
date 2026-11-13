@@ -19,7 +19,8 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         foreach (var file in new[] { "001_manual_register.sql", "002_ownership_correction.sql",
                      "009_electricity_readings.sql", "010_electricity_replacement.sql",
                      "011_electricity_register_channels.sql", "012_common_electricity_points.sql", "013_meter_installation_details.sql",
-                     "017_regular_billing.sql", "018_billing_recalculation.sql", "019_one_off_accrual.sql", "020_manual_payment.sql" })
+                     "017_regular_billing.sql", "018_billing_recalculation.sql", "019_one_off_accrual.sql",
+                     "020_manual_payment.sql", "021_cash_acceptance.sql" })
         {
             await using var migration = source.CreateCommand(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token));
             await migration.ExecuteNonQueryAsync(token);
@@ -161,7 +162,30 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Equal("Recorded", (await billing.RecordPaymentAsync(community, payment, Actor(), token)).Outcome);
         Assert.Equal("Replayed", (await billing.RecordPaymentAsync(community, payment, Actor(), token)).Outcome);
         Assert.Equal("RequestConflict", (await billing.RecordPaymentAsync(community, payment with { Amount = 301m }, Actor(), token)).Outcome);
+        var cash = payment with { RequestId = Guid.NewGuid(), Reason = "Synthetic cash" };
+        Assert.Equal("NotFound", (await billing.AcceptCashAsync(foreign, cash, Actor(), token)).Outcome);
+        await using var rejectCash = source.CreateCommand("""
+            ALTER TABLE community_billing.cash_acceptance ADD CONSTRAINT reject_cash CHECK (false);
+            """);
+        await rejectCash.ExecuteNonQueryAsync(token);
+        await Assert.ThrowsAsync<PostgresException>(() => billing.AcceptCashAsync(community, cash, Actor(), token));
+        Assert.DoesNotContain((await billing.PaymentDeskAsync(community, token)).GetProperty("payments").EnumerateArray(),
+            item => item.GetProperty("id").GetGuid() == cash.RequestId);
+        await using var allowCash = source.CreateCommand("""
+            ALTER TABLE community_billing.cash_acceptance DROP CONSTRAINT reject_cash;
+            """);
+        await allowCash.ExecuteNonQueryAsync(token);
+        var cashAttempts = await Task.WhenAll(billing.AcceptCashAsync(community, cash, Actor(), token),
+            billing.AcceptCashAsync(community, cash, Actor(), token));
+        Assert.Contains(cashAttempts, result => result.Outcome == "Accepted");
+        Assert.Contains(cashAttempts, result => result.Outcome == "Replayed");
+        Assert.Equal(cashAttempts[0].Id, cashAttempts[1].Id);
+        Assert.Equal("RequestConflict", (await billing.RecordPaymentAsync(community, cash, Actor(), token)).Outcome);
+        Assert.Equal("RequestConflict", (await billing.AcceptCashAsync(community, cash with { Amount = 301m }, Actor(), token)).Outcome);
         var desk = await billing.PaymentDeskAsync(community, token);
+        var cashRow = desk.GetProperty("payments").EnumerateArray().Single(item => item.GetProperty("id").GetGuid() == cash.RequestId);
+        Assert.Equal(300m, cashRow.GetProperty("available").GetDecimal());
+        Assert.Equal(cash.RequestId, cashRow.GetProperty("cashAcceptance").GetProperty("paymentId").GetGuid());
         var obligation = desk.GetProperty("obligations").EnumerateArray().First(row =>
             row.GetProperty("payerId").GetGuid() == payer && row.GetProperty("kind").GetString() == "one-off").GetProperty("id").GetGuid();
         var allocation = new AllocationInput(Guid.NewGuid(), payment.RequestId, "Synthetic allocation", [new(obligation, 200m)]);
@@ -826,7 +850,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "012_ownership_correction_access.sql", "013_electricity_access.sql", "014_electricity_replacement_access.sql",
                      "015_electricity_register_admission.sql", "016_common_electricity_access.sql",
                      "017_electricity_topology_access.sql", "018_water_access.sql", "019_billing_access.sql",
-                     "020_recalculation_access.sql", "021_one_off_access.sql", "022_payment_access.sql" })
+                     "020_recalculation_access.sql", "021_one_off_access.sql", "022_payment_access.sql", "023_cash_acceptance_access.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -933,6 +957,19 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         await paymentGrant.ExecuteNonQueryAsync(token);
         Assert.True(await TryPayment(RegisterPermission.RecordPayment, community));
         Assert.False(await TryPayment(RegisterPermission.AllocatePayment, community));
+        Assert.False(await TryPayment(RegisterPermission.AcceptCash, community));
+        await using var grantCash = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator SET cash_acceptance_basis = 'synthetic cashier';
+            """);
+        await grantCash.ExecuteNonQueryAsync(token);
+        Assert.True(await TryPayment(RegisterPermission.AcceptCash, community));
+        Assert.False(await TryPayment(RegisterPermission.AcceptCash, Guid.NewGuid()));
+        Assert.False(await TryPayment(RegisterPermission.AllocatePayment, community));
+        await using var revokeCash = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator SET cash_acceptance_basis = NULL;
+            """);
+        await revokeCash.ExecuteNonQueryAsync(token);
+        Assert.False(await TryPayment(RegisterPermission.AcceptCash, community));
         Assert.False(await TryPayment(RegisterPermission.RecordPayment, Guid.NewGuid()));
         await using var allocationGrant = source.CreateCommand("""
             UPDATE platform_provisioning.register_operator

@@ -10,15 +10,24 @@ internal static class CommunityPaymentWeb
             access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
                 async _ => Results.Ok(await store.PaymentDeskAsync(community, token)), Results.StatusCode(403), token));
         routes.MapPost("/record", (Guid community, PaymentInput input, HttpContext http, CancellationToken token) =>
+            ReceiptAsync(community, input, http, token, false));
+        routes.MapPost("/accept-cash", (Guid community, PaymentInput input, HttpContext http, CancellationToken token) =>
+            ReceiptAsync(community, input, http, token, true));
+
+        Task<IResult> ReceiptAsync(Guid community, PaymentInput input, HttpContext http, CancellationToken token, bool cash)
         {
             if (input.RequestId == Guid.Empty || input.PayerId == Guid.Empty || input.ReceivedOn == default ||
                 input.ReceivedOn > CommunityElectricityWeb.Today() || !Amount(input.Amount) || Reason(input.Reason) is not { } reason)
                 return Task.FromResult<IResult>(Invalid());
             input = input with { Reason = reason };
-            return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.RecordPayment,
-                async actor => Response(await store.RecordPaymentAsync(community, input, CommunityElectricityWeb.Actor(actor), token)),
-                Results.StatusCode(403), token, payment: new(input.RequestId, PostgresBillingStore.PaymentDigest(community, input)));
-        });
+            var permission = cash ? RegisterPermission.AcceptCash : RegisterPermission.RecordPayment;
+            var digest = cash ? PostgresBillingStore.CashDigest(community, input) : PostgresBillingStore.PaymentDigest(community, input);
+            return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, permission,
+                async actor => Response(await (cash
+                    ? store.AcceptCashAsync(community, input, CommunityElectricityWeb.Actor(actor), token)
+                    : store.RecordPaymentAsync(community, input, CommunityElectricityWeb.Actor(actor), token))),
+                Results.StatusCode(403), token, payment: new(input.RequestId, digest));
+        }
         routes.MapPost("/preview", (Guid community, AllocationInput input, HttpContext http, CancellationToken token) =>
         {
             if (Normalize(input) is not { } valid) return Task.FromResult<IResult>(Invalid());

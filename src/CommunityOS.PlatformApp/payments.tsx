@@ -44,6 +44,8 @@ export function Payments({ community, canRecord, canAllocate, canAcceptCash, can
   const [desk, setDesk] = useState<Desk>();
   const [today, setToday] = useState('');
   const [balancePayer, setBalancePayer] = useState('');
+  const [debtAccount, setDebtAccount] = useState('');
+  const [overdueOnly, setOverdueOnly] = useState(false);
   const [selected, setSelected] = useState('');
   const [receipt, setReceipt] = useState<{ input: Receipt; cash: boolean }>();
   const [draft, setDraft] = useState<{ input: Allocation; preview: Preview }>();
@@ -51,6 +53,13 @@ export function Payments({ community, canRecord, canAllocate, canAcceptCash, can
   const [busy, setBusy] = useState(false);
   const payment = desk?.payments.find(item => item.id === selected);
   const obligations = desk?.obligations.filter(item => item.payerId === payment?.payerId && item.outstanding > 0) ?? [];
+  const openDebts = desk?.obligations.filter(item => item.outstanding > 0) ?? [];
+  const debtRows = openDebts.filter(item =>
+    item.account.toLocaleLowerCase('uk-UA').includes(debtAccount.trim().toLocaleLowerCase('uk-UA')) &&
+    (!overdueOnly || item.dueOn < today));
+  const debtTotal = debtRows.reduce((sum, item) => sum + Math.round(item.outstanding * 100), 0);
+  const overdueTotal = debtRows.reduce((sum, item) => sum + (item.dueOn < today ? Math.round(item.outstanding * 100) : 0), 0);
+  const payerNames = new Map(desk?.payers.map(payer => [payer.id, payer.name]));
 
   async function request(path: string, body?: object) {
     const headers: Record<string, string> = {};
@@ -83,6 +92,27 @@ export function Payments({ community, canRecord, canAllocate, canAcceptCash, can
   return <section aria-labelledby="payments-heading">
     <h2 id="payments-heading">Платежі та розподіл</h2>
     <button disabled={busy} onClick={() => void run(refresh)}>Завантажити платежі та зобов’язання</button>
+    {desk && <details>
+      <summary>Реєстр заборгованості</summary>
+      <p>Поточні залишки станом на {today} за датою Києва.</p>
+      <label>Пошук за номером рахунку <input value={debtAccount} onChange={event => setDebtAccount(event.target.value)} /></label>{' '}
+      <label><input type="checkbox" checked={overdueOnly} onChange={event => setOverdueOnly(event.target.checked)} /> Лише прострочені</label>
+      <dl>
+        <dt>Заборгованість за вибіркою</dt><dd>{money.format(debtTotal / 100)}</dd>
+        <dt>Прострочено за вибіркою</dt><dd>{money.format(overdueTotal / 100)}</dd>
+      </dl>
+      {debtRows.length === 0 ? <p>За вибраними умовами заборгованості немає.</p> :
+        <table>
+          <caption>Реєстр непогашених зобов’язань</caption>
+          <thead><tr><th>Рахунок</th><th>Платник</th><th>Вид</th><th>Строк оплати</th><th>Залишок</th><th>Стан</th></tr></thead>
+          <tbody>{debtRows.map(item => <tr key={item.id}>
+            <td>{item.account}</td><td>{payerNames.get(item.payerId)}</td>
+            <td>{({ electricity: 'Електроенергія', 'member-fee': 'Членський внесок', 'one-off': 'Разове нарахування' })[item.kind] ?? item.kind}</td>
+            <td>{item.dueOn}</td><td>{money.format(item.outstanding)}</td>
+            <td>{item.dueOn < today ? 'Прострочено' : 'Строк не минув'}</td>
+          </tr>)}</tbody>
+        </table>}
+    </details>}
     {desk && <details>
       <summary>Залишки розрахунків</summary>
       <label>Платник для звірки <select value={balancePayer} onChange={event => setBalancePayer(event.target.value)}>

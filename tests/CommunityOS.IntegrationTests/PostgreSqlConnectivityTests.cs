@@ -189,6 +189,17 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Equal("Replayed", (await billing.AllocateAsync(community, winner.Item1, winner.Item2.Digest!, Actor(), token)).Outcome);
         Assert.Equal("RequestConflict", (await billing.AllocateAsync(community, winner.Item1 with { Reason = "Changed" },
             winner.Item2.Digest!, Actor(), token)).Outcome);
+        Assert.Equal("ObligationExceeded", (await billing.PreviewAllocationAsync(community,
+            allocation with { Lines = [new(obligation, 51m)] }, token)).Outcome);
+        var electricityObligation = desk.GetProperty("obligations").EnumerateArray().Single(row =>
+            row.GetProperty("kind").GetString() == "electricity").GetProperty("id").GetGuid();
+        var regularAllocation = allocation with { RequestId = Guid.NewGuid(), Lines = [new(electricityObligation, 25m)] };
+        var beforePayment = await billing.PreviewRecalculationAsync(community, accrual.Id, "Before allocation", token);
+        var regularPreview = await billing.PreviewAllocationAsync(community, regularAllocation, token);
+        Assert.Equal("Allocated", (await billing.AllocateAsync(community, regularAllocation, regularPreview.Digest!, Actor(), token)).Outcome);
+        Assert.Equal("AllocatedObligation", (await billing.PreviewRecalculationAsync(community, accrual.Id, "After allocation", token)).Outcome);
+        Assert.Equal("StalePreview", (await billing.ConfirmRecalculationAsync(community, accrual.Id,
+            "Before allocation", beforePayment.Digest!, Actor(), token)).Outcome);
     }
 
     private const string PostgreSqlImage =

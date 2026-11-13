@@ -9,6 +9,7 @@ internal static class CommunityBillingWeb
         CommunityBillingRecalculationWeb.Map(billing, access, store);
         CommunityOneOffWeb.Map(billing, access, store);
         CommunityPaymentWeb.Map(billing, access, store);
+        CommunityBankWeb.Map(billing, access, store);
         billing.MapGet("/preview", (Guid community, DateOnly from, DateOnly until, DateOnly calculatedOn, DateOnly dueOn,
             HttpContext http, CancellationToken token) =>
         {

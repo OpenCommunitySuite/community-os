@@ -7,7 +7,7 @@ public sealed record RegisterCommunity(Guid Id, string Name, bool CanRead, bool 
     bool CanRecognizeElectricity, bool CanReplaceElectricity, bool CanSetupCommonElectricity,
     bool CanPublishElectricityTopology = false, bool CanReadWater = false, bool CanSetupWater = false,
     bool CanRecognizeWater = false, bool CanReadBilling = false, bool CanPostBilling = false, bool CanRecalculateBilling = false, bool CanPostOneOff = false,
-    bool CanRecordPayment = false, bool CanAllocatePayment = false, bool CanAcceptCash = false);
+    bool CanRecordPayment = false, bool CanAllocatePayment = false, bool CanAcceptCash = false, bool CanImportBank = false, bool CanRecognizeBank = false);
 public sealed record RegisterActor(Guid AccountId, Guid SubjectId, string? AdditionBasis, Guid AdmissionId);
 public sealed record RegisterImportTarget(Guid DraftId, int Revision, string PlanId);
 public sealed record OwnershipCorrectionTarget(Guid PlotId, Guid Revision, Guid OwnerId);
@@ -22,7 +22,7 @@ public enum RegisterPermission
 {
     Read, Add, PrepareImport, WriteImportDraft, ReadImportApproval, SubmitImport, ApproveImport,
     ReadCorrectionCandidates, CorrectOwnership, ReadElectricity, SetupElectricity, RecognizeElectricity, ReplaceElectricity,
-    SetupCommonElectricity, PublishElectricityTopology, ReadWater, SetupWater, RecognizeWater, ReadBilling, PostBilling, RecalculateBilling, PostOneOff, RecordPayment, AllocatePayment, AcceptCash
+    SetupCommonElectricity, PublishElectricityTopology, ReadWater, SetupWater, RecognizeWater, ReadBilling, PostBilling, RecalculateBilling, PostOneOff, RecordPayment, AllocatePayment, AcceptCash, ImportBank, RecognizeBank
 }
 
 public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
@@ -56,7 +56,9 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                 v.billing_enabled AND o.can_read_billing AND o.one_off_post_basis IS NOT NULL,
                 v.billing_enabled AND o.can_read_billing AND o.payment_record_basis IS NOT NULL,
                 v.billing_enabled AND o.can_read_billing AND o.payment_allocate_basis IS NOT NULL,
-                v.billing_enabled AND o.can_read_billing AND o.cash_acceptance_basis IS NOT NULL
+                v.billing_enabled AND o.can_read_billing AND o.cash_acceptance_basis IS NOT NULL,
+                v.billing_enabled AND o.can_read_billing AND o.bank_import_basis IS NOT NULL,
+                v.billing_enabled AND o.can_read_billing AND o.bank_recognition_basis IS NOT NULL
             FROM platform_provisioning.platform_session s
             JOIN platform_provisioning.platform_account a ON a.id = s.account_id
             LEFT JOIN (
@@ -88,7 +90,7 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                     reader.GetBoolean(4), reader.GetBoolean(5), reader.GetBoolean(6), reader.GetBoolean(7),
                     reader.GetBoolean(8), reader.GetBoolean(9), reader.GetBoolean(10), reader.GetBoolean(11), reader.GetBoolean(12),
                     reader.GetBoolean(13), reader.GetBoolean(14), reader.GetBoolean(15),
-                    reader.GetBoolean(16), reader.GetBoolean(17), reader.GetBoolean(18), reader.GetBoolean(19), reader.GetBoolean(20), reader.GetBoolean(21), reader.GetBoolean(22)));
+                    reader.GetBoolean(16), reader.GetBoolean(17), reader.GetBoolean(18), reader.GetBoolean(19), reader.GetBoolean(20), reader.GetBoolean(21), reader.GetBoolean(22), reader.GetBoolean(23), reader.GetBoolean(24)));
             }
         } while (await reader.ReadAsync(token));
 
@@ -125,7 +127,9 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
         var recordPayment = permission == RegisterPermission.RecordPayment;
         var allocatePayment = permission == RegisterPermission.AllocatePayment;
         var acceptCash = permission == RegisterPermission.AcceptCash;
-        var paymentWrite = recordPayment || allocatePayment || acceptCash;
+        var importBank = permission == RegisterPermission.ImportBank;
+        var recognizeBank = permission == RegisterPermission.RecognizeBank;
+        var paymentWrite = recordPayment || allocatePayment || acceptCash || importBank || recognizeBank;
         var postOneOff = permission == RegisterPermission.PostOneOff;
         var recalculate = permission == RegisterPermission.RecalculateBilling;
         if (((submitting || approving) && target is null) || (correcting && correction is null) ||
@@ -138,7 +142,9 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
         await using var connection = await dataSource.OpenConnectionAsync(token);
         await using var transaction = await connection.BeginTransactionAsync(token);
         await using var authorization = new NpgsqlCommand("""
-            SELECT a.id, o.subject_id, CASE WHEN @accept_cash THEN o.cash_acceptance_basis
+            SELECT a.id, o.subject_id, CASE WHEN @import_bank THEN o.bank_import_basis
+                WHEN @recognize_bank THEN o.bank_recognition_basis
+                WHEN @accept_cash THEN o.cash_acceptance_basis
                 WHEN @record_payment THEN o.payment_record_basis
                 WHEN @allocate_payment THEN o.payment_allocate_basis
                 WHEN @post_one_off THEN o.one_off_post_basis
@@ -178,7 +184,9 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                             OR (@post_one_off AND o.one_off_post_basis IS NOT NULL)
                             OR (@record_payment AND o.payment_record_basis IS NOT NULL)
                             OR (@allocate_payment AND o.payment_allocate_basis IS NOT NULL)
-                            OR (@accept_cash AND o.cash_acceptance_basis IS NOT NULL))))
+                            OR (@accept_cash AND o.cash_acceptance_basis IS NOT NULL)
+                            OR (@import_bank AND o.bank_import_basis IS NOT NULL)
+                            OR (@recognize_bank AND o.bank_recognition_basis IS NOT NULL))))
             FOR SHARE OF a, s, o, v;
             """, connection, transaction);
         authorization.Parameters.AddWithValue("digest", digest);
@@ -206,6 +214,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
         authorization.Parameters.AddWithValue("record_payment", recordPayment);
         authorization.Parameters.AddWithValue("allocate_payment", allocatePayment);
         authorization.Parameters.AddWithValue("accept_cash", acceptCash);
+        authorization.Parameters.AddWithValue("import_bank", importBank);
+        authorization.Parameters.AddWithValue("recognize_bank", recognizeBank);
         var writing = adding || writingDraft || submitting || approving || correcting || electricityWrite || waterWrite || postBilling || recalculate || postOneOff || paymentWrite;
         RegisterActor actor;
         await using (var reader = await authorization.ExecuteReaderAsync(token))
@@ -332,7 +342,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
             }
             if (paymentWrite)
             {
-                admit.Parameters.AddWithValue("action", acceptCash ? "accept-cash" : recordPayment ? "record" : "allocate");
+                admit.Parameters.AddWithValue("action", importBank ? "import-bank" : recognizeBank ? "recognize-bank" :
+                    acceptCash ? "accept-cash" : recordPayment ? "record" : "allocate");
                 admit.Parameters.AddWithValue("payment_request", payment!.RequestId);
                 admit.Parameters.AddWithValue("plan_digest", payment.Digest);
             }

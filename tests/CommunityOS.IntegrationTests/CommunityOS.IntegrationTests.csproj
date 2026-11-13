@@ -60,6 +60,8 @@
           Link="022_payment_access.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Platform/Infrastructure/Migrations/023_cash_acceptance_access.sql"
           Link="023_cash_acceptance_access.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Platform/Infrastructure/Migrations/024_bank_statement_access.sql"
+          Link="024_bank_statement_access.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/001_manual_register.sql"
           Link="001_manual_register.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/002_ownership_correction.sql"
@@ -100,6 +102,10 @@
           Link="020_manual_payment.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/021_cash_acceptance.sql"
           Link="021_cash_acceptance.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/022_bank_statement.sql"
+          Link="022_bank_statement.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/023_bank_dbf.sql"
+          Link="023_bank_dbf.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

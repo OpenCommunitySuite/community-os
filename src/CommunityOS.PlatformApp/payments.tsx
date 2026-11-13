@@ -6,6 +6,7 @@ type Allocation = { requestId: string; paymentId: string; reason: string; lines:
 type Receipt = { requestId: string; payerId: string; receivedOn: string; amount: number; reason: string };
 type Entry = { id: string; reason: string; author: string; recordedAt: string };
 type Payment = Entry & { payerId: string; receivedOn: string; amount: number; available: number;
+  bankTransactionId: string | null;
   cashAcceptance: { id: string; paymentId: string; acceptedOn: string; amount: number; cashier: string; recordedAt: string; reason: string } | null;
   allocations: (Entry & { lines: Line[] })[] };
 type Obligation = { id: string; payerId: string; account: string; kind: string; outstanding: number };
@@ -107,6 +108,7 @@ export function Payments({ community, canRecord, canAllocate, canAcceptCash }: {
     {payment && <div key={payment.id}>
       <p>Нерозподілений залишок {money.format(payment.available)}</p>
       <p>{payment.reason} · Автор {payment.author} · {when(payment.recordedAt)}</p>
+      {payment.bankTransactionId && <p>Банківська операція {payment.bankTransactionId} · Платіж {payment.id}</p>}
       {payment.cashAcceptance && <p>Прийом готівки {payment.cashAcceptance.id} · Платіж {payment.id} ·
         {' '}{money.format(payment.cashAcceptance.amount)} · {payment.cashAcceptance.acceptedOn} ·
         {' '}{payment.cashAcceptance.reason} · Касир {payment.cashAcceptance.cashier} · {when(payment.cashAcceptance.recordedAt)}</p>}

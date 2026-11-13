@@ -10,6 +10,20 @@ internal static class CommunityPaymentWeb
             access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
                 _ => Task.FromResult<IResult>(Results.Ok(CommunityElectricityWeb.Today())), Results.StatusCode(403), token));
         MapReallocation(routes, access, store);
+        routes.MapPost("/advance/preview", (Guid community, AdvanceInput input, HttpContext http, CancellationToken token) =>
+            NormalizeAdvance(input) is { } valid
+                ? access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
+                    async _ => Results.Ok(await store.PreviewAdvanceAsync(community, valid, token)), Results.StatusCode(403), token)
+                : Task.FromResult(Invalid()));
+        routes.MapPost("/advance/confirm", (Guid community, AdvanceConfirmation confirmation, HttpContext http, CancellationToken token) =>
+        {
+            if (NormalizeAdvance(confirmation.Input) is not { } input || confirmation.Digest is not { Length: 64 } digest ||
+                !digest.All(c => c is >= '0' and <= '9' or >= 'A' and <= 'F'))
+                return Task.FromResult(Invalid());
+            return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ManageAdvance,
+                async actor => Response(await store.ConfirmAdvanceAsync(community, input, digest,
+                    CommunityElectricityWeb.Actor(actor), token)), Results.StatusCode(403), token, payment: new(input.RequestId, digest));
+        });
         routes.MapPost("/overpayment/preview", (Guid community, OverpaymentInput input, HttpContext http, CancellationToken token) =>
             NormalizeOverpayment(input) is { } valid
                 ? access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
@@ -133,4 +147,10 @@ internal static class CommunityPaymentWeb
         Amount(input.Amount) && Reason(input.Reason) is { } reason ? input with { Reason = reason } : null;
 
     private sealed record OverpaymentConfirmation(OverpaymentInput? Input, string? Digest);
+
+    private static AdvanceInput? NormalizeAdvance(AdvanceInput? input) =>
+        input is not null && input.RequestId != Guid.Empty && input.SourceId != Guid.Empty && input.ObligationId != Guid.Empty &&
+        Amount(input.Amount) && Reason(input.Reason) is { } reason ? input with { Reason = reason } : null;
+
+    private sealed record AdvanceConfirmation(AdvanceInput? Input, string? Digest);
 }

@@ -17,7 +17,7 @@ type Community = { id: string; name: string; canRead: boolean; canAdd: boolean; 
   canReadWater: boolean; canSetupWater: boolean; canRecognizeWater: boolean; canReadBilling: boolean; canPostBilling: boolean;
   canRecalculateBilling: boolean; canPostOneOff: boolean; canRecordPayment: boolean; canAllocatePayment: boolean; canAcceptCash: boolean;
   canImportBank: boolean; canRecognizeBank: boolean; canReallocatePayment: boolean; canCorrectPayment: boolean;
-  canRecognizeOverpayment: boolean };
+  canRecognizeOverpayment: boolean; canManageAdvance: boolean };
 type Entry = { plotId: string; plotNumber: string; ownerId: string; ownerName: string; accountNumber: string;
   ownershipRevision: string };
 
@@ -165,7 +165,7 @@ function Register() {
     {community?.canReadBilling && <Payments key={'payments:' + community.id} community={community.id}
       canRecord={community.canRecordPayment} canAllocate={community.canAllocatePayment} canAcceptCash={community.canAcceptCash}
       canReallocate={community.canReallocatePayment} canCorrect={community.canCorrectPayment}
-      canRecognizeOverpayment={community.canRecognizeOverpayment} />}
+      canRecognizeOverpayment={community.canRecognizeOverpayment} canManageAdvance={community.canManageAdvance} />}
     {community?.canReadBilling && <Bank key={'bank:' + community.id} community={community.id}
       canImport={community.canImportBank} canRecognize={community.canRecognizeBank} />}
   </>;

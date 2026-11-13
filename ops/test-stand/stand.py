@@ -349,6 +349,7 @@ def up(docker, config, config_dir):
         GRANT SELECT ON community_billing.payment_remainder, community_billing.obligation_remainder TO {WEB_ROLE};
         GRANT SELECT, INSERT ON community_billing.reallocation TO {WEB_ROLE};
         GRANT SELECT ON community_billing.effective_allocation TO {WEB_ROLE};
+        GRANT SELECT, INSERT ON community_billing.payment_correction TO {WEB_ROLE};
         GRANT SELECT, INSERT ON community_billing.cash_acceptance TO {WEB_ROLE};
         GRANT SELECT ON community_billing.bank_account TO {WEB_ROLE};
         GRANT SELECT, INSERT ON community_billing.bank_transaction, community_billing.bank_payment TO {WEB_ROLE};

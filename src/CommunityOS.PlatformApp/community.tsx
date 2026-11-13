@@ -16,7 +16,7 @@ type Community = { id: string; name: string; canRead: boolean; canAdd: boolean; 
   canSetupCommonElectricity: boolean; canPublishElectricityTopology: boolean;
   canReadWater: boolean; canSetupWater: boolean; canRecognizeWater: boolean; canReadBilling: boolean; canPostBilling: boolean;
   canRecalculateBilling: boolean; canPostOneOff: boolean; canRecordPayment: boolean; canAllocatePayment: boolean; canAcceptCash: boolean;
-  canImportBank: boolean; canRecognizeBank: boolean; canReallocatePayment: boolean };
+  canImportBank: boolean; canRecognizeBank: boolean; canReallocatePayment: boolean; canCorrectPayment: boolean };
 type Entry = { plotId: string; plotNumber: string; ownerId: string; ownerName: string; accountNumber: string;
   ownershipRevision: string };
 
@@ -163,7 +163,7 @@ function Register() {
     {community?.canReadBilling && <OneOff key={'one-off:' + community.id} community={community.id} canPost={community.canPostOneOff} />}
     {community?.canReadBilling && <Payments key={'payments:' + community.id} community={community.id}
       canRecord={community.canRecordPayment} canAllocate={community.canAllocatePayment} canAcceptCash={community.canAcceptCash}
-      canReallocate={community.canReallocatePayment} />}
+      canReallocate={community.canReallocatePayment} canCorrect={community.canCorrectPayment} />}
     {community?.canReadBilling && <Bank key={'bank:' + community.id} community={community.id}
       canImport={community.canImportBank} canRecognize={community.canRecognizeBank} />}
   </>;

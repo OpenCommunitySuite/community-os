@@ -98,7 +98,11 @@ public sealed partial class PostgresBillingStore
                     'payers', coalesce((SELECT jsonb_agg(jsonb_build_object('id',id,'name',display_name) ORDER BY display_name,id)
                         FROM community_register.subject WHERE community_id=@community), '[]'),
                     'payments', coalesce((SELECT jsonb_agg(jsonb_build_object('id',p.id,'payerId',p.payer_id,
-                        'receivedOn',p.received_on,'amount',p.amount_uah,'available',r.available_uah,'reason',p.reason,
+                        'receivedOn',p.received_on,'amount',r.amount_uah,'originalAmount',p.amount_uah,'available',r.available_uah,'reason',p.reason,
+                        'corrections',coalesce((SELECT jsonb_agg(jsonb_build_object('id',c.id,'reason',c.reason,
+                            'prior',c.prior_amount,'amount',c.new_amount,'author',c.account_id,'recordedAt',c.recorded_at)
+                            ORDER BY c.revision) FROM community_billing.payment_correction c
+                            WHERE (c.community_id,c.payment_id)=(p.community_id,p.id)),'[]'),
                         'author',p.account_id,'recordedAt',p.recorded_at,
                         'effectiveLines',coalesce((SELECT jsonb_agg(jsonb_build_object('batchId',e.batch_id,
                             'obligationId',e.obligation_id,'amount',e.amount_uah,'isTransfer',e.is_transfer)

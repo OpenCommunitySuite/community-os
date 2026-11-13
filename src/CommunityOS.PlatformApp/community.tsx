@@ -163,6 +163,7 @@ function Register() {
       canPost={community.canPostBilling} canRecalculate={community.canRecalculateBilling} />}
     {community?.canReadBilling && <OneOff key={'one-off:' + community.id} community={community.id} canPost={community.canPostOneOff} />}
     {community?.canReadBilling && <Payments key={'payments:' + community.id} community={community.id}
+      communityName={community.name}
       canRecord={community.canRecordPayment} canAllocate={community.canAllocatePayment} canAcceptCash={community.canAcceptCash}
       canReallocate={community.canReallocatePayment} canCorrect={community.canCorrectPayment}
       canRecognizeOverpayment={community.canRecognizeOverpayment} canManageAdvance={community.canManageAdvance} />}

@@ -4,6 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Реєстр громади</title>
+  <style>
+    #account-statement-print { display: none; }
+    @media print {
+      body:has(> #account-statement-print) > #root { display: none; }
+      #account-statement-print { display: block; }
+      #account-statement-print table { width: 100%; border-collapse: collapse; }
+      #account-statement-print td, #account-statement-print th { border: 1px solid; padding: 0.35rem; }
+    }
+  </style>
 </head>
 <body>
   <main id="root"></main>

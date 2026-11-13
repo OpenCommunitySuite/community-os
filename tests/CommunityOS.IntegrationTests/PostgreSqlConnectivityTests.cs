@@ -11,6 +11,80 @@ namespace CommunityOS.IntegrationTests;
 
 public class PostgreSqlConnectivityTests : IAsyncLifetime
 {
+    [Fact]
+    public async Task Billing_posts_an_immutable_period_once_and_rejects_stale_inputs()
+    {
+        var token = TestContext.Current.CancellationToken;
+        await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
+        foreach (var file in new[] { "001_manual_register.sql", "002_ownership_correction.sql",
+                     "009_electricity_readings.sql", "010_electricity_replacement.sql",
+                     "011_electricity_register_channels.sql", "012_common_electricity_points.sql", "013_meter_installation_details.sql",
+                     "017_regular_billing.sql" })
+        {
+            await using var migration = source.CreateCommand(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token));
+            await migration.ExecuteNonQueryAsync(token);
+        }
+        var community = Guid.NewGuid();
+        var foreign = Guid.NewGuid();
+        var from = new DateOnly(2026, 1, 1);
+        var until = from.AddMonths(1);
+        var period = new BillingPeriod(from, until, until, until.AddDays(15));
+        var register = new ManualRegister(new PostgresRegisterStore(source));
+        await register.CreateAsync(community, null, "Synthetic owner", "01", "001", token);
+        var plot = Assert.Single(await register.ListAsync(community, token));
+        ElectricityActor Actor() => new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Synthetic billing");
+        var electricity = new PostgresElectricityStore(source);
+        Assert.Equal(ElectricitySetupOutcome.Created, await electricity.SetupAsync(community, plot.PlotId, "Billing meter",
+            from, Actor(), token, details: MeterInstallationDetails.Legacy with { Multiplier = 40m }));
+        var installation = Assert.Single(await electricity.InstallationsAsync(community, plot.PlotId, token));
+        await electricity.RecognizeAsync(community, installation.Id, from, 100m, until, Actor(), token);
+        await electricity.RecognizeAsync(community, installation.Id, until, 103m, until, Actor(), token);
+        await using var seed = source.CreateCommand("""
+            INSERT INTO community_billing.tariff VALUES (@community, gen_random_uuid(), '2026-01-01', NULL, 'Test tariff', '{"total":4}');
+            INSERT INTO community_billing.member_fee VALUES (@community, gen_random_uuid(), '2026-01-01', NULL, 'Test fee', 25);
+            """);
+        seed.Parameters.AddWithValue("community", community);
+        await seed.ExecuteNonQueryAsync(token);
+        var billing = new PostgresBillingStore(source);
+        var first = await billing.PreviewAsync(community, period, token);
+        Assert.Equal(480m, Assert.Single(first.Plan.Lines).Electricity!.AmountUah);
+        Assert.Null(await billing.HistoryAsync(community, period, token));
+        Assert.Empty((await billing.PreviewAsync(foreign, period, token)).Plan.Lines);
+        await using var change = source.CreateCommand("""UPDATE community_billing.tariff SET rates = '{"total":5}';""");
+        await change.ExecuteNonQueryAsync(token);
+        Assert.Equal("StalePreview", (await billing.PostAsync(community, period, first.Digest, Actor(), token)).Outcome);
+        Assert.Null(await billing.HistoryAsync(community, period, token));
+        var current = await billing.PreviewAsync(community, period, token);
+        await using var forceFailure = source.CreateCommand("""
+            ALTER TABLE community_billing.obligation ADD CONSTRAINT force_rollback CHECK (false);
+            """);
+        await forceFailure.ExecuteNonQueryAsync(token);
+        var rollback = await Assert.ThrowsAsync<PostgresException>(() => billing.PostAsync(community, period, current.Digest, Actor(), token));
+        Assert.Equal(PostgresErrorCodes.CheckViolation, rollback.SqlState);
+        Assert.Null(await billing.HistoryAsync(community, period, token));
+        await using var afterRollback = source.CreateCommand("""
+            ALTER TABLE community_billing.obligation DROP CONSTRAINT force_rollback;
+            SELECT count(*) FROM community_billing.accrual;
+            """);
+        Assert.Equal(0L, await afterRollback.ExecuteScalarAsync(token));
+        var concurrent = await Task.WhenAll(billing.PostAsync(community, period, current.Digest, Actor(), token),
+            billing.PostAsync(community, period, current.Digest, Actor(), token));
+        Assert.Contains(concurrent, result => result.Outcome == "Posted");
+        Assert.Contains(concurrent, result => result.Outcome == "Replayed");
+        Assert.Equal(concurrent[0].Result!.Id, concurrent[1].Result!.Id);
+        await using var rows = source.CreateCommand("""
+            SELECT count(*) FROM community_billing.accrual a JOIN community_billing.obligation o
+            ON o.community_id=a.community_id AND o.accrual_id=a.id;
+            """);
+        Assert.Equal(2L, await rows.ExecuteScalarAsync(token));
+        await using var later = source.CreateCommand("""UPDATE community_billing.tariff SET rates = '{"total":6}';""");
+        await later.ExecuteNonQueryAsync(token);
+        var historical = await billing.HistoryAsync(community, period, token);
+        Assert.Equal(current.Digest, historical!.Digest);
+        Assert.Equal(600m, historical.Snapshot.GetProperty("lines")[0].GetProperty("electricity").GetProperty("amountUah").GetDecimal());
+        Assert.Null(await billing.HistoryAsync(foreign, period, token));
+    }
+
     private const string PostgreSqlImage =
         "postgres:18.6@sha256:7341002d2b8c7c5bdd7542a671a95b36196c0b5b888daf454ae4fc33ba5346d7";
 
@@ -634,7 +708,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "009_register_access.sql", "010_register_import_preparation.sql", "011_register_import_approval.sql",
                      "012_ownership_correction_access.sql", "013_electricity_access.sql", "014_electricity_replacement_access.sql",
                      "015_electricity_register_admission.sql", "016_common_electricity_access.sql",
-                     "017_electricity_topology_access.sql", "018_water_access.sql" })
+                     "017_electricity_topology_access.sql", "018_water_access.sql", "019_billing_access.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -710,6 +784,33 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                 return admitted.AdditionBasis == "synthetic water" && await committed.ExecuteScalarAsync(token) is 1L;
             }, false, token, water: new(Guid.NewGuid(), topologyDate));
         Assert.False(await TryRecognizeWater(community));
+
+        var billingTarget = new BillingTarget(topologyDate, topologyDate.AddMonths(1), new string('A', 64));
+        Task<bool> TryPostBilling(Guid id) => access.WithAccessAsync(session, id, RegisterPermission.PostBilling,
+            async admitted =>
+            {
+                await using var committed = source.CreateCommand("""
+                    SELECT count(*) FROM platform_provisioning.billing_admission WHERE id = @id AND digest = @digest;
+                    """);
+                committed.Parameters.AddWithValue("id", admitted.AdmissionId);
+                committed.Parameters.AddWithValue("digest", billingTarget.Digest);
+                return admitted.AdditionBasis == "synthetic billing" && await committed.ExecuteScalarAsync(token) is 1L;
+            }, false, token, billing: billingTarget);
+        Assert.False(await TryPostBilling(community));
+        await using var billingGrant = source.CreateCommand("""
+            UPDATE platform_provisioning.register_availability SET billing_enabled = true;
+            UPDATE platform_provisioning.register_operator SET can_read_billing = true, billing_post_basis = 'synthetic billing';
+            """);
+        await billingGrant.ExecuteNonQueryAsync(token);
+        Assert.True(await TryPostBilling(community));
+        Assert.False(await TryPostBilling(Guid.NewGuid()));
+        await using var billingRevocation = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator SET billing_post_basis = NULL;
+            """);
+        await billingRevocation.ExecuteNonQueryAsync(token);
+        Assert.False(await TryPostBilling(community));
+        Assert.True(await access.WithAccessAsync(session, community, RegisterPermission.ReadBilling,
+            _ => Task.FromResult(true), false, token));
         await using var waterGrant = source.CreateCommand("""
             UPDATE platform_provisioning.register_availability SET water_enabled = true;
             UPDATE platform_provisioning.register_operator

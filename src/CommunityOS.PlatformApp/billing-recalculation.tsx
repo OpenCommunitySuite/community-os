@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { labels, money, type Register } from './billing';
 
 type Calculation = { amountUah: number; multiplier: number; tariff: { id: string; basis: string }; registers: Register[] };
-type Plan = { originalAmount: number; currentAmount: number; difference: number; calculation: Calculation };
+type Plan = { originalAmount: number; currentAmount: number; difference: number; calculation: Calculation;
+  appliedAmount?: number; excessBefore?: number; excessAfter?: number };
 type Change = { id: string; reason: string; accountId: string; recordedAt: string; snapshot: Plan };
 type Accrual = { id: string; accountNumber: string; originalAmount: number; effectiveAmount: number; changes: Change[] };
 type Result = { outcome: string; digest?: string; plan?: Plan };
@@ -12,6 +13,10 @@ function Details({ plan }: { plan: Plan }) {
     <p>Початкова сума {money.format(plan.originalAmount)} · До перегляду {money.format(plan.currentAmount)} ·
       Нова сума {money.format(plan.calculation.amountUah)} · Різниця {money.format(plan.difference)}</p>
     <p>Коефіцієнт {plan.calculation.multiplier} · Тариф {plan.calculation.tariff.id} · {plan.calculation.tariff.basis}</p>
+    {plan.appliedAmount !== undefined && plan.appliedAmount > 0 && <p>
+      Застосовано {money.format(plan.appliedAmount)} · Надлишок оплати {money.format(plan.excessBefore ?? 0)} →
+      {' '}{money.format(plan.excessAfter ?? 0)}
+    </p>}
     <ul>{plan.calculation.registers.map(register => <li key={register.channel}>
       {labels[register.channel]} · {register.startValue} → {register.endValue} · {register.consumption} кВт·год ·
       {register.rate} грн/кВт·год

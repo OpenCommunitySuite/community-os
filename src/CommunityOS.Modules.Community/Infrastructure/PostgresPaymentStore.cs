@@ -132,7 +132,8 @@ public sealed partial class PostgresBillingStore
                         FROM community_billing.payment p JOIN community_billing.payment_remainder r USING (community_id,id)
                         WHERE p.community_id=@community), '[]'),
                     'obligations', coalesce((SELECT jsonb_agg(jsonb_build_object('id',o.id,'payerId',a.debtor_id,
-                        'account',pa.number,'kind',a.kind,'outstanding',o.outstanding_uah,
+                        'account',pa.number,'kind',a.kind,'outstanding',greatest(0,o.outstanding_uah),
+                        'excessApplied',greatest(0,-o.outstanding_uah),
                         'dueOn',coalesce(period.due_on,(batch.snapshot->'input'->>'dueOn')::date)) ORDER BY pa.number,o.id)
                         FROM community_billing.obligation_remainder o
                         JOIN community_billing.accrual a ON (a.community_id,a.id)=(o.community_id,o.accrual_id)

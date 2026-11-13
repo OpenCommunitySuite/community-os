@@ -8,7 +8,8 @@ namespace CommunityOS.Modules.Community.Infrastructure;
 public sealed record AccrualChange(Guid Id, string Digest, decimal PriorAmount, decimal NewAmount, string Reason,
     Guid AccountId, DateTime RecordedAt, JsonElement Snapshot);
 public sealed record RecalculationPlan(Guid AccrualId, Guid ObligationId, decimal OriginalAmount, decimal CurrentAmount,
-    Guid? PreviousChange, string Reason, ChargePreview Calculation, decimal Difference);
+    Guid? PreviousChange, string Reason, ChargePreview Calculation, decimal Difference,
+    decimal AppliedAmount, decimal ExcessBefore, decimal ExcessAfter);
 public sealed record RecalculationResult(string Outcome, RecalculationPlan? Plan = null, string? Digest = null,
     AccrualChange? Change = null);
 public sealed record PeriodAccrual(Guid Id, string AccountNumber, decimal OriginalAmount, decimal EffectiveAmount,
@@ -115,21 +116,30 @@ public sealed partial class PostgresBillingStore
         var obligation = reader.GetGuid(7);
         await reader.DisposeAsync();
         await using var allocated = Command(connection, transaction, community, null, """
-            SELECT EXISTS (SELECT 1 FROM community_billing.effective_allocation
-                WHERE community_id=@community AND obligation_id=@obligation AND amount_uah > 0);
+            SELECT payment_id,batch_id,is_transfer,amount_uah FROM community_billing.effective_allocation
+            WHERE community_id=@community AND obligation_id=@obligation AND amount_uah > 0
+            ORDER BY payment_id,batch_id,is_transfer;
             """);
         allocated.Parameters.AddWithValue("obligation", obligation);
-        if (await allocated.ExecuteScalarAsync(token) is true) return new("AllocatedObligation");
+        var allocations = new List<AppliedAllocation>();
+        await using (var appliedReader = await allocated.ExecuteReaderAsync(token))
+            while (await appliedReader.ReadAsync(token))
+                allocations.Add(new(appliedReader.GetGuid(0), appliedReader.GetGuid(1), appliedReader.GetBoolean(2),
+                    appliedReader.GetDecimal(3)));
         var fresh = (await CalculateAsync(connection, transaction, community, period, token, account)).Plan.Lines.SingleOrDefault();
         if (fresh?.DebtorId != debtor) return new("AmbiguousDebtor");
         if (fresh.Electricity is not { } electricity) return new("MissingInstallation");
         if (electricity.AmountUah is not decimal amount) return new(electricity.Status.ToString());
         var changes = await ChangesAsync(connection, transaction, community, accrual, token);
         var current = Effective(changes)?.NewAmount ?? original;
+        var applied = allocations.Sum(line => line.Amount);
         var plan = new RecalculationPlan(accrual, obligation, original, current, changes.FirstOrDefault()?.Id, reason,
-            electricity, amount - current);
-        return new("Ready", plan, Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(plan, Json))));
+            electricity, amount - current, applied, Math.Max(0, applied - current), Math.Max(0, applied - amount));
+        return new("Ready", plan, Convert.ToHexString(SHA256.HashData(
+            JsonSerializer.SerializeToUtf8Bytes(new { community, Plan = plan, Allocations = allocations }, Json))));
     }
+
+    private sealed record AppliedAllocation(Guid PaymentId, Guid BatchId, bool IsTransfer, decimal Amount);
 
     private static AccrualChange? Effective(IEnumerable<AccrualChange> changes) =>
         changes.FirstOrDefault(change => change.PriorAmount != change.NewAmount);

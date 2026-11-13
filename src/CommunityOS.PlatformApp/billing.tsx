@@ -12,7 +12,6 @@ type Preview = { plan: Plan; digest: string };
 type Posted = { id: string; snapshot: Plan; accountId: string; postedAt: string };
 
 export const labels: Record<string, string> = {
-  AllocatedObligation: 'Зобов’язання вже має розподілену оплату.',
   Ready: 'Готово', MissingBoundary: 'Бракує граничних показань або змінився лічильник',
   MissingInstallation: 'Немає однозначної установки', MissingTariff: 'Немає тарифу',
   AmbiguousTariff: 'Кілька чинних тарифів', TariffChanges: 'Тариф змінюється в межах періоду',

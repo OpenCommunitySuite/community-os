@@ -6,7 +6,8 @@ type Target = { id: string; account: string; kind: string; outstanding: number }
 type Input = { requestId: string; paymentId: string; sourceBatchId: string; sourceIsTransfer: boolean;
   sourceObligationId: string; targetObligationId: string; amount: number; reason: string };
 type Balance = { account: string; before: number; after: number };
-type Preview = { outcome: string; digest: string; source: Balance; target: Balance };
+type Preview = { outcome: string; digest: string; source: Balance; target: Balance;
+  sourceExcessBefore: number; sourceExcessAfter: number };
 const messages: Record<string, string> = {
   SourceExceeded: 'Сума перевищує доступну суму початкового розподілу.',
   ObligationExceeded: 'Сума перевищує залишок цільового зобов’язання.',
@@ -68,6 +69,8 @@ export function Reallocation({ paymentId, lines, targets, canConfirm, post, refr
     {draft && <>
       <p>{money.format(draft.input.amount)} · {draft.input.reason}</p>
       <p>Початкове · {draft.preview.source.account} · {money.format(draft.preview.source.before)} → {money.format(draft.preview.source.after)}</p>
+      {draft.preview.sourceExcessBefore > 0 && <p>Надлишок оплати · {money.format(draft.preview.sourceExcessBefore)} →
+        {' '}{money.format(draft.preview.sourceExcessAfter)}</p>}
       <p>Цільове · {draft.preview.target.account} · {money.format(draft.preview.target.before)} → {money.format(draft.preview.target.after)}</p>
       {canConfirm && <button disabled={pending} onClick={() => void run(async () => {
         await post('/reallocation/confirm', { input: draft.input, digest: draft.preview.digest });

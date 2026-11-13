@@ -5,7 +5,8 @@ namespace CommunityOS.Modules.Community.Infrastructure;
 public sealed record ReallocationInput(Guid RequestId, Guid PaymentId, Guid SourceBatchId, bool SourceIsTransfer,
     Guid SourceObligationId, Guid TargetObligationId, decimal Amount, string Reason);
 public sealed record ReallocationPreview(string Outcome, string? Digest = null, decimal Available = 0,
-    AllocationBalance? Source = null, AllocationBalance? Target = null, string? Reason = null);
+    AllocationBalance? Source = null, AllocationBalance? Target = null, string? Reason = null,
+    decimal SourceExcessBefore = 0, decimal SourceExcessAfter = 0);
 
 public sealed partial class PostgresBillingStore
 {
@@ -59,11 +60,13 @@ public sealed partial class PostgresBillingStore
         var target = reader.GetDecimal(2);
         if (input.Amount > available) return new("SourceExceeded");
         if (input.Amount > target) return new("ObligationExceeded");
-        var sourceLine = new AllocationBalance(input.SourceObligationId, input.Amount, source, source + input.Amount, reader.GetString(3));
+        var sourceAfter = source + input.Amount;
+        var sourceLine = new AllocationBalance(input.SourceObligationId, input.Amount,
+            Math.Max(0, source), Math.Max(0, sourceAfter), reader.GetString(3));
         var targetLine = new AllocationBalance(input.TargetObligationId, input.Amount, target, target - input.Amount, reader.GetString(4));
         return new("Ready", Digest(new { community, Input = TransferIdentity(input), Available = Cents(available),
             Source = Cents(source), Target = Cents(target), Unallocated = Cents(reader.GetDecimal(5)) }),
-            available, sourceLine, targetLine, input.Reason);
+            available, sourceLine, targetLine, input.Reason, Math.Max(0, -source), Math.Max(0, -sourceAfter));
     }
 
     private static object TransferIdentity(ReallocationInput input) => new

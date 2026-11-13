@@ -184,6 +184,12 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Equal("RequestConflict", (await billing.RecordPaymentAsync(community, cash, Actor(), token)).Outcome);
         Assert.Equal("RequestConflict", (await billing.AcceptCashAsync(community, cash with { Amount = 301m }, Actor(), token)).Outcome);
         var desk = await billing.PaymentDeskAsync(community, token);
+        foreach (var item in desk.GetProperty("obligations").EnumerateArray())
+        {
+            var expectedDue = item.GetProperty("kind").GetString() == "one-off" ? until : period.DueOn;
+            Assert.Equal(expectedDue.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+                item.GetProperty("dueOn").GetString());
+        }
         var bank = Guid.NewGuid();
         await using var seedBank = source.CreateCommand("""
             INSERT INTO community_billing.bank_account (community_id,id,name,source,iban)

@@ -132,10 +132,13 @@ public sealed partial class PostgresBillingStore
                         FROM community_billing.payment p JOIN community_billing.payment_remainder r USING (community_id,id)
                         WHERE p.community_id=@community), '[]'),
                     'obligations', coalesce((SELECT jsonb_agg(jsonb_build_object('id',o.id,'payerId',a.debtor_id,
-                        'account',pa.number,'kind',a.kind,'outstanding',o.outstanding_uah) ORDER BY pa.number,o.id)
+                        'account',pa.number,'kind',a.kind,'outstanding',o.outstanding_uah,
+                        'dueOn',coalesce(period.due_on,(batch.snapshot->'input'->>'dueOn')::date)) ORDER BY pa.number,o.id)
                         FROM community_billing.obligation_remainder o
                         JOIN community_billing.accrual a ON (a.community_id,a.id)=(o.community_id,o.accrual_id)
                         JOIN community_register.personal_account pa ON (pa.community_id,pa.id)=(a.community_id,a.personal_account_id)
+                        LEFT JOIN community_billing.posted_period period ON (period.community_id,period.id)=(a.community_id,a.period_id)
+                        LEFT JOIN community_billing.one_off_batch batch ON (batch.community_id,batch.id)=(a.community_id,a.one_off_id)
                         WHERE o.community_id=@community), '[]'))::text;
                 """);
             return JsonSerializer.Deserialize<JsonElement>((string)(await command.ExecuteScalarAsync(token))!);

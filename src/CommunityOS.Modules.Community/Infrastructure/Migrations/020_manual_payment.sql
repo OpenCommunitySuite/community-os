@@ -21,6 +21,7 @@ CREATE TABLE community_billing.allocation_batch (
     community_id uuid NOT NULL,
     id uuid NOT NULL,
     payment_id uuid NOT NULL,
+    reason text NOT NULL CHECK (char_length(btrim(reason)) BETWEEN 1 AND 500),
     digest text NOT NULL CHECK (digest ~ '^[0-9A-F]{64}$'),
     admission_id uuid NOT NULL UNIQUE,
     account_id uuid NOT NULL,

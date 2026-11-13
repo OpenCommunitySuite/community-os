@@ -114,6 +114,12 @@ public sealed partial class PostgresBillingStore
             reader.GetFieldValue<DateOnly>(5), reader.GetFieldValue<DateOnly>(6));
         var obligation = reader.GetGuid(7);
         await reader.DisposeAsync();
+        await using var allocated = Command(connection, transaction, community, null, """
+            SELECT EXISTS (SELECT 1 FROM community_billing.allocation
+                WHERE community_id=@community AND obligation_id=@obligation);
+            """);
+        allocated.Parameters.AddWithValue("obligation", obligation);
+        if (await allocated.ExecuteScalarAsync(token) is true) return new("AllocatedObligation");
         var fresh = (await CalculateAsync(connection, transaction, community, period, token, account)).Plan.Lines.SingleOrDefault();
         if (fresh?.DebtorId != debtor) return new("AmbiguousDebtor");
         if (fresh.Electricity is not { } electricity) return new("MissingInstallation");

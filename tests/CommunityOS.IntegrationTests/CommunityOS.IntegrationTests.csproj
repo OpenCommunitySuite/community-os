@@ -66,6 +66,8 @@
           Link="025_reallocation_access.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Platform/Infrastructure/Migrations/026_payment_correction_access.sql"
           Link="026_payment_correction_access.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Platform/Infrastructure/Migrations/027_overpayment_access.sql"
+          Link="027_overpayment_access.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/001_manual_register.sql"
           Link="001_manual_register.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/002_ownership_correction.sql"
@@ -114,6 +116,8 @@
           Link="024_payment_reallocation.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/025_payment_correction.sql"
           Link="025_payment_correction.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/026_overpayment_recognition.sql"
+          Link="026_overpayment_recognition.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -10,6 +10,20 @@ internal static class CommunityPaymentWeb
             access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
                 _ => Task.FromResult<IResult>(Results.Ok(CommunityElectricityWeb.Today())), Results.StatusCode(403), token));
         MapReallocation(routes, access, store);
+        routes.MapPost("/overpayment/preview", (Guid community, OverpaymentInput input, HttpContext http, CancellationToken token) =>
+            NormalizeOverpayment(input) is { } valid
+                ? access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
+                    async _ => Results.Ok(await store.PreviewOverpaymentAsync(community, valid, token)), Results.StatusCode(403), token)
+                : Task.FromResult(Invalid()));
+        routes.MapPost("/overpayment/confirm", (Guid community, OverpaymentConfirmation confirmation, HttpContext http, CancellationToken token) =>
+        {
+            if (NormalizeOverpayment(confirmation.Input) is not { } input || confirmation.Digest is not { Length: 64 } digest ||
+                !digest.All(c => c is >= '0' and <= '9' or >= 'A' and <= 'F'))
+                return Task.FromResult(Invalid());
+            return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.RecognizeOverpayment,
+                async actor => Response(await store.RecognizeOverpaymentAsync(community, input, digest,
+                    CommunityElectricityWeb.Actor(actor), token)), Results.StatusCode(403), token, payment: new(input.RequestId, digest));
+        });
         routes.MapPost("/correction/preview", (Guid community, PaymentCorrectionInput input, HttpContext http, CancellationToken token) =>
             NormalizeCorrection(input) is { } valid
                 ? access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
@@ -113,4 +127,10 @@ internal static class CommunityPaymentWeb
         Amount(input.Amount) && Reason(input.Reason) is { } reason ? input with { Reason = reason } : null;
 
     private sealed record CorrectionConfirmation(PaymentCorrectionInput? Input, string? Digest);
+
+    private static OverpaymentInput? NormalizeOverpayment(OverpaymentInput? input) =>
+        input is not null && input.RequestId != Guid.Empty && input.ObligationId != Guid.Empty &&
+        Amount(input.Amount) && Reason(input.Reason) is { } reason ? input with { Reason = reason } : null;
+
+    private sealed record OverpaymentConfirmation(OverpaymentInput? Input, string? Digest);
 }

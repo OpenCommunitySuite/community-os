@@ -134,6 +134,10 @@ public sealed partial class PostgresBillingStore
                     'obligations', coalesce((SELECT jsonb_agg(jsonb_build_object('id',o.id,'payerId',a.debtor_id,
                         'account',pa.number,'kind',a.kind,'outstanding',greatest(0,o.outstanding_uah),
                         'excessApplied',greatest(0,-o.outstanding_uah),
+                        'overpayments',coalesce((SELECT jsonb_agg(jsonb_build_object('id',r.id,'amount',r.amount_uah,
+                            'recalculationId',r.recalculation_id,'reason',r.reason,'author',r.account_id,'recordedAt',r.recorded_at)
+                            ORDER BY r.recorded_at,r.id) FROM community_billing.overpayment_recognition r
+                            WHERE (r.community_id,r.obligation_id)=(o.community_id,o.id)),'[]'),
                         'dueOn',coalesce(period.due_on,(batch.snapshot->'input'->>'dueOn')::date)) ORDER BY pa.number,o.id)
                         FROM community_billing.obligation_remainder o
                         JOIN community_billing.accrual a ON (a.community_id,a.id)=(o.community_id,o.accrual_id)

@@ -132,6 +132,15 @@ public sealed partial class PostgresBillingStore
         if (electricity.AmountUah is not decimal amount) return new(electricity.Status.ToString());
         var changes = await ChangesAsync(connection, transaction, community, accrual, token);
         var current = Effective(changes)?.NewAmount ?? original;
+        if (amount != current)
+        {
+            await using var recognized = Command(connection, transaction, community, null, """
+                SELECT EXISTS (SELECT 1 FROM community_billing.overpayment_recognition
+                    WHERE community_id=@community AND obligation_id=@obligation);
+                """);
+            recognized.Parameters.AddWithValue("obligation", obligation);
+            if (await recognized.ExecuteScalarAsync(token) is true) return new("RecognizedOverpayment");
+        }
         var applied = allocations.Sum(line => line.Amount);
         var plan = new RecalculationPlan(accrual, obligation, original, current, changes.FirstOrDefault()?.Id, reason,
             electricity, amount - current, applied, Math.Max(0, applied - current), Math.Max(0, applied - amount));

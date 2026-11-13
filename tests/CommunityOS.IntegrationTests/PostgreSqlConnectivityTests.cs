@@ -498,6 +498,10 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         laterPeriod.CommandText = laterPeriod.CommandText.Replace("2030-", "2031-");
         laterPeriod.Parameters["fee"].Value = secondFee;
         await laterPeriod.ExecuteNonQueryAsync(token);
+        var directory = await billing.ListPostedPeriodsAsync(community, token);
+        Assert.Equal(new[] { secondFee, fee, historical.Id }, directory.Select(entry => entry.Id));
+        Assert.Equal(new DateOnly(2031, 2, 15), directory[0].DueOn);
+        Assert.Empty(await billing.ListPostedPeriodsAsync(foreign, token));
         var applyAll = apply with { RequestId = Guid.NewGuid(), SourceId = secondReserve.RequestId, ObligationId = secondFee };
         var releaseSome = release with { RequestId = Guid.NewGuid(), SourceId = secondReserve.RequestId };
         var applyAllPlan = await billing.PreviewAdvanceAsync(community, applyAll, token);

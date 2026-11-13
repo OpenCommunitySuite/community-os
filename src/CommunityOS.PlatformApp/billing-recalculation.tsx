@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { labels, money, type Register } from './billing';
+import { AccrualSummary } from './accrual-summary';
 
 type Calculation = { amountUah: number; multiplier: number; tariff: { id: string; basis: string }; registers: Register[] };
 type Plan = { originalAmount: number; currentAmount: number; difference: number; calculation: Calculation;
@@ -24,8 +25,11 @@ function Details({ plan }: { plan: Plan }) {
   </>;
 }
 
-export function Recalculation({ endpoint, period, canConfirm }: { endpoint: string; period: string; canConfirm: boolean }) {
-  const [accruals, setAccruals] = useState<Accrual[]>([]);
+export function Recalculation({ endpoint, period, canConfirm, fees }: {
+  endpoint: string; period: string; canConfirm: boolean; fees: { account: string; amount: number }[];
+}) {
+  const [loadedAccruals, setAccruals] = useState<Accrual[]>();
+  const accruals = loadedAccruals ?? [];
   const [selected, setSelected] = useState('');
   const [reason, setReason] = useState('');
   const [preview, setPreview] = useState<Result>();
@@ -66,7 +70,9 @@ export function Recalculation({ endpoint, period, canConfirm }: { endpoint: stri
     } finally { setBusy(false); }
   }
 
-  return <section aria-labelledby="recalculation-heading">
+  return <>
+    {loadedAccruals && <AccrualSummary electricity={loadedAccruals} fees={fees} />}
+    <section aria-labelledby="recalculation-heading">
     <h3 id="recalculation-heading">Перерахунок електроенергії</h3>
     <label>Нарахування за рахунком <select value={selected} disabled={busy} onChange={event => {
       setSelected(event.target.value); setPreview(undefined); setReason(''); setMessage('');
@@ -90,5 +96,6 @@ export function Recalculation({ endpoint, period, canConfirm }: { endpoint: stri
       </li>)}</ul>}
     </>}
     <p role="status">{message}</p>
-  </section>;
+    </section>
+  </>;
 }

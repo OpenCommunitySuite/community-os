@@ -5,6 +5,7 @@ import { PaymentCorrection } from './payment-correction';
 import { Overpayment } from './overpayment';
 import { AdvanceForm } from './advance';
 import { PaymentSummary } from './payment-summary';
+import { AccountStatement, debtKinds } from './account-statement';
 
 type Line = { obligationId: string; amount: number };
 type Allocation = { requestId: string; paymentId: string; reason: string; lines: Line[] };
@@ -36,8 +37,8 @@ const errors: Record<string, string> = {
 const value = (input: FormDataEntryValue | null) => Number(String(input ?? '').trim().replace(',', '.'));
 const when = (date: string) => new Date(date).toLocaleString('uk-UA');
 
-export function Payments({ community, canRecord, canAllocate, canAcceptCash, canReallocate, canCorrect, canRecognizeOverpayment, canManageAdvance }: {
-  community: string; canRecord: boolean; canAllocate: boolean; canAcceptCash: boolean; canReallocate: boolean; canCorrect: boolean;
+export function Payments({ community, communityName, canRecord, canAllocate, canAcceptCash, canReallocate, canCorrect, canRecognizeOverpayment, canManageAdvance }: {
+  community: string; communityName: string; canRecord: boolean; canAllocate: boolean; canAcceptCash: boolean; canReallocate: boolean; canCorrect: boolean;
   canRecognizeOverpayment: boolean;
   canManageAdvance: boolean;
 }) {
@@ -94,6 +95,7 @@ export function Payments({ community, canRecord, canAllocate, canAcceptCash, can
     <h2 id="payments-heading">Платежі та розподіл</h2>
     <button disabled={busy} onClick={() => void run(refresh)}>Завантажити платежі та зобов’язання</button>
     {desk && <PaymentSummary payments={desk.payments} />}
+    {desk && <AccountStatement community={communityName} today={today} debts={openDebts} payerNames={payerNames} />}
     {desk && <details>
       <summary>Реєстр заборгованості</summary>
       <p>Поточні залишки станом на {today} за датою Києва.</p>
@@ -109,7 +111,7 @@ export function Payments({ community, canRecord, canAllocate, canAcceptCash, can
           <thead><tr><th>Рахунок</th><th>Платник</th><th>Вид</th><th>Строк оплати</th><th>Залишок</th><th>Стан</th></tr></thead>
           <tbody>{debtRows.map(item => <tr key={item.id}>
             <td>{item.account}</td><td>{payerNames.get(item.payerId)}</td>
-            <td>{({ electricity: 'Електроенергія', 'member-fee': 'Членський внесок', 'one-off': 'Разове нарахування' })[item.kind] ?? item.kind}</td>
+            <td>{debtKinds[item.kind] ?? item.kind}</td>
             <td>{item.dueOn}</td><td>{money.format(item.outstanding)}</td>
             <td>{item.dueOn < today ? 'Прострочено' : 'Строк не минув'}</td>
           </tr>)}</tbody>

@@ -19,7 +19,7 @@ public sealed record BillingSnapshot(BillingPlan Plan, string Digest);
 public sealed record PostedBilling(Guid Id, string Digest, JsonElement Snapshot, Guid AccountId, DateTime PostedAt);
 public sealed record BillingPosting(string Outcome, PostedBilling? Result = null);
 
-public sealed class PostgresBillingStore(NpgsqlDataSource source)
+public sealed partial class PostgresBillingStore(NpgsqlDataSource source)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
@@ -92,7 +92,7 @@ public sealed class PostgresBillingStore(NpgsqlDataSource source)
     }
 
     private static async Task<BillingSnapshot> CalculateAsync(NpgsqlConnection connection, NpgsqlTransaction transaction,
-        Guid community, BillingPeriod period, CancellationToken token)
+        Guid community, BillingPeriod period, CancellationToken token, Guid? account = null)
     {
         var tariffs = new List<PreviewTariff>();
         await using (var command = Command(connection, transaction, community, period, """
@@ -131,13 +131,16 @@ public sealed class PostgresBillingStore(NpgsqlDataSource source)
             LEFT JOIN community_electricity.installation i ON i.community_id=p.community_id AND i.point_id=p.id
                 AND i.starts_on <= @from AND (i.ends_before IS NULL OR i.ends_before > @from)
             LEFT JOIN community_electricity.meter m ON m.community_id=i.community_id AND m.id=i.meter_id
-            WHERE a.community_id=@community ORDER BY a.id,i.id;
+            WHERE a.community_id=@community AND (@account IS NULL OR a.id=@account) ORDER BY a.id,i.id;
             """))
-        await using (var reader = await command.ExecuteReaderAsync(token))
+        {
+            command.Parameters.AddWithValue("account", NpgsqlTypes.NpgsqlDbType.Uuid, (object?)account ?? DBNull.Value);
+            await using var reader = await command.ExecuteReaderAsync(token);
             while (await reader.ReadAsync(token))
                 inputs.Add(new(reader.GetGuid(0), reader.GetString(1), reader.GetFieldValue<Guid[]>(2),
                     reader.IsDBNull(3) ? null : reader.GetGuid(3), DateOrNull(reader, 4), DateOrNull(reader, 5),
                     reader.IsDBNull(6) ? null : reader.GetString(6), reader.IsDBNull(7) ? 1m : reader.GetDecimal(7)));
+        }
 
         var lines = new List<BillingLine>();
         foreach (var group in inputs.GroupBy(input => input.Id))
@@ -200,10 +203,11 @@ public sealed class PostgresBillingStore(NpgsqlDataSource source)
     }
 
     private static NpgsqlCommand Command(NpgsqlConnection connection, NpgsqlTransaction transaction,
-        Guid community, BillingPeriod period, string sql)
+        Guid community, BillingPeriod? period, string sql)
     {
         var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("community", community);
+        if (period is null) return command;
         command.Parameters.AddWithValue("from", period.From);
         command.Parameters.AddWithValue("until", period.Until);
         command.Parameters.AddWithValue("calculated", period.CalculatedOn);

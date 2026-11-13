@@ -1,0 +1,147 @@
+import { useState } from 'react';
+import { money } from './billing';
+
+type Line = { obligationId: string; amount: number };
+type Allocation = { requestId: string; paymentId: string; reason: string; lines: Line[] };
+type Receipt = { requestId: string; payerId: string; receivedOn: string; amount: number; reason: string };
+type Entry = { id: string; reason: string; author: string; recordedAt: string };
+type Payment = Entry & { payerId: string; receivedOn: string; amount: number; available: number;
+  allocations: (Entry & { lines: Line[] })[] };
+type Obligation = { id: string; payerId: string; account: string; kind: string; outstanding: number };
+type Desk = { payers: { id: string; name: string }[]; payments: Payment[]; obligations: Obligation[] };
+type Preview = { outcome: string; digest: string; before: number; after: number;
+  lines: (Line & { account: string; before: number; after: number })[] };
+
+const errors: Record<string, string> = {
+  InvalidInput: 'Перевірте дату, підставу та суми з точністю до копійок.',
+  NotFound: 'Платіж, платник або зобов’язання недоступні.',
+  PaymentExceeded: 'Розподіл перевищує доступний залишок платежу.',
+  ObligationExceeded: 'Сума перевищує залишок зобов’язання.',
+  StalePreview: 'Залишки змінилися. Перегляньте розподіл знову.',
+  RequestConflict: 'Запит уже використано з іншими даними.',
+};
+const value = (input: FormDataEntryValue | null) => Number(String(input ?? '').trim().replace(',', '.'));
+const when = (date: string) => new Date(date).toLocaleString('uk-UA');
+
+export function Payments({ community, canRecord, canAllocate }: { community: string; canRecord: boolean; canAllocate: boolean }) {
+  const base = '/community/billing/' + community + '/payments';
+  const [desk, setDesk] = useState<Desk>();
+  const [selected, setSelected] = useState('');
+  const [receipt, setReceipt] = useState<Receipt>();
+  const [draft, setDraft] = useState<{ input: Allocation; preview: Preview }>();
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  const payment = desk?.payments.find(item => item.id === selected);
+  const obligations = desk?.obligations.filter(item => item.payerId === payment?.payerId && item.outstanding > 0) ?? [];
+
+  async function request(path: string, body?: object) {
+    const headers: Record<string, string> = {};
+    if (body) {
+      const csrf = await fetch('/platform/csrf');
+      if (!csrf.ok) throw new Error('Увійдіть повторно.');
+      headers['X-Platform-CSRF'] = (await csrf.json()).token;
+      headers['Content-Type'] = 'application/json';
+    }
+    const response = await fetch(base + path, { method: body ? 'POST' : 'GET', headers, body: JSON.stringify(body) });
+    if (response.status === 403) throw new Error('Дозвіл на цю дію відсутній.');
+    const data = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(errors[data?.outcome] ?? 'Не вдалося виконати запит.');
+    return data;
+  }
+
+  async function refresh() { setDesk(await request('/')); }
+  async function run(action: () => Promise<void>) {
+    setBusy(true);
+    setMessage('');
+    try { await action(); }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Не вдалося виконати запит.'); }
+    finally { setBusy(false); }
+  }
+
+  return <section aria-labelledby="payments-heading">
+    <h2 id="payments-heading">Платежі та розподіл</h2>
+    <button disabled={busy} onClick={() => void run(refresh)}>Завантажити платежі та зобов’язання</button>
+    {desk && canRecord && <form onChange={() => setReceipt(undefined)} onSubmit={event => {
+      event.preventDefault();
+      const fields = new FormData(event.currentTarget);
+      setReceipt({ requestId: crypto.randomUUID(), payerId: String(fields.get('payer')),
+        receivedOn: String(fields.get('date')), amount: value(fields.get('amount')), reason: String(fields.get('reason')) });
+    }}>
+      <fieldset disabled={busy}><legend>Новий платіж</legend>
+        <label>Платник <select name="payer" required><option value="">Оберіть платника</option>
+          {desk.payers.map(payer => <option key={payer.id} value={payer.id}>{payer.name}</option>)}
+        </select></label>{' '}
+        <label>Дата надходження <input name="date" type="date" required /></label>{' '}
+        <label>Сума платежу, грн <input name="amount" inputMode="decimal" required /></label>{' '}
+        <label>Підстава платежу <input name="reason" maxLength={500} required /></label>{' '}
+        <button>Переглянути платіж</button>
+      </fieldset>
+    </form>}
+    {receipt && <div>
+      <p>{desk?.payers.find(payer => payer.id === receipt.payerId)?.name} · {receipt.receivedOn} ·
+        {' '}{money.format(receipt.amount)} · {receipt.reason}</p>
+      <button disabled={busy} onClick={() => void run(async () => {
+        const result = await request('/record', receipt);
+        setReceipt(undefined);
+        setSelected(result.id);
+        setDraft(undefined);
+        await refresh();
+        setMessage('Платіж зареєстровано.');
+      })}>Підтвердити реєстрацію платежу</button>
+    </div>}
+    {desk && <label>Визнаний платіж <select value={selected} disabled={busy} onChange={event => {
+      setSelected(event.target.value); setDraft(undefined);
+    }}><option value="">Оберіть платіж</option>
+      {desk.payments.map(item => <option key={item.id} value={item.id}>
+        {item.receivedOn} · {desk.payers.find(payer => payer.id === item.payerId)?.name} · {money.format(item.amount)} · {item.reason}
+      </option>)}
+    </select></label>}
+    {payment && <div key={payment.id}>
+      <p>Нерозподілений залишок {money.format(payment.available)}</p>
+      <p>{payment.reason} · Автор {payment.author} · {when(payment.recordedAt)}</p>
+      {payment.allocations.length > 0 && <ul aria-label="Історія розподілів">
+        {payment.allocations.map(entry => <li key={entry.id}>
+          {entry.reason} · Автор {entry.author} · {when(entry.recordedAt)}
+          <ul>{entry.lines.map(line => <li key={line.obligationId}>
+            {desk?.obligations.find(item => item.id === line.obligationId)?.account ?? line.obligationId} · {money.format(line.amount)}
+          </li>)}</ul>
+        </li>)}
+      </ul>}
+      {obligations.length > 0 && <form onChange={() => setDraft(undefined)} onSubmit={event => {
+        event.preventDefault();
+        const fields = new FormData(event.currentTarget);
+        const input = { requestId: crypto.randomUUID(), paymentId: payment.id, reason: String(fields.get('reason')),
+          lines: obligations.filter(item => String(fields.get(item.id) ?? '').trim() !== '')
+            .map(item => ({ obligationId: item.id, amount: value(fields.get(item.id)) })) };
+        void run(async () => {
+          setDraft(undefined);
+          const preview: Preview = await request('/preview', input);
+          if (preview.outcome !== 'Ready') throw new Error(errors[preview.outcome] ?? 'Розподіл недоступний.');
+          setDraft({ input, preview });
+        });
+      }}>
+        <fieldset disabled={busy}><legend>Розподіл за зобов’язаннями</legend>
+          {obligations.map(item => <div key={item.id}><label>
+            {item.account} · {item.kind} · залишок {money.format(item.outstanding)}{' '}
+            <input name={item.id} inputMode="decimal" />
+          </label></div>)}
+          <label>Підстава розподілу <input name="reason" maxLength={500} required /></label>{' '}
+          <button>Переглянути розподіл</button>
+        </fieldset>
+      </form>}
+      {draft && <>
+        <p>Залишок платежу {money.format(draft.preview.before)} → {money.format(draft.preview.after)}</p>
+        <ul>{draft.preview.lines.map(line => <li key={line.obligationId}>
+          {line.account} · {money.format(line.amount)} · залишок {money.format(line.before)} → {money.format(line.after)}
+        </li>)}</ul>
+        {canAllocate && <button disabled={busy} onClick={() => void run(async () => {
+          await request('/allocate', { input: draft.input, digest: draft.preview.digest });
+          setDraft(undefined);
+          await refresh();
+          setMessage('Розподіл підтверджено.');
+        })}>Підтвердити розподіл</button>}
+      </>}
+    </div>}
+    <p role="status">{message}</p>
+  </section>;
+}

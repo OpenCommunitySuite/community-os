@@ -19,7 +19,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         foreach (var file in new[] { "001_manual_register.sql", "002_ownership_correction.sql",
                      "009_electricity_readings.sql", "010_electricity_replacement.sql",
                      "011_electricity_register_channels.sql", "012_common_electricity_points.sql", "013_meter_installation_details.sql",
-                     "017_regular_billing.sql", "018_billing_recalculation.sql", "019_one_off_accrual.sql" })
+                     "017_regular_billing.sql", "018_billing_recalculation.sql", "019_one_off_accrual.sql", "020_manual_payment.sql" })
         {
             await using var migration = source.CreateCommand(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token));
             await migration.ExecuteNonQueryAsync(token);
@@ -154,6 +154,52 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.True(await amounts.ReadAsync(token));
         Assert.Equal(250m, amounts.GetDecimal(0));
         Assert.False(await amounts.ReadAsync(token));
+        await amounts.DisposeAsync();
+        var payer = targets[0].DebtorId!.Value;
+        var payment = new PaymentInput(Guid.NewGuid(), payer, until, 300m, "Synthetic receipt");
+        Assert.Equal("NotFound", (await billing.RecordPaymentAsync(foreign, payment, Actor(), token)).Outcome);
+        Assert.Equal("Recorded", (await billing.RecordPaymentAsync(community, payment, Actor(), token)).Outcome);
+        Assert.Equal("Replayed", (await billing.RecordPaymentAsync(community, payment, Actor(), token)).Outcome);
+        Assert.Equal("RequestConflict", (await billing.RecordPaymentAsync(community, payment with { Amount = 301m }, Actor(), token)).Outcome);
+        var desk = await billing.PaymentDeskAsync(community, token);
+        var obligation = desk.GetProperty("obligations").EnumerateArray().First(row =>
+            row.GetProperty("payerId").GetGuid() == payer && row.GetProperty("kind").GetString() == "one-off").GetProperty("id").GetGuid();
+        var allocation = new AllocationInput(Guid.NewGuid(), payment.RequestId, "Synthetic allocation", [new(obligation, 200m)]);
+        var split = await billing.PreviewAllocationAsync(community, allocation, token);
+        Assert.Equal(100m, split.After);
+        Assert.Equal(50m, Assert.Single(split.Lines!).After);
+        Assert.Equal("NotFound", (await billing.PreviewAllocationAsync(foreign, allocation, token)).Outcome);
+        var competing = allocation with { RequestId = Guid.NewGuid() };
+        var competingPreview = await billing.PreviewAllocationAsync(community, competing, token);
+        await using var denyAllocation = source.CreateCommand("""
+            ALTER TABLE community_billing.allocation ADD CONSTRAINT deny_allocation CHECK (false);
+            """);
+        await denyAllocation.ExecuteNonQueryAsync(token);
+        await Assert.ThrowsAsync<PostgresException>(() => billing.AllocateAsync(community, allocation, split.Digest!, Actor(), token));
+        Assert.Equal(300m, (await billing.PreviewAllocationAsync(community, allocation, token)).Before);
+        await using var allowAllocation = source.CreateCommand("""
+            ALTER TABLE community_billing.allocation DROP CONSTRAINT deny_allocation;
+            """);
+        await allowAllocation.ExecuteNonQueryAsync(token);
+        var paymentAttempts = await Task.WhenAll(billing.AllocateAsync(community, allocation, split.Digest!, Actor(), token),
+            billing.AllocateAsync(community, competing, competingPreview.Digest!, Actor(), token));
+        Assert.Contains(paymentAttempts, result => result.Outcome == "Allocated");
+        Assert.Contains(paymentAttempts, result => result.Outcome == "StalePreview");
+        var winner = paymentAttempts[0].Outcome == "Allocated" ? (allocation, split) : (competing, competingPreview);
+        Assert.Equal("Replayed", (await billing.AllocateAsync(community, winner.Item1, winner.Item2.Digest!, Actor(), token)).Outcome);
+        Assert.Equal("RequestConflict", (await billing.AllocateAsync(community, winner.Item1 with { Reason = "Changed" },
+            winner.Item2.Digest!, Actor(), token)).Outcome);
+        Assert.Equal("ObligationExceeded", (await billing.PreviewAllocationAsync(community,
+            allocation with { Lines = [new(obligation, 51m)] }, token)).Outcome);
+        var electricityObligation = desk.GetProperty("obligations").EnumerateArray().Single(row =>
+            row.GetProperty("kind").GetString() == "electricity").GetProperty("id").GetGuid();
+        var regularAllocation = allocation with { RequestId = Guid.NewGuid(), Lines = [new(electricityObligation, 25m)] };
+        var beforePayment = await billing.PreviewRecalculationAsync(community, accrual.Id, "Before allocation", token);
+        var regularPreview = await billing.PreviewAllocationAsync(community, regularAllocation, token);
+        Assert.Equal("Allocated", (await billing.AllocateAsync(community, regularAllocation, regularPreview.Digest!, Actor(), token)).Outcome);
+        Assert.Equal("AllocatedObligation", (await billing.PreviewRecalculationAsync(community, accrual.Id, "After allocation", token)).Outcome);
+        Assert.Equal("StalePreview", (await billing.ConfirmRecalculationAsync(community, accrual.Id,
+            "Before allocation", beforePayment.Digest!, Actor(), token)).Outcome);
     }
 
     private const string PostgreSqlImage =
@@ -780,7 +826,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "012_ownership_correction_access.sql", "013_electricity_access.sql", "014_electricity_replacement_access.sql",
                      "015_electricity_register_admission.sql", "016_common_electricity_access.sql",
                      "017_electricity_topology_access.sql", "018_water_access.sql", "019_billing_access.sql",
-                     "020_recalculation_access.sql", "021_one_off_access.sql" })
+                     "020_recalculation_access.sql", "021_one_off_access.sql", "022_payment_access.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -878,6 +924,28 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
             """);
         await billingGrant.ExecuteNonQueryAsync(token);
         Assert.True(await TryPostBilling(community));
+        var paymentTarget = new PaymentTarget(Guid.NewGuid(), billingTarget.Digest);
+        Task<bool> TryPayment(RegisterPermission permission, Guid id) => access.WithAccessAsync(session, id, permission,
+            _ => Task.FromResult(true), false, token, payment: paymentTarget);
+        await using var paymentGrant = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator SET payment_record_basis = 'synthetic receipt';
+            """);
+        await paymentGrant.ExecuteNonQueryAsync(token);
+        Assert.True(await TryPayment(RegisterPermission.RecordPayment, community));
+        Assert.False(await TryPayment(RegisterPermission.AllocatePayment, community));
+        Assert.False(await TryPayment(RegisterPermission.RecordPayment, Guid.NewGuid()));
+        await using var allocationGrant = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator
+            SET payment_record_basis = NULL, payment_allocate_basis = 'synthetic allocation';
+            """);
+        await allocationGrant.ExecuteNonQueryAsync(token);
+        Assert.False(await TryPayment(RegisterPermission.RecordPayment, community));
+        Assert.True(await TryPayment(RegisterPermission.AllocatePayment, community));
+        await using var allocationRevoke = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator SET payment_allocate_basis = NULL;
+            """);
+        await allocationRevoke.ExecuteNonQueryAsync(token);
+        Assert.False(await TryPayment(RegisterPermission.AllocatePayment, community));
         Task<bool> TryOneOff(Guid id) => access.WithAccessAsync(session, id, RegisterPermission.PostOneOff,
             _ => Task.FromResult(true), false, token, oneOff: new(Guid.NewGuid(), billingTarget.Digest));
         Assert.False(await TryOneOff(community));

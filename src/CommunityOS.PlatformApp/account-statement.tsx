@@ -12,14 +12,16 @@ export function AccountStatement({ community, today, debts, payerNames, account,
   community: string; today: string; debts: Debt[]; payerNames: Map<string, string>;
   account: string; setAccount: (account: string) => void; detailsRef: Ref<HTMLDetailsElement>;
 }) {
-  const accounts = [...new Set(debts.map(row => row.account))].sort((a, b) => a.localeCompare(b, 'uk-UA'));
-  const selected = accounts.includes(account);
+  const accounts = [...new Set([...debts.map(row => row.account), ...(account ? [account] : [])])]
+    .sort((a, b) => a.localeCompare(b, 'uk-UA'));
+  const selected = account !== '';
   const rows = debts.filter(row => row.account === account);
   const cents = (row: Debt) => Math.round(row.outstanding * 100);
   const sum = (items: Debt[]) => money.format(items.reduce((total, row) => total + cents(row), 0) / 100);
   const statement = selected && <>
     <h2>Виписка за особовим рахунком {account}</h2>
     <p>{community} · Дата звірки за Києвом {today}</p>
+    {rows.length === 0 && <p>За цим рахунком немає непогашених зобов’язань.</p>}
     <table>
       <caption>Непогашені зобов’язання за рахунком</caption>
       <thead><tr><th>Платник</th><th>Вид</th><th>Сплатити до</th><th>Залишок</th></tr></thead>

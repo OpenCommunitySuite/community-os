@@ -4,16 +4,20 @@ import { debtKinds } from './account-statement';
 import { csvAmount, csvText, downloadCsv } from './report-csv';
 
 type Line = { kind: string; charged: number; settled: number; outstanding: number; excess: number };
-type Report = { totals: Line[]; details: (Line & { obligationId: string; account: string })[] };
+type Report = { totals: Line[]; details: (Line & { obligationId: string; account: string; currentAccount: string })[] };
 const columns = ['charged', 'settled', 'outstanding', 'excess'] as const;
 
-export function PeriodReconciliation({ endpoint, from, until }: { endpoint: string; from: string; until: string }) {
+export function PeriodReconciliation({ endpoint, from, until, openStatement }: {
+  endpoint: string; from: string; until: string; openStatement: (account: string) => Promise<void>;
+}) {
   const [report, setReport] = useState<Report>();
   const [account, setAccount] = useState('');
   const accounts = [...new Set(report?.details.map(row => row.account))];
   const rows = report?.details.filter(row => !account || row.account === account) ?? [];
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [opening, setOpening] = useState(false);
+  const [statementFailed, setStatementFailed] = useState(false);
   const totals = report?.totals ?? [];
   const totalCents = columns.map(column => totals.reduce((sum, line) => sum + Math.round(line[column] * 100), 0));
 
@@ -46,10 +50,23 @@ export function PeriodReconciliation({ endpoint, from, until }: { endpoint: stri
     }
   }
 
+  async function showStatement(account: string) {
+    setOpening(true);
+    setStatementFailed(false);
+    try {
+      await openStatement(account);
+    } catch {
+      setStatementFailed(true);
+    } finally {
+      setOpening(false);
+    }
+  }
+
   return <details>
     <summary>Звірка розрахункового періоду</summary>
     <button type="button" disabled={busy} onClick={() => void load()}>Завантажити поточну звірку</button>
     {failed && <p role="alert">Не вдалося завантажити звірку.</p>}
+    {statementFailed && <p role="alert">Не вдалося відкрити виписку. Перевірте доступ і повторіть спробу.</p>}
     {report && <>
     <table>
       <caption>Поточні залишки зобов’язань періоду</caption>
@@ -68,7 +85,9 @@ export function PeriodReconciliation({ endpoint, from, until }: { endpoint: stri
       <caption>Зобов’язання за особовими рахунками</caption>
       <thead><tr><th>Рахунок</th><th>Вид</th><th>Нараховано</th><th>Погашено</th><th>Залишок боргу</th><th>Надлишок застосованої оплати</th></tr></thead>
       <tbody>{rows.map(row => <tr key={row.obligationId}>
-        <th scope="row">{row.account}</th><td>{debtKinds[row.kind]}</td>
+        <th scope="row"><button type="button" disabled={opening}
+          aria-label={`Відкрити виписку за рахунком ${row.account}`}
+          onClick={() => void showStatement(row.currentAccount)}>{row.account}</button></th><td>{debtKinds[row.kind]}</td>
         {columns.map(column => <td key={column}>{money.format(row[column])}</td>)}
       </tr>)}</tbody>
     </table> : <p>У проведеному періоді немає зобов’язань.</p>}

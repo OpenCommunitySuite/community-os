@@ -6,6 +6,7 @@ import { OwnershipCorrection } from './ownershipCorrection';
 import { Electricity } from './electricity';
 import { Water } from './water';
 import { Billing } from './billing';
+import { WaterChargePreview } from './water-charge-preview';
 import { OneOff } from './one-off';
 import { Payments, type PaymentWorkspace } from './payments';
 import { Bank } from './bank';
@@ -166,6 +167,7 @@ function Register() {
       }}
       canPost={community.canPostBilling} canRecalculate={community.canRecalculateBilling} />}
     {community?.canReadBilling && <OneOff key={'one-off:' + community.id} community={community.id} canPost={community.canPostOneOff} />}
+    {community?.canReadBilling && <WaterChargePreview key={'water-charge:' + community.id} endpoint={'/community/billing/' + community.id} />}
     {community?.canReadBilling && <Payments ref={paymentWorkspace} key={'payments:' + community.id} community={community.id}
       communityName={community.name}
       canRecord={community.canRecordPayment} canAllocate={community.canAllocatePayment} canAcceptCash={community.canAcceptCash}

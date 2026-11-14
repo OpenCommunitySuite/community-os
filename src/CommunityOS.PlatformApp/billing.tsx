@@ -7,8 +7,9 @@ export type Register = { channel: string; startValue: number; endValue: number; 
 type Line = { accountId: string; accountNumber: string; status: string;
   electricity: { installationId: string; multiplier: number; tariff: { id: string; basis: string; from: string; until: string | null };
     registers: Register[]; amountUah: number } | null;
-  fee: { id: string; basis: string; amountUah: number } | null };
-type Plan = { period: Period; lines: Line[]; ready: boolean };
+  fee: { id: string; basis: string; amountUah: number } | null;
+  water?: { status: string; volume: number | null; rate: number | null; amountUah: number | null; basis: string | null } };
+type Plan = { period: Period; lines: Line[]; ready: boolean; includeWater?: boolean };
 type Preview = { plan: Plan; digest: string };
 type Posted = { id: string; snapshot: Plan; accountId: string; postedAt: string };
 type PostedPeriod = Pick<Period, 'from' | 'until' | 'dueOn'> & { id: string; postedAt: string };
@@ -78,7 +79,7 @@ export function Billing({ community, canPost, canRecalculate, openStatement }: {
       const { token } = await checked(await fetch('/platform/csrf'));
       const response = await checked(await fetch(endpoint + '/post', {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Platform-CSRF': token },
-        body: JSON.stringify({ period: preview.plan.period, digest: preview.digest }),
+        body: JSON.stringify({ period: preview.plan.period, digest: preview.digest, includeWater: preview.plan.includeWater ?? false }),
       }));
       setPosted(response.result);
       setPeriods(undefined);
@@ -126,6 +127,7 @@ export function Billing({ community, canPost, canRecalculate, openStatement }: {
         <label>Початок споживання <input type="date" name="from" required /></label>{' '}
         <label>Кінець споживання <input type="date" name="until" required /></label>{' '}
         <label>Дата розрахунку <input type="date" name="calculatedOn" /></label>{' '}
+        <label><input type="checkbox" name="includeWater" value="true" /> Включити воду</label>{' '}
         <label>Сплатити до <input type="date" name="dueOn" /></label>{' '}
         <button value="preview">Попередній розрахунок</button>{' '}
         <button value="history">Відкрити проведений період</button>
@@ -144,6 +146,8 @@ export function Billing({ community, canPost, canRecalculate, openStatement }: {
       {plan.lines.map(line => <section key={line.accountId}>
         <h3>Особовий рахунок {line.accountNumber}</h3>
         <p>{labels[line.status] ?? line.status}</p>
+        {line.water && <p>Вода · {line.water.amountUah === null ? labels[line.water.status] ?? line.water.status
+          : `${line.water.volume} м³ × ${line.water.rate} грн/м³ · ${money.format(line.water.amountUah)} · ${line.water.basis}`}</p>}
         {line.electricity?.registers && <>
           <p>Установка {line.electricity.installationId}, коефіцієнт {line.electricity.multiplier}.</p>
           <p>Тариф {line.electricity.tariff.id} · {line.electricity.tariff.basis} · {line.electricity.tariff.from}

@@ -112,6 +112,8 @@
           Link="031_water_reading_import_source.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/032_water_tariff.sql"
           Link="032_water_tariff.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/033_water_accrual.sql"
+          Link="033_water_accrual.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/017_regular_billing.sql"
           Link="017_regular_billing.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/018_billing_recalculation.sql"

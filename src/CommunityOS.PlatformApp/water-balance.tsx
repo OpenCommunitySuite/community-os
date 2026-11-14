@@ -10,12 +10,15 @@ const csvVolume = (value: number | null) => value === null ? '' : value.toFixed(
 const missing = (point: Point) => [point.missingStart && 'Початкове', point.missingEnd && 'Кінцеве'].filter(Boolean).join(', ');
 
 export function WaterBalance({ read }: { read: (path: string) => Promise<Balance> }) {
+  const [from, setFrom] = useState('');
+  const [until, setUntil] = useState('');
   const [calculation, setCalculation] = useState<{ result: Balance; from: string; until: string }>();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState('');
   const [missingOnly, setMissingOnly] = useState(false);
   const result = calculation?.result;
+  const splitOn = result?.outcome === 'TopologyChanged' ? result.splitOn : null;
   const names = new Map(result?.points.map(point => [point.id, point.designation]));
   const branches = new Map(result?.branches.map(branch => [branch.id, branch]));
   const parentName = (point: Point) => point.parentId ? names.get(point.parentId) ?? point.parentId : '';
@@ -28,6 +31,12 @@ export function WaterBalance({ read }: { read: (path: string) => Promise<Balance
       if (id === selectedBranch) return true;
     return false;
   });
+
+  function clearCalculation() {
+    setCalculation(undefined);
+    setSelectedBranch('');
+    setError('');
+  }
 
   function download() {
     if (!calculation || calculation.result.outcome !== 'Ready') return;
@@ -43,14 +52,9 @@ export function WaterBalance({ read }: { read: (path: string) => Promise<Balance
   }
   return <details>
     <summary>Звірка обсягів води</summary>
-    <form onChange={() => { setCalculation(undefined); setSelectedBranch(''); setError(''); }} onSubmit={event => {
+    <form onSubmit={event => {
       event.preventDefault();
-      const fields = new FormData(event.currentTarget);
-      const from = String(fields.get('from'));
-      const until = String(fields.get('until'));
-      setCalculation(undefined);
-      setSelectedBranch('');
-      setError('');
+      clearCalculation();
       if (from >= until) {
         setError('Початкова дата має передувати кінцевій.');
         return;
@@ -60,15 +64,21 @@ export function WaterBalance({ read }: { read: (path: string) => Promise<Balance
         .catch(() => setError('Не вдалося отримати звірку. Перевірте дати й доступ.')).finally(() => setBusy(false));
     }}>
       <fieldset disabled={busy}>
-        <label>Початок звірки води <input name="from" type="date" required /></label>{' '}
-        <label>Кінець звірки води <input name="until" type="date" required /></label>{' '}
+        <label>Початок звірки води <input name="from" type="date" required value={from}
+          onChange={event => { setFrom(event.target.value); clearCalculation(); }} /></label>{' '}
+        <label>Кінець звірки води <input name="until" type="date" required value={until}
+          onChange={event => { setUntil(event.target.value); clearCalculation(); }} /></label>{' '}
         <button>Розрахувати звірку води</button>
       </fieldset>
     </form>
     {error && <p role="alert">{error}</p>}
     {result?.outcome === 'NoTopology' && <p>На початкову дату немає опублікованого дерева.</p>}
     {result?.outcome === 'TopologyChanged' && <p>Дерево змінювалося всередині інтервалу. Розділіть період на дату зміни
-      {result.splitOn && <> <time dateTime={result.splitOn}>{result.splitOn}</time></>}.</p>}
+      {splitOn && <> <time dateTime={splitOn}>{splitOn}</time></>}.</p>}
+    {splitOn && from < splitOn && splitOn < until && <p>
+      <button type="button" onClick={() => { setUntil(splitOn); clearCalculation(); }}>До зміни дерева</button>{' '}
+      <button type="button" onClick={() => { setFrom(splitOn); clearCalculation(); }}>Від зміни дерева</button>
+    </p>}
     {result?.outcome === 'Ready' && <>
     <label>Гілка для звірки <select value={selectedBranch} onChange={event => setSelectedBranch(event.target.value)}>
       <option value="">Усе дерево</option>

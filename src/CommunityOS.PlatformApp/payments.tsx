@@ -277,7 +277,8 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
         <summary>Аванс на членські внески · залишок {money.format(advance.available)}</summary>
         <p>{money.format(advance.amount)} · {advance.reason} · Автор {advance.author} · {when(advance.recordedAt)}</p>
         {advance.applications.map(item => <p key={item.id}>
-          {money.format(item.amount)} · {item.obligationId} · {item.reason} · Автор {item.author} · {when(item.recordedAt)}
+          {money.format(item.amount)} · {statementLink(item.obligationId, 'Відкрити виписку за рахунком')}
+          {' · '}{item.reason} · Автор {item.author} · {when(item.recordedAt)}
         </p>)}
         {advance.releases.map(item => <p key={item.id}>
           Знято з резерву {money.format(item.amount)} · {item.reason} · Автор {item.author} · {when(item.recordedAt)}

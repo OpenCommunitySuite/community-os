@@ -31,9 +31,14 @@ export function Billing({ community, canPost, canRecalculate }: { community: str
   const [preview, setPreview] = useState<Preview>();
   const [posted, setPosted] = useState<Posted>();
   const [periods, setPeriods] = useState<PostedPeriod[]>();
+  const [historyFrom, setHistoryFrom] = useState('');
+  const [historyThrough, setHistoryThrough] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const plan = posted?.snapshot ?? preview?.plan;
+  const invalidHistoryRange = historyFrom !== '' && historyThrough !== '' && historyFrom > historyThrough;
+  const matchingPeriods = periods?.filter(period =>
+    (!historyFrom || period.until > historyFrom) && (!historyThrough || period.from <= historyThrough));
 
   async function checked(response: Response) {
     if (response.ok) return response.json();
@@ -88,10 +93,21 @@ export function Billing({ community, canPost, canRecalculate }: { community: str
         void run(async () => setPeriods(await checked(await fetch(endpoint + '/periods', { cache: 'no-store' }))));
       }}>Завантажити проведені періоди</button>
       {periods?.length === 0 && <p>Проведених періодів немає.</p>}
-      {periods && periods.length > 0 && <table>
+      {periods && periods.length > 0 && <>
+        <label>Споживання з <input type="date" value={historyFrom} onChange={event => setHistoryFrom(event.target.value)} /></label>{' '}
+        <label>Споживання до включно <input type="date" value={historyThrough} onChange={event => setHistoryThrough(event.target.value)} /></label>{' '}
+        <button type="button" disabled={!historyFrom && !historyThrough} onClick={() => {
+          setHistoryFrom('');
+          setHistoryThrough('');
+        }}>Скинути фільтр дат</button>
+      </>}
+      {invalidHistoryRange && periods && periods.length > 0 && <p role="alert">Початкова дата має передувати кінцевій або збігатися з нею.</p>}
+      {!invalidHistoryRange && periods && periods.length > 0 && matchingPeriods?.length === 0 &&
+        <p>За вибраними датами проведених періодів немає.</p>}
+      {!invalidHistoryRange && matchingPeriods && matchingPeriods.length > 0 && <table>
         <caption>Історія проведених періодів</caption>
         <thead><tr><th>Початок</th><th>Кінець</th><th>Сплатити до</th><th>Проведено</th><th>Розрахунок</th></tr></thead>
-        <tbody>{periods.map(period => <tr key={period.id}>
+        <tbody>{matchingPeriods.map(period => <tr key={period.id}>
           <td>{period.from}</td><td>{period.until}</td><td>{period.dueOn}</td>
           <td>{new Date(period.postedAt).toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv' })}</td>
           <td><button type="button" disabled={busy} aria-label={`Відкрити період ${period.from} — ${period.until}`} onClick={() => {

@@ -824,6 +824,34 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Collection(await water.InstallationsAsync(community, waterRoot, token),
             current => Assert.Equal(waterReplaced.InstallationId, current.Id),
             past => Assert.Equal(waterReplacement.EffectiveOn, past.EndsBefore));
+
+        var leafInstallation = installed.Single(point => point.Id == leaf).InstallationId;
+        var leafReplacement = waterReplacement with
+        {
+            RequestId = Guid.NewGuid(), InstallationId = leafInstallation, Designation = "Leaf replacement"
+        };
+        var competingReplacements = await Task.WhenAll(
+            water.ReplaceAsync(community, leafReplacement, today, Actor(), token),
+            water.ReplaceAsync(community, leafReplacement with { RequestId = Guid.NewGuid(), Designation = "Other leaf meter" },
+                today, Actor(), token));
+        Assert.Single(competingReplacements, result => result.Outcome == ElectricityReplacementOutcome.Replaced);
+        Assert.Single(competingReplacements, result => result.Outcome == ElectricityReplacementOutcome.Conflict);
+        Assert.Equal(2, (await water.InstallationsAsync(community, leaf, token)).Count);
+
+        var streetInstallation = installed.Single(point => point.Id == street).InstallationId;
+        var streetReplacement = leafReplacement with
+        {
+            RequestId = Guid.NewGuid(), InstallationId = streetInstallation, Designation = "Street replacement"
+        };
+        var competingReplacement = water.ReplaceAsync(community, streetReplacement, today, Actor(), token);
+        var competingReading = water.RecognizeAsync(community, streetInstallation, streetReplacement.EffectiveOn,
+            2m, today, Actor(), token);
+        await Task.WhenAll(competingReplacement, competingReading);
+        Assert.Contains(((await competingReplacement).Outcome, (await competingReading).Outcome), new[]
+        {
+            (ElectricityReplacementOutcome.Replaced, ReadingOutcome.OutsideInstallation),
+            (ElectricityReplacementOutcome.ExistingReading, ReadingOutcome.Recognized)
+        });
         Assert.Empty((await store.SeriesAsync(community, newDual.Id, token))!.Intervals);
     }
 

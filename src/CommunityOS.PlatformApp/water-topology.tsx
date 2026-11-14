@@ -13,12 +13,25 @@ export function WaterTopology({ points, canSetup, read, post }: {
   const [root, setRoot] = useState('');
   const [parents, setParents] = useState<Record<string, string>>({});
   const [result, setResult] = useState<Topology | null>();
+  const [source, setSource] = useState<Topology>();
   const [error, setError] = useState('');
   const [reassigned, setReassigned] = useState(0);
   const [busy, setBusy] = useState(false);
   const common = points.filter(point => !point.plotId);
   const names = new Map(points.map(point => [point.id, point.designation]));
   const publishedRoot = result?.points.find(point => point.parentId === null);
+  const draft = new Map<string, string | null>(
+    Object.entries(parents).filter(([id, parent]) => id !== root && parent));
+  if (root) draft.set(root, null);
+  const original = new Map(source?.points.map(point => [point.pointId, point.parentId]));
+  const changes = [...new Set([...original.keys(), ...draft.keys()])]
+    .filter(id => original.get(id) !== draft.get(id));
+
+  function placementLabel(parent: string | null | undefined) {
+    if (parent === undefined) return 'поза деревом';
+    if (parent === null) return 'загальна точка';
+    return names.get(parent) ?? parent;
+  }
 
   function changeParent(pointId: string, parentId: string) {
     const next = { ...parents, [pointId]: parentId };
@@ -40,9 +53,7 @@ export function WaterTopology({ points, canSetup, read, post }: {
     setError('');
     try {
       if (publish) {
-        const placements: Placement[] = [{ pointId: root, parentId: null }];
-        for (const [pointId, parentId] of Object.entries(parents))
-          if (pointId !== root && parentId) placements.push({ pointId, parentId });
+        const placements = [...draft].map(([pointId, parentId]) => ({ pointId, parentId }));
         await post('/topology', { startsOn, points: placements });
         setDate(startsOn);
         setReassigned(0);
@@ -90,12 +101,19 @@ export function WaterTopology({ points, canSetup, read, post }: {
         </select></label>
       </div>)}
       {reassigned > 0 && <p role="status">Підключено безпосередньо до загальної точки. Ділянок перенесено: {reassigned}.</p>}
+      {source && <section aria-label="Зміни у новій версії">
+        <p>Зміни порівняно з версією від <time dateTime={source.startsOn}>{source.startsOn}</time></p>
+        {changes.length === 0 ? <p>Зв’язки не змінилися.</p> : <ul>{changes.map(id => <li key={id}>
+          {names.get(id) ?? id}{' · '}{placementLabel(original.get(id))}{' → '}{placementLabel(draft.get(id))}
+        </li>)}</ul>}
+      </section>}
       <button type="button" disabled={!startsOn || !root} onClick={() => void run(true)}>Опублікувати дерево</button>
     </fieldset>}
     {error && <p role="alert">{error}</p>}
     {result === null && <p>На цю дату дерево не опубліковано.</p>}
     {result && <section aria-label="Опубліковане дерево води"><p>Діє з {result.startsOn}</p>{branch(null)}
       {canSetup && publishedRoot && <button type="button" disabled={busy} onClick={() => {
+        setSource(result);
         setRoot(publishedRoot.pointId);
         setParents(Object.fromEntries(result.points.flatMap(point => point.parentId ? [[point.pointId, point.parentId]] : [])));
         setStartsOn('');

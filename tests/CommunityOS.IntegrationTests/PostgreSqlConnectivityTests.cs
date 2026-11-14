@@ -787,7 +787,9 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         var waterBalanceStart = starts.AddDays(1);
         var end = starts.AddDays(2);
         Assert.Equal("NoTopology", (await water.BalanceAsync(foreign, waterBalanceStart, end, token)).Outcome);
-        Assert.Equal("TopologyChanged", (await water.BalanceAsync(community, starts, end, token)).Outcome);
+        var changedBalance = await water.BalanceAsync(community, starts, end, token);
+        Assert.Equal("TopologyChanged", changedBalance.Outcome);
+        Assert.Equal(waterBalanceStart, changedBalance.SplitOn);
         var incomplete = await water.BalanceAsync(community, starts, waterBalanceStart, token);
         Assert.Equal("Ready", incomplete.Outcome);
         Assert.Null(Assert.Single(incomplete.Branches).Difference);

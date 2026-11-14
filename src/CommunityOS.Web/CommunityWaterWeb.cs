@@ -7,6 +7,7 @@ internal static class CommunityWaterWeb
     public static void Map(RouteGroupBuilder routes, RegisterAccessStore access, PostgresWaterStore store)
     {
         var water = routes.MapGroup("/water/{community:guid}");
+        CommunityElectricityImportWeb.Map(water, access, store);
         water.MapGet("/balance", (Guid community, DateOnly from, DateOnly until, HttpContext http, CancellationToken token) =>
         {
             if (from == default || from >= until || until > CommunityElectricityWeb.Today())

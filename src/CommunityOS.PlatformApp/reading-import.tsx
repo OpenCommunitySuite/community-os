@@ -26,8 +26,8 @@ const outcomes: Record<string, string> = {
   PreviewMismatch: 'Файл змінився. Перегляньте його ще раз.',
 };
 
-export function ReadingImport({ endpoint, canApply, onApplied }: {
-  endpoint: string; canApply: boolean; onApplied: () => Promise<void>;
+export function ReadingImport({ endpoint, canApply, onApplied, water = false }: {
+  endpoint: string; canApply: boolean; onApplied: () => Promise<void>; water?: boolean;
 }) {
   const [file, setFile] = useState<File>();
   const [preview, setPreview] = useState<Preview>();
@@ -73,8 +73,8 @@ export function ReadingImport({ endpoint, canApply, onApplied }: {
 
   const rows = report ?? preview?.rows;
   return <details>
-    <summary>Імпорт показань CSV</summary>
-    <p>Заголовок файлу <code>installation_id,measured_on,channel,value_kwh</code>.</p>
+    <summary>{water ? 'Імпорт показань води CSV' : 'Імпорт показань CSV'}</summary>
+    <p>Заголовок файлу <code>{water ? 'installation_id,measured_on,value_m3' : 'installation_id,measured_on,channel,value_kwh'}</code>.</p>
     <label>Файл показань <input type="file" accept=".csv,text/csv" disabled={pending} onChange={event => {
       setFile(event.currentTarget.files?.[0]);
       setPreview(undefined);
@@ -87,11 +87,11 @@ export function ReadingImport({ endpoint, canApply, onApplied }: {
     {rows && rows.length > 0 && <table>
       <caption>{report ? 'Результат застосування CSV' : 'Попередній перегляд CSV'}</caption>
       <thead><tr><th scope="col">Рядок</th><th scope="col">Установка</th><th scope="col">Дата</th>
-        <th scope="col">Регістр</th><th scope="col">кВт·год</th><th scope="col">Результат</th></tr></thead>
+        {!water && <th scope="col">Регістр</th>}<th scope="col">{water ? 'м³' : 'кВт·год'}</th><th scope="col">Результат</th></tr></thead>
       <tbody>{rows.map(row => <tr key={row.line}><td>{row.line}</td>
         <td>{row.meterDesignation && <>{row.meterDesignation}<br /></>}{row.installationId}</td>
-        <td>{row.measuredOn}</td><td>{row.channel}</td><td>{row.value}</td>
-        <td>{outcomes[row.outcome] ?? row.outcome}</td></tr>)}</tbody>
+        <td>{row.measuredOn}</td>{!water && <td>{row.channel}</td>}<td>{row.value}</td>
+        <td>{water && row.outcome === 'InvalidFields' ? 'Очікується три поля' : outcomes[row.outcome] ?? row.outcome}</td></tr>)}</tbody>
     </table>}
     <p role="status">{message}</p>
   </details>;

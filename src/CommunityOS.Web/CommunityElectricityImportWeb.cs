@@ -9,12 +9,28 @@ internal static class CommunityElectricityImportWeb
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
     public static void Map(RouteGroupBuilder electricity, RegisterAccessStore access, PostgresElectricityStore store)
+        => MapImport(electricity, access, false,
+            store.PreviewImportAsync,
+            (community, reading, today, actor, token) =>
+                store.RecognizeImportAsync(community, reading, today, CommunityElectricityWeb.Actor(actor), token));
+
+    public static void Map(RouteGroupBuilder water, RegisterAccessStore access, PostgresWaterStore store)
+        => MapImport(water, access, true,
+            store.PreviewImportAsync,
+            (community, reading, today, actor, token) => store.RecognizeAsync(community,
+                reading.InstallationId, reading.MeasuredOn, reading.Value, today,
+                CommunityElectricityWeb.Actor(actor), token, imported: true));
+
+    private static void MapImport(RouteGroupBuilder routes, RegisterAccessStore access, bool water,
+        Func<Guid, ElectricityImportRow, DateOnly, CancellationToken, Task<ElectricityRecognition>> previewReading,
+        Func<Guid, ElectricityImportRow, DateOnly, RegisterActor, CancellationToken, Task<ElectricityRecognition>> recognize)
     {
-        electricity.MapPost("/reading-import/preview", async (Guid community, HttpContext http, CancellationToken token) =>
+        routes.MapPost("/reading-import/preview", async (Guid community, HttpContext http, CancellationToken token) =>
         {
-            var (batch, failure) = await ReadAsync(http.Request, token);
+            var (batch, failure) = await ReadAsync(http.Request, water, token);
             if (batch is null) return failure!;
-            return await access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadElectricity,
+            return await access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community,
+                water ? RegisterPermission.ReadWater : RegisterPermission.ReadElectricity,
                 async _ =>
                 {
                     var results = new List<RowResult>(batch.Rows.Count);
@@ -22,16 +38,16 @@ internal static class CommunityElectricityImportWeb
                     foreach (var row in batch.Rows)
                     {
                         var result = row.Reading is { } reading
-                            ? await store.PreviewImportAsync(community, reading, today, token) : null;
+                            ? await previewReading(community, reading, today, token) : null;
                         results.Add(Report(row, result, preview: true));
                     }
                     return Results.Ok(new { batch.Digest, Rows = results });
                 }, Results.StatusCode(403), token);
         });
 
-        electricity.MapPost("/reading-import/apply", async (Guid community, HttpContext http, CancellationToken token) =>
+        routes.MapPost("/reading-import/apply", async (Guid community, HttpContext http, CancellationToken token) =>
         {
-            var (batch, failure) = await ReadAsync(http.Request, token);
+            var (batch, failure) = await ReadAsync(http.Request, water, token);
             if (batch is null) return failure!;
             if (http.Request.Headers["X-Reading-Import-Digest"] != batch.Digest)
                 return Results.Conflict(new { Outcome = "PreviewMismatch" });
@@ -50,9 +66,11 @@ internal static class CommunityElectricityImportWeb
                 }
 
                 var result = await access.WithAccessAsync<ElectricityRecognition?>(
-                    http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.RecognizeElectricity,
-                    actor => RecognizeAsync(store, community, reading, today, actor, token), null, token,
-                    electricity: new(reading.InstallationId, reading.MeasuredOn, Channel: reading.Channel));
+                    http.Request.Cookies[PlatformWeb.Cookie], community,
+                    water ? RegisterPermission.RecognizeWater : RegisterPermission.RecognizeElectricity,
+                    async actor => await recognize(community, reading, today, actor, token), null, token,
+                    electricity: water ? null : new(reading.InstallationId, reading.MeasuredOn, Channel: reading.Channel),
+                    water: water ? new(reading.InstallationId, reading.MeasuredOn) : null);
                 if (result is null && !admitted) return Results.StatusCode(403);
                 admitted |= result is not null;
                 results.Add(Report(row, result));
@@ -60,10 +78,6 @@ internal static class CommunityElectricityImportWeb
             return Results.Ok(new { Rows = results });
         });
     }
-
-    private static async Task<ElectricityRecognition?> RecognizeAsync(PostgresElectricityStore store, Guid community,
-        ElectricityImportRow reading, DateOnly today, RegisterActor actor, CancellationToken token) =>
-        await store.RecognizeImportAsync(community, reading, today, CommunityElectricityWeb.Actor(actor), token);
 
     private static RowResult Report(ElectricityImportRecord row, ElectricityRecognition? result, bool preview = false)
     {
@@ -74,7 +88,7 @@ internal static class CommunityElectricityImportWeb
             result?.ReadingId, result?.MeterDesignation);
     }
 
-    private static async Task<(Batch? Batch, IResult? Failure)> ReadAsync(HttpRequest request, CancellationToken token)
+    private static async Task<(Batch? Batch, IResult? Failure)> ReadAsync(HttpRequest request, bool water, CancellationToken token)
     {
         var limit = ElectricityReadingImport.MaximumBytes;
         if (request.ContentLength > limit) return (null, Results.StatusCode(413));
@@ -85,7 +99,7 @@ internal static class CommunityElectricityImportWeb
         {
             var offset = buffer.AsSpan(0, count).StartsWith(new byte[] { 0xef, 0xbb, 0xbf }) ? 3 : 0;
             using var csv = new StringReader(StrictUtf8.GetString(buffer, offset, count - offset));
-            return (new(Convert.ToHexString(SHA256.HashData(buffer.AsSpan(0, count))), ElectricityReadingImport.Parse(csv)), null);
+            return (new(Convert.ToHexString(SHA256.HashData(buffer.AsSpan(0, count))), ElectricityReadingImport.Parse(csv, water)), null);
         }
         catch (DecoderFallbackException)
         {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { WaterTopology } from './water-topology';
 import { WaterBalance } from './water-balance';
+import { ReadingImport } from './reading-import';
 
 type Point = { id: string; plotId: string | null; designation: string; boundary: string | null;
   installationId: string; meterDesignation: string; startsOn: string };
@@ -94,6 +95,7 @@ export function Water({ community, canSetup, canRecognize, canReplace }: {
     <h2 id="water-heading">Облік технічної води</h2>
     <WaterTopology points={points} canSetup={canSetup} read={read} post={post} />
     <WaterBalance read={read} />
+    <ReadingImport endpoint={endpoint} canApply={canRecognize} water onApplied={() => readSeries(readingInstallation)} />
     {canSetup && <details>
       <summary>Зареєструвати точку води</summary>
       <form onSubmit={event => {

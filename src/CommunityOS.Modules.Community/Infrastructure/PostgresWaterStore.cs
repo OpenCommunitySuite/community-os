@@ -117,13 +117,23 @@ public sealed partial class PostgresWaterStore(NpgsqlDataSource source)
         }, token);
 
     public Task<ElectricityRecognition> RecognizeAsync(Guid community, Guid installation, DateOnly date, decimal value,
-        DateOnly today, ElectricityActor actor, CancellationToken token) =>
+        DateOnly today, ElectricityActor actor, CancellationToken token, bool imported = false) =>
+        EvaluateReadingAsync(community, installation, date, value, today, actor, token, imported);
+
+    public Task<ElectricityRecognition> PreviewImportAsync(Guid community, ElectricityImportRow row, DateOnly today,
+        CancellationToken token) =>
+        EvaluateReadingAsync(community, row.InstallationId, row.MeasuredOn, row.Value, today, null, token, true);
+
+    private Task<ElectricityRecognition> EvaluateReadingAsync(Guid community, Guid installation, DateOnly date, decimal value,
+        DateOnly today, ElectricityActor? actor, CancellationToken token, bool imported) =>
         RunAsync<ElectricityRecognition>(community, async (connection, transaction) =>
         {
-            await using var locked = Query(connection, transaction, community, """
+            const string selectInstallation = """
                 SELECT starts_on, ends_before FROM community_water.installation
-                WHERE community_id = @community AND id = @installation FOR UPDATE;
-                """);
+                WHERE community_id = @community AND id = @installation
+                """;
+            await using var locked = Query(connection, transaction, community,
+                actor is null ? selectInstallation : selectInstallation + " FOR UPDATE");
             locked.Parameters.AddWithValue("installation", installation);
             await using var installationReader = await locked.ExecuteReaderAsync(token);
             if (!await installationReader.ReadAsync(token)) return new(ReadingOutcome.NotFound);
@@ -148,14 +158,14 @@ public sealed partial class PostgresWaterStore(NpgsqlDataSource source)
             await reader.ReadAsync(token);
             var outcome = ManualElectricity.Evaluate(starts, today, date, value,
                 ReadValue(reader, 1), ReadValue(reader, 2), ReadValue(reader, 3));
-            if (outcome != ReadingOutcome.Recognized)
+            if (actor is null || outcome != ReadingOutcome.Recognized)
                 return new(outcome, outcome == ReadingOutcome.AlreadyRecorded ? reader.GetGuid(0) : null);
             await reader.DisposeAsync();
 
             await using var insert = Query(connection, transaction, community, """
                 INSERT INTO community_water.reading (community_id, id, installation_id, measured_on, value_m3,
                     source, recognition_rule, admission_id, account_id, subject_id, basis)
-                VALUES (@community, @id, @installation, @date, @value, 'manual-observation', 'manual-water-daily-v1',
+                VALUES (@community, @id, @installation, @date, @value, @source, 'manual-water-daily-v1',
                     @admission, @account, @subject, @basis);
                 """);
             var id = Guid.CreateVersion7();
@@ -163,6 +173,7 @@ public sealed partial class PostgresWaterStore(NpgsqlDataSource source)
             insert.Parameters.AddWithValue("installation", installation);
             insert.Parameters.AddWithValue("date", date);
             insert.Parameters.AddWithValue("value", value);
+            insert.Parameters.AddWithValue("source", imported ? "csv-import" : "manual-observation");
             BindActor(insert, actor);
             await insert.ExecuteNonQueryAsync(token);
             return new(outcome, id);

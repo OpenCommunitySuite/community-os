@@ -520,6 +520,12 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Equal(new[] { secondFee, fee, historical.Id }, directory.Select(entry => entry.Id));
         Assert.Equal(new DateOnly(2031, 2, 15), directory[0].DueOn);
         Assert.Empty(await billing.ListPostedPeriodsAsync(foreign, token));
+        var secondPlot = (await register.ListAsync(community, token)).Single(entry => entry.PlotId != plot.PlotId);
+        Assert.Equal(ElectricitySetupOutcome.Created,
+            await electricity.SetupAsync(community, secondPlot.PlotId, "Second billing meter", until, Actor(), token));
+        var secondInstallation = Assert.Single(await electricity.InstallationsAsync(community, secondPlot.PlotId, token));
+        await electricity.RecognizeAsync(community, secondInstallation.Id, until, 0m, nextWaterPeriod.Until, Actor(), token);
+        await electricity.RecognizeAsync(community, secondInstallation.Id, nextWaterPeriod.Until, 1m, nextWaterPeriod.Until, Actor(), token);
         var nextWaterPreview = await billing.PreviewAsync(community, nextWaterPeriod, token, includeWater: true);
         Assert.True(nextWaterPreview.Plan.Ready);
         Assert.Equal("StalePreview", (await billing.PostAsync(community, nextWaterPeriod, nextWaterPreview.Digest,
@@ -534,7 +540,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         var waterObligation = Assert.Single(waterBefore.Details, row => row.Kind == "water");
         Assert.Equal(50m, waterObligation.Charged);
 
-        var waterPayment = new PaymentInput(Guid.NewGuid(), Assert.Single(nextWaterPreview.Plan.Lines).DebtorId!.Value,
+        var waterPayment = new PaymentInput(Guid.NewGuid(), Assert.Single(nextWaterPreview.Plan.Lines, line => line.Water is not null).DebtorId!.Value,
             nextWaterPeriod.Until, 30m, "Synthetic water payment");
         Assert.Equal("Recorded", (await billing.RecordPaymentAsync(community, waterPayment, Actor(), token)).Outcome);
         var waterAllocation = new AllocationInput(Guid.NewGuid(), waterPayment.RequestId, "Synthetic water allocation",

@@ -7,7 +7,7 @@ import { Electricity } from './electricity';
 import { Water } from './water';
 import { Billing } from './billing';
 import { OneOff } from './one-off';
-import { Payments } from './payments';
+import { Payments, type PaymentWorkspace } from './payments';
 import { Bank } from './bank';
 
 type Community = { id: string; name: string; canRead: boolean; canAdd: boolean; canPrepareImport: boolean;
@@ -22,6 +22,7 @@ type Entry = { plotId: string; plotNumber: string; ownerId: string; ownerName: s
   ownershipRevision: string };
 
 function Register() {
+  const paymentWorkspace = useRef<PaymentWorkspace>(null);
   const [communities, setCommunities] = useState<Community[]>([]);
   const [selected, setSelected] = useState('');
   const activeCommunity = useRef('');
@@ -160,9 +161,12 @@ function Register() {
     {community?.canReadWater && <Water key={'water:' + community.id} community={community.id}
       canSetup={community.canSetupWater} canRecognize={community.canRecognizeWater} />}
     {community?.canReadBilling && <Billing key={'billing:' + community.id} community={community.id}
+      openStatement={async account => {
+        if (paymentWorkspace.current) await paymentWorkspace.current.openStatement(account);
+      }}
       canPost={community.canPostBilling} canRecalculate={community.canRecalculateBilling} />}
     {community?.canReadBilling && <OneOff key={'one-off:' + community.id} community={community.id} canPost={community.canPostOneOff} />}
-    {community?.canReadBilling && <Payments key={'payments:' + community.id} community={community.id}
+    {community?.canReadBilling && <Payments ref={paymentWorkspace} key={'payments:' + community.id} community={community.id}
       communityName={community.name}
       canRecord={community.canRecordPayment} canAllocate={community.canAllocatePayment} canAcceptCash={community.canAcceptCash}
       canReallocate={community.canReallocatePayment} canCorrect={community.canCorrectPayment}

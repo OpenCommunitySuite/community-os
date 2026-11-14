@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import { money } from './billing';
 import { Reallocation, type TransferLine } from './reallocation';
 import { PaymentCorrection } from './payment-correction';
@@ -38,7 +38,10 @@ const errors: Record<string, string> = {
 const value = (input: FormDataEntryValue | null) => Number(String(input ?? '').trim().replace(',', '.'));
 const when = (date: string) => new Date(date).toLocaleString('uk-UA');
 
-export function Payments({ community, communityName, canRecord, canAllocate, canAcceptCash, canReallocate, canCorrect, canRecognizeOverpayment, canManageAdvance }: {
+export type PaymentWorkspace = { openStatement: (account: string) => Promise<void> };
+
+export function Payments({ ref, community, communityName, canRecord, canAllocate, canAcceptCash, canReallocate, canCorrect, canRecognizeOverpayment, canManageAdvance }: {
+  ref?: Ref<PaymentWorkspace>;
   community: string; communityName: string; canRecord: boolean; canAllocate: boolean; canAcceptCash: boolean; canReallocate: boolean; canCorrect: boolean;
   canRecognizeOverpayment: boolean;
   canManageAdvance: boolean;
@@ -50,6 +53,7 @@ export function Payments({ community, communityName, canRecord, canAllocate, can
   const [debtAccount, setDebtAccount] = useState('');
   const [statementAccount, setStatementAccount] = useState('');
   const statementDetails = useRef<HTMLDetailsElement>(null);
+  const [statementRequest, setStatementRequest] = useState<{ account: string }>();
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [selected, setSelected] = useState('');
   const [receipt, setReceipt] = useState<{ input: Receipt; cash: boolean }>();
@@ -102,6 +106,24 @@ export function Payments({ community, communityName, canRecord, canAllocate, can
     setDesk(data);
     setToday(date);
   }
+
+  function showStatement(account: string) {
+    setStatementAccount(account);
+    setStatementRequest({ account });
+  }
+
+  useImperativeHandle(ref, () => ({
+    async openStatement(account: string) {
+      await refresh();
+      showStatement(account);
+    },
+  }));
+
+  useEffect(() => {
+    if (!statementRequest || !statementDetails.current) return;
+    statementDetails.current.open = true;
+    statementDetails.current.querySelector('select')?.focus();
+  }, [statementRequest]);
   async function run(action: () => Promise<void>) {
     setBusy(true);
     setMessage('');
@@ -131,14 +153,8 @@ export function Payments({ community, communityName, canRecord, canAllocate, can
           <caption>Реєстр непогашених зобов’язань</caption>
           <thead><tr><th>Рахунок</th><th>Платник</th><th>Вид</th><th>Строк оплати</th><th>Залишок</th><th>Стан</th></tr></thead>
           <tbody>{debtRows.map(item => <tr key={item.id}>
-            <td><button type="button" aria-label={`Відкрити виписку за рахунком ${item.account}`} onClick={() => {
-              setStatementAccount(item.account);
-              const details = statementDetails.current;
-              if (details) {
-                details.open = true;
-                details.querySelector('select')?.focus();
-              }
-            }}>{item.account}</button></td><td>{payerNames.get(item.payerId)}</td>
+            <td><button type="button" aria-label={`Відкрити виписку за рахунком ${item.account}`}
+              onClick={() => showStatement(item.account)}>{item.account}</button></td><td>{payerNames.get(item.payerId)}</td>
             <td>{debtKinds[item.kind] ?? item.kind}</td>
             <td>{item.dueOn}</td><td>{money.format(item.outstanding)}</td>
             <td>{debtStatus(item)}</td>

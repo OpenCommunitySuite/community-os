@@ -1,7 +1,7 @@
 namespace CommunityOS.Modules.Community.Infrastructure;
 
 public sealed record PeriodReconciliationLine(string Kind, decimal Charged, decimal Settled, decimal Outstanding, decimal Excess);
-public sealed record PeriodReconciliationDetail(Guid ObligationId, string Account, string Kind,
+public sealed record PeriodReconciliationDetail(Guid ObligationId, string Account, string CurrentAccount, string Kind,
     decimal Charged, decimal Settled, decimal Outstanding, decimal Excess);
 public sealed record PeriodReconciliation(IReadOnlyList<PeriodReconciliationLine> Totals,
     IReadOnlyList<PeriodReconciliationDetail> Details);
@@ -12,7 +12,7 @@ public sealed partial class PostgresBillingStore
         RunAsync<PeriodReconciliation?>(community, async (connection, transaction) =>
         {
             await using var command = Command(connection, transaction, community, null, """
-                SELECT o.id, coalesce(line->>'accountNumber', pa.number) AS account, a.kind, o.amount_uah,
+                SELECT o.id, coalesce(line->>'accountNumber', pa.number) AS account, pa.number, a.kind, o.amount_uah,
                     o.amount_uah - greatest(o.outstanding_uah,0),
                     greatest(o.outstanding_uah,0), greatest(-o.outstanding_uah,0)
                 FROM community_billing.posted_period p
@@ -34,8 +34,8 @@ public sealed partial class PostgresBillingStore
             do
             {
                 if (!reader.IsDBNull(0))
-                    details.Add(new(reader.GetGuid(0), reader.GetString(1), reader.GetString(2), reader.GetDecimal(3),
-                        reader.GetDecimal(4), reader.GetDecimal(5), reader.GetDecimal(6)));
+                    details.Add(new(reader.GetGuid(0), reader.GetString(1), reader.GetString(2), reader.GetString(3),
+                        reader.GetDecimal(4), reader.GetDecimal(5), reader.GetDecimal(6), reader.GetDecimal(7)));
             } while (await reader.ReadAsync(token));
             var byKind = details.ToLookup(row => row.Kind);
             var totals = new[] { "electricity", "member-fee" }.Select(kind =>

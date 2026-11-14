@@ -19,6 +19,7 @@ export function WaterVerification({ canVerify, read, post }: {
 }) {
   const [register, setRegister] = useState<Register>();
   const [selected, setSelected] = useState('');
+  const [attentionOnly, setAttentionOnly] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const meter = register?.meters.find(item => item.id === selected);
@@ -39,9 +40,12 @@ export function WaterVerification({ canVerify, read, post }: {
     <summary>Повірка водомірів</summary>
     <button type="button" disabled={busy} onClick={() => void run(load)}>Завантажити строки повірки</button>
     {register && <>
+      <label><input type="checkbox" checked={attentionOnly} onChange={event => setAttentionOnly(event.target.checked)} />
+        {' '}Лише водоміри, що потребують уваги</label>
       <table><caption>Строки повірки чинних водомірів</caption>
         <thead><tr><th>Точка</th><th>Водомір</th><th>Остання повірка</th><th>Наступна повірка</th><th>Стан</th></tr></thead>
-        <tbody>{register.meters.filter(item => item.active).map(item => {
+        <tbody>{register.meters.filter(item => item.active &&
+          (!attentionOnly || deadline(item.history[0]?.dueOn, register.today) !== 'Строк не настав')).map(item => {
           const latest = item.history[0];
           return <tr key={item.id}><td>{item.point}</td><th scope="row">{item.designation}</th>
             <td>{latest?.verifiedOn ?? '—'}</td><td>{latest?.dueOn ?? '—'}</td>

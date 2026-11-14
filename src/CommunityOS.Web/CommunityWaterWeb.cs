@@ -67,6 +67,34 @@ internal static class CommunityWaterWeb
                     _ => Results.Conflict(new { Outcome = "PointConflict" }),
                 }, Results.StatusCode(403), token, water: new(point, input.StartsOn));
         });
+        water.MapGet("/points/{point:guid}/installations", (Guid community, Guid point, HttpContext http, CancellationToken token) =>
+            access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadWater,
+                async _ => Results.Ok(await store.InstallationsAsync(community, point, token)), Results.StatusCode(403), token));
+        water.MapPost("/installations/{installation:guid}/replace", (Guid community, Guid installation, ReplacementInput input,
+            HttpContext http, CancellationToken token) =>
+        {
+            var designation = input.MeterDesignation?.Trim();
+            var reason = input.Reason?.Trim();
+            var today = CommunityElectricityWeb.Today();
+            if (installation == Guid.Empty || input.RequestId == Guid.Empty || input.EffectiveOn == default ||
+                input.EffectiveOn > today || !Valid(designation, 128) || !Valid(reason, 500))
+                return Task.FromResult<IResult>(Results.BadRequest());
+
+            var replacement = new WaterReplacement(input.RequestId, installation, input.EffectiveOn, designation!, reason!);
+            return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReplaceWater,
+                async actor =>
+                {
+                    var result = await store.ReplaceAsync(community, replacement, today, CommunityElectricityWeb.Actor(actor), token);
+                    var response = new { Outcome = result.Outcome.ToString(), result.InstallationId };
+                    return result.Outcome switch
+                    {
+                        ElectricityReplacementOutcome.Replaced or ElectricityReplacementOutcome.Replayed => Results.Ok(response),
+                        ElectricityReplacementOutcome.Missing => Results.NotFound(),
+                        ElectricityReplacementOutcome.InvalidDate => Results.BadRequest(response),
+                        _ => Results.Conflict(response)
+                    };
+                }, Results.StatusCode(403), token, water: new(installation, input.EffectiveOn, RequestId: input.RequestId));
+        });
         water.MapGet("/installations/{installation:guid}/readings", (Guid community, Guid installation, HttpContext http,
             CancellationToken token) =>
             access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadWater,
@@ -100,4 +128,5 @@ internal static class CommunityWaterWeb
 
     private sealed record SetupInput(Guid? PlotId, string? Designation, string? Boundary, string? MeterDesignation, DateOnly StartsOn);
     private sealed record ReadingInput(DateOnly Date, string? Value);
+    private sealed record ReplacementInput(Guid RequestId, DateOnly EffectiveOn, string? MeterDesignation, string? Reason);
 }

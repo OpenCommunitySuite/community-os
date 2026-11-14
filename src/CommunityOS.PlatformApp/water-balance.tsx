@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { csvText, downloadCsv } from './report-csv';
 
-type Point = { id: string; parentId: string | null; designation: string; volume: number | null; missingStart: boolean; missingEnd: boolean };
+type Point = { id: string; parentId: string | null; designation: string; volume: number | null; missingStart: boolean; missingEnd: boolean; installationChanged?: boolean };
 type Branch = { id: string; childrenVolume: number | null; difference: number | null };
 type Balance = { outcome: string; points: Point[]; branches: Branch[]; splitOn?: string | null };
 const volume = new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 3 });
@@ -44,11 +44,12 @@ export function WaterBalance({ read }: { read: (path: string) => Promise<Balance
     if (!calculation || calculation.result.outcome !== 'Ready') return;
     const { from, until } = calculation;
     downloadCsv(`water-balance-${from}-${until}.csv`, [
-      'Початок;Кінець;Точка;Батьківська точка;Обсяг (м³);Прямі гілки (м³);Різниця (м³);Відсутні показання',
+      'Початок;Кінець;Точка;Батьківська точка;Обсяг (м³);Прямі гілки (м³);Різниця (м³);Відсутні показання;Заміна лічильника',
       ...visible.map(point => {
         const branch = branches.get(point.id);
         return [...[from, until, point.designation, parentName(point)].map(csvText), csvVolume(point.volume),
-          csvVolume(branch?.childrenVolume ?? null), csvVolume(branch?.difference ?? null), csvText(missing(point))].join(';');
+          csvVolume(branch?.childrenVolume ?? null), csvVolume(branch?.difference ?? null), csvText(missing(point)),
+          csvText(point.installationChanged ? 'Так' : '')].join(';');
       }),
     ]);
   }
@@ -99,7 +100,7 @@ export function WaterBalance({ read }: { read: (path: string) => Promise<Balance
       <tbody>{visible.map(point => {
         const branch = branches.get(point.id);
         return <tr key={point.id}><th scope="row">{point.designation}</th>
-          <td>{parentName(point) || '—'}</td><td>{amount(point.volume)}</td>
+          <td>{parentName(point) || '—'}</td><td>{point.installationChanged ? 'Заміна лічильника' : amount(point.volume)}</td>
           <td>{amount(branch?.childrenVolume ?? null)}</td><td>{amount(branch?.difference ?? null)}</td>
           <td>{missing(point) || '—'}</td>
         </tr>;

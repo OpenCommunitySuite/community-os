@@ -3,7 +3,7 @@ import { csvText, downloadCsv } from './report-csv';
 
 type Point = { id: string; parentId: string | null; designation: string; volume: number | null; missingStart: boolean; missingEnd: boolean };
 type Branch = { id: string; childrenVolume: number | null; difference: number | null };
-type Balance = { outcome: string; points: Point[]; branches: Branch[] };
+type Balance = { outcome: string; points: Point[]; branches: Branch[]; splitOn?: string | null };
 const volume = new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 3 });
 const amount = (value: number | null) => value === null ? '—' : volume.format(value);
 const csvVolume = (value: number | null) => value === null ? '' : value.toFixed(3).replace('.', ',');
@@ -67,7 +67,8 @@ export function WaterBalance({ read }: { read: (path: string) => Promise<Balance
     </form>
     {error && <p role="alert">{error}</p>}
     {result?.outcome === 'NoTopology' && <p>На початкову дату немає опублікованого дерева.</p>}
-    {result?.outcome === 'TopologyChanged' && <p>Дерево змінювалося всередині інтервалу. Розділіть період на дату зміни.</p>}
+    {result?.outcome === 'TopologyChanged' && <p>Дерево змінювалося всередині інтервалу. Розділіть період на дату зміни
+      {result.splitOn && <> <time dateTime={result.splitOn}>{result.splitOn}</time></>}.</p>}
     {result?.outcome === 'Ready' && <>
     <label>Гілка для звірки <select value={selectedBranch} onChange={event => setSelectedBranch(event.target.value)}>
       <option value="">Усе дерево</option>

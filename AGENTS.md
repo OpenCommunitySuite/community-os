@@ -85,6 +85,9 @@ Mandatory workflow rules:
 
 # Community OS architecture workflow
 
+- После базовой реализации крупного функционального блока добавляй его разделы контекстной справки и руководства пользователя согласно плану внедрения.
+- При добавлении функций и исправлениях в уже описанном блоке проверяй влияние на пользовательские сценарии. Если они меняются, обновляй затронутые разделы справки на языках интерфейса и руководства в том же PR.
+
 - ADR, DOMAIN_MODEL, TERMINOLOGY, VISION and ARCHITECTURE_ROADMAP are architecture-level documents.
 - Do not silently change already accepted architectural decisions.
 - If a requested change conflicts with an accepted ADR, report the conflict before changing the accepted decision.

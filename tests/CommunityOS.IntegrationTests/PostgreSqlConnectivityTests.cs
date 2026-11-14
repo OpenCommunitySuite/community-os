@@ -533,7 +533,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "009_electricity_readings.sql", "010_electricity_replacement.sql", "011_electricity_register_channels.sql",
                      "012_common_electricity_points.sql", "013_meter_installation_details.sql",
                      "014_electricity_metering_trees.sql", "015_electricity_reading_import_source.sql", "016_manual_water.sql",
-                     "029_water_topology.sql" })
+                     "029_water_topology.sql", "030_water_installation_history.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -806,6 +806,24 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         var balanced = await water.BalanceAsync(community, waterBalanceStart, end, token);
         Assert.Contains(new WaterBalanceBranch(waterRoot, 1m, 0.5m), balanced.Branches);
         Assert.Contains(new WaterBalanceBranch(street, 0.75m, 0.25m), balanced.Branches);
+        var waterReplacement = new WaterReplacement(Guid.NewGuid(), waterMeter, end.AddDays(1), "Replacement water meter", "Test");
+        var waterReplaced = await water.ReplaceAsync(community, waterReplacement, today, Actor(), token);
+        Assert.Equal(ElectricityReplacementOutcome.Replaced, waterReplaced.Outcome);
+        Assert.Equal(new ElectricityReplacementResult(ElectricityReplacementOutcome.Replayed, waterReplaced.InstallationId),
+            await water.ReplaceAsync(community, waterReplacement, today, Actor(), token));
+        Assert.Equal(ElectricityReplacementOutcome.Conflict,
+            (await water.ReplaceAsync(community, waterReplacement with { Reason = "Changed" }, today, Actor(), token)).Outcome);
+        Assert.Equal(ReadingOutcome.OutsideInstallation,
+            (await water.RecognizeAsync(community, waterMeter, waterReplacement.EffectiveOn, 13m, today, Actor(), token)).Outcome);
+        Assert.Equal(ReadingOutcome.Recognized,
+            (await water.RecognizeAsync(community, waterReplaced.InstallationId!.Value, waterReplacement.EffectiveOn, 1m, today, Actor(), token)).Outcome);
+        var across = await water.BalanceAsync(community, end, waterReplacement.EffectiveOn, token);
+        var rootAcross = Assert.Single(across.Points, point => point.Id == waterRoot);
+        Assert.True(rootAcross.InstallationChanged);
+        Assert.Null(rootAcross.Volume);
+        Assert.Collection(await water.InstallationsAsync(community, waterRoot, token),
+            current => Assert.Equal(waterReplaced.InstallationId, current.Id),
+            past => Assert.Equal(waterReplacement.EffectiveOn, past.EndsBefore));
         Assert.Empty((await store.SeriesAsync(community, newDual.Id, token))!.Intervals);
     }
 
@@ -1185,7 +1203,8 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "017_electricity_topology_access.sql", "018_water_access.sql", "019_billing_access.sql",
                      "020_recalculation_access.sql", "021_one_off_access.sql", "022_payment_access.sql",
                      "023_cash_acceptance_access.sql", "024_bank_statement_access.sql", "025_reallocation_access.sql",
-                     "026_payment_correction_access.sql", "027_overpayment_access.sql", "028_member_fee_advance_access.sql" })
+                     "026_payment_correction_access.sql", "027_overpayment_access.sql", "028_member_fee_advance_access.sql",
+                     "029_water_topology_admission.sql", "030_water_replacement_access.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);

@@ -40,7 +40,7 @@ public sealed partial class PostgresWaterStore(NpgsqlDataSource source)
                 FROM community_water.accounting_point p
                 JOIN community_water.installation i ON (i.community_id, i.point_id) = (p.community_id, p.id)
                 JOIN community_water.meter m ON (m.community_id, m.id) = (i.community_id, i.meter_id)
-                WHERE p.community_id = @community ORDER BY p.designation, p.id;
+                WHERE p.community_id = @community AND i.ends_before IS NULL ORDER BY p.designation, p.id;
                 """);
             await using var reader = await command.ExecuteReaderAsync(token);
             var points = new List<WaterPoint>();
@@ -121,13 +121,15 @@ public sealed partial class PostgresWaterStore(NpgsqlDataSource source)
         RunAsync<ElectricityRecognition>(community, async (connection, transaction) =>
         {
             await using var locked = Query(connection, transaction, community, """
-                SELECT starts_on FROM community_water.installation
+                SELECT starts_on, ends_before FROM community_water.installation
                 WHERE community_id = @community AND id = @installation FOR UPDATE;
                 """);
             locked.Parameters.AddWithValue("installation", installation);
             await using var installationReader = await locked.ExecuteReaderAsync(token);
             if (!await installationReader.ReadAsync(token)) return new(ReadingOutcome.NotFound);
             var starts = installationReader.GetFieldValue<DateOnly>(0);
+            if (!installationReader.IsDBNull(1) && date >= installationReader.GetFieldValue<DateOnly>(1))
+                return new(ReadingOutcome.OutsideInstallation);
             await installationReader.DisposeAsync();
 
             await using var neighbors = Query(connection, transaction, community, """

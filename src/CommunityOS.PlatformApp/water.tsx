@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { WaterTopology } from './water-topology';
 import { WaterBalance } from './water-balance';
 
 type Point = { id: string; plotId: string | null; designation: string; boundary: string | null;
   installationId: string; meterDesignation: string; startsOn: string };
 type Plot = { id: string; number: string };
+type Installation = { id: string; meterDesignation: string; startsOn: string; endsBefore: string | null; reason: string | null };
 type Series = { readings: { id: string; date: string; valueExact: string }[];
   intervals: { from: string; to: string; valueExact: string }[] };
 
@@ -17,6 +18,9 @@ const messages: Record<string, string> = {
   FutureDate: 'Дата вимірювання не може бути в майбутньому.',
   InvalidValue: 'Вкажіть невід’ємне значення з точністю до 0,001 м³.',
   InvalidTree: 'Перевірте зв’язки дерева та дати встановлення лічильників.',
+  InvalidDate: 'Дата заміни має бути пізнішою за початок використання водоміра й не пізнішою за сьогодні.',
+  ExistingReading: 'Є визнані показання старого водоміра на дату заміни або пізніше.',
+  Conflict: 'Установку вже закрито, позначення зайняте або дані запиту змінилися. Перевірте історію.',
 };
 
 async function checked(response: Response, topologyPublication = false) {
@@ -29,8 +33,8 @@ async function checked(response: Response, topologyPublication = false) {
   throw new Error(messages[data?.outcome] ?? 'Перевірте дані та повторіть спробу.');
 }
 
-export function Water({ community, canSetup, canRecognize }: {
-  community: string; canSetup: boolean; canRecognize: boolean;
+export function Water({ community, canSetup, canRecognize, canReplace }: {
+  community: string; canSetup: boolean; canRecognize: boolean; canReplace: boolean;
 }) {
   const endpoint = '/community/water/' + community;
   const [points, setPoints] = useState<Point[]>([]);
@@ -38,6 +42,9 @@ export function Water({ community, canSetup, canRecognize }: {
   const [plotId, setPlotId] = useState('');
   const [selected, setSelected] = useState('');
   const [series, setSeries] = useState<Series>();
+  const [installations, setInstallations] = useState<Installation[]>([]);
+  const [readingInstallation, setReadingInstallation] = useState('');
+  const replacementRequest = useRef<{ payload: string; id: string } | undefined>(undefined);
   const [message, setMessage] = useState('');
   const [pending, setPending] = useState(false);
   const point = points.find(item => item.installationId === selected);
@@ -51,10 +58,20 @@ export function Water({ community, canSetup, canRecognize }: {
     if (canSetup) setPlots(await read<Plot[]>('/plots'));
   }
 
-  async function select(installation: string) {
-    setSelected(installation);
+  async function readSeries(installation: string) {
+    setReadingInstallation(installation);
     setSeries(undefined);
     if (installation) setSeries(await read<Series>('/installations/' + installation + '/readings'));
+  }
+
+  async function select(pointId: string, installation: string) {
+    setSelected(installation);
+    setInstallations([]);
+    setReadingInstallation('');
+    setSeries(undefined);
+    if (!pointId) return;
+    setInstallations(await read<Installation[]>('/points/' + pointId + '/installations'));
+    await readSeries(installation);
   }
 
   async function run(action: () => Promise<void>) {
@@ -106,7 +123,8 @@ export function Water({ community, canSetup, canRecognize }: {
     </details>}
     <label>Точка обліку води <select value={selected} disabled={pending} onChange={event => {
       const id = event.target.value;
-      void run(() => select(id));
+      const item = points.find(candidate => candidate.installationId === id);
+      void run(() => select(item?.id ?? '', id));
     }}>
       <option value="">Оберіть точку</option>
       {points.map(item => <option key={item.id} value={item.installationId}>
@@ -114,14 +132,45 @@ export function Water({ community, canSetup, canRecognize }: {
       </option>)}
     </select></label>
     {point && <p>Водомір {point.meterDesignation}, діє з {point.startsOn}{point.boundary && ' · ' + point.boundary}.</p>}
-    {point && canRecognize && <form onSubmit={event => {
+    {point && installations.length > 1 && <label>Історія водомірів <select value={readingInstallation} disabled={pending}
+      onChange={event => { const id = event.target.value; void run(() => readSeries(id)); }}>
+      {installations.map(item => <option key={item.id} value={item.id}>
+        {item.meterDesignation} · {item.startsOn}{item.endsBefore ? ' — до ' + item.endsBefore : ''}
+      </option>)}
+    </select></label>}
+    {installations.find(item => item.id === readingInstallation)?.reason &&
+      <p>Причина заміни · {installations.find(item => item.id === readingInstallation)?.reason}</p>}
+    {point && canReplace && <details key={selected}>
+      <summary>Замінити водомір</summary>
+      <form onSubmit={event => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const data = Object.fromEntries(new FormData(form));
+        const payload = JSON.stringify({ selected, ...data });
+        if (replacementRequest.current?.payload !== payload) replacementRequest.current = { payload, id: crypto.randomUUID() };
+        const requestId = replacementRequest.current.id;
+        void run(async () => {
+          const result = await post('/installations/' + selected + '/replace', { ...data, requestId });
+          await loadPoints();
+          await select(point.id, result.installationId);
+          replacementRequest.current = undefined;
+          setMessage('Заміну водоміра зареєстровано.');
+        });
+      }}>
+        <label>Дата заміни водоміра <input name="effectiveOn" type="date" required /></label>{' '}
+        <label>Позначення нового водоміра <input name="meterDesignation" required maxLength={128} /></label>{' '}
+        <label>Причина заміни водоміра <input name="reason" required maxLength={500} /></label>{' '}
+        <button disabled={pending}>Зареєструвати заміну водоміра</button>
+      </form>
+    </details>}
+    {point && readingInstallation && canRecognize && <form key={readingInstallation} onSubmit={event => {
       event.preventDefault();
       const form = event.currentTarget;
       const data = new FormData(form);
       void run(async () => {
-        const result = await post('/installations/' + selected + '/readings',
+        const result = await post('/installations/' + readingInstallation + '/readings',
           { date: data.get('date'), value: String(data.get('value')).replace(',', '.') });
-        await select(selected);
+        await readSeries(readingInstallation);
         setMessage(messages[result.outcome] ?? 'Показання води визнано.');
       });
     }}>

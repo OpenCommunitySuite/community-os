@@ -51,6 +51,8 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
   const [today, setToday] = useState('');
   const [balancePayer, setBalancePayer] = useState('');
   const [debtAccount, setDebtAccount] = useState('');
+  const [exactDebtAccount, setExactDebtAccount] = useState(false);
+  const debtDetails = useRef<HTMLDetailsElement>(null);
   const [statementAccount, setStatementAccount] = useState('');
   const statementDetails = useRef<HTMLDetailsElement>(null);
   const [statementRequest, setStatementRequest] = useState<{ account: string }>();
@@ -65,7 +67,8 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
   const obligations = desk?.obligations.filter(item => item.payerId === payment?.payerId && item.outstanding > 0) ?? [];
   const openDebts = desk?.obligations.filter(item => item.outstanding > 0) ?? [];
   const debtRows = openDebts.filter(item =>
-    item.account.toLocaleLowerCase('uk-UA').includes(debtAccount.trim().toLocaleLowerCase('uk-UA')) &&
+    (exactDebtAccount ? item.account === debtAccount :
+      item.account.toLocaleLowerCase('uk-UA').includes(debtAccount.trim().toLocaleLowerCase('uk-UA'))) &&
     (!overdueOnly || item.dueOn < today));
   const debtTotal = debtRows.reduce((sum, item) => sum + Math.round(item.outstanding * 100), 0);
   const overdueTotal = debtRows.reduce((sum, item) => sum + (item.dueOn < today ? Math.round(item.outstanding * 100) : 0), 0);
@@ -150,11 +153,23 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
       paymentPicker.current?.focus();
     }} />}
     {desk && <AccountStatement community={communityName} today={today} debts={openDebts} payerNames={payerNames}
-      account={statementAccount} setAccount={setStatementAccount} detailsRef={statementDetails} />}
-    {desk && <details>
+      account={statementAccount} setAccount={setStatementAccount} detailsRef={statementDetails} openDebts={account => {
+        setDebtAccount(account);
+        setExactDebtAccount(true);
+        setOverdueOnly(false);
+        const details = debtDetails.current;
+        if (details) {
+          details.open = true;
+          details.querySelector('input')?.focus();
+        }
+      }} />}
+    {desk && <details ref={debtDetails}>
       <summary>Реєстр заборгованості</summary>
       <p>Поточні залишки станом на {today} за датою Києва.</p>
-      <label>Пошук за номером рахунку <input value={debtAccount} onChange={event => setDebtAccount(event.target.value)} /></label>{' '}
+      <label>Пошук за номером рахунку <input value={debtAccount} onChange={event => {
+        setDebtAccount(event.target.value);
+        setExactDebtAccount(false);
+      }} /></label>{' '}
       <label><input type="checkbox" checked={overdueOnly} onChange={event => setOverdueOnly(event.target.checked)} /> Лише прострочені</label>
       <button type="button" disabled={busy} onClick={downloadDebts}>Завантажити заборгованість CSV</button>
       <dl>

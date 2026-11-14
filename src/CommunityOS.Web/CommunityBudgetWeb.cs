@@ -25,6 +25,40 @@ internal static class CommunityBudgetWeb
                 }, Results.StatusCode(403), token, oneOff: new(normalized.RequestId, digest));
         });
 
+        billing.MapGet("/expenses/{expense:guid}/distribution", (Guid community, Guid expense, HttpContext http, CancellationToken token) =>
+            access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
+                async _ => await store.ExpenseDistributionAsync(community, expense, token) is { } preview
+                    ? Results.Ok(preview) : Results.NotFound(), Results.StatusCode(403), token));
+        billing.MapPost("/expenses/{expense:guid}/distribution",
+            (Guid community, Guid expense, ExpenseDistributionInput input, HttpContext http, CancellationToken token) =>
+            {
+                if (expense == Guid.Empty || input.RequestId == Guid.Empty || input.PreviousId == Guid.Empty ||
+                    input.RequestId == input.PreviousId || input.Parts is not { Length: <= 100 } ||
+                    input.Parts.Any(part => part is null || part.BudgetItemId == Guid.Empty ||
+                        part.Amount is <= 0 or > 999_999_999m || decimal.Round(part.Amount, 2) != part.Amount))
+                    return Task.FromResult<IResult>(Results.BadRequest());
+                var parts = input.Parts.OrderBy(part => part.BudgetItemId).Select(part => part with
+                    { Amount = decimal.Round(part.Amount * 100, 0) / 100m }).ToArray();
+                if (parts.Select(part => part.BudgetItemId).Distinct().Count() != parts.Length)
+                    return Task.FromResult<IResult>(Results.BadRequest());
+
+                var normalized = input with { Parts = parts };
+                var digest = PostgresBillingStore.ExpenseDistributionDigest(expense, normalized);
+                return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.AllocateExpense,
+                    async actor =>
+                    {
+                        var outcome = await store.AllocateExpenseAsync(community, expense, normalized, digest,
+                            CommunityElectricityWeb.Actor(actor), token);
+                        return outcome switch
+                        {
+                            "Allocated" or "Replayed" => Results.Ok(new { Outcome = outcome }),
+                            "Missing" => Results.NotFound(),
+                            "InvalidParts" => Results.BadRequest(new { Outcome = outcome }),
+                            _ => Results.Conflict(new { Outcome = outcome })
+                        };
+                    }, Results.StatusCode(403), token, oneOff: new(normalized.RequestId, digest));
+            });
+
         billing.MapGet("/budgets", (Guid community, HttpContext http, CancellationToken token) =>
             access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
                 async _ => Results.Ok(await store.BudgetsAsync(community, token)), Results.StatusCode(403), token));

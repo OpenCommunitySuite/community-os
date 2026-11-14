@@ -8,7 +8,7 @@ public sealed record RegisterCommunity(Guid Id, string Name, bool CanRead, bool 
     bool CanPublishElectricityTopology = false, bool CanReadWater = false, bool CanSetupWater = false,
     bool CanRecognizeWater = false, bool CanReadBilling = false, bool CanPostBilling = false, bool CanRecalculateBilling = false, bool CanPostOneOff = false,
     bool CanRecordPayment = false, bool CanAllocatePayment = false, bool CanAcceptCash = false, bool CanImportBank = false, bool CanRecognizeBank = false, bool CanReallocatePayment = false, bool CanCorrectPayment = false, bool CanRecognizeOverpayment = false, bool CanManageAdvance = false,
-    bool CanReplaceWater = false, bool CanVerifyWater = false, bool CanRegisterBudget = false, bool CanRecognizeExpense = false);
+    bool CanReplaceWater = false, bool CanVerifyWater = false, bool CanRegisterBudget = false, bool CanRecognizeExpense = false, bool CanAllocateExpense = false);
 public sealed record RegisterActor(Guid AccountId, Guid SubjectId, string? AdditionBasis, Guid AdmissionId);
 public sealed record RegisterImportTarget(Guid DraftId, int Revision, string PlanId);
 public sealed record OwnershipCorrectionTarget(Guid PlotId, Guid Revision, Guid OwnerId);
@@ -23,7 +23,7 @@ public enum RegisterPermission
 {
     Read, Add, PrepareImport, WriteImportDraft, ReadImportApproval, SubmitImport, ApproveImport,
     ReadCorrectionCandidates, CorrectOwnership, ReadElectricity, SetupElectricity, RecognizeElectricity, ReplaceElectricity,
-    SetupCommonElectricity, PublishElectricityTopology, ReadWater, SetupWater, RecognizeWater, ReadBilling, PostBilling, RecalculateBilling, PostOneOff, RecordPayment, AllocatePayment, AcceptCash, ImportBank, RecognizeBank, ReallocatePayment, CorrectPayment, RecognizeOverpayment, ManageAdvance, ReplaceWater, VerifyWater, RegisterBudget, RecognizeExpense
+    SetupCommonElectricity, PublishElectricityTopology, ReadWater, SetupWater, RecognizeWater, ReadBilling, PostBilling, RecalculateBilling, PostOneOff, RecordPayment, AllocatePayment, AcceptCash, ImportBank, RecognizeBank, ReallocatePayment, CorrectPayment, RecognizeOverpayment, ManageAdvance, ReplaceWater, VerifyWater, RegisterBudget, RecognizeExpense, AllocateExpense
 }
 
 public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
@@ -67,7 +67,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                 v.water_enabled AND o.can_read_water AND o.water_replacement_basis IS NOT NULL,
                 v.water_enabled AND o.can_read_water AND o.water_verification_basis IS NOT NULL,
                 v.billing_enabled AND o.can_read_billing AND o.budget_registration_basis IS NOT NULL,
-                v.billing_enabled AND o.can_read_billing AND o.expense_recognition_basis IS NOT NULL
+                v.billing_enabled AND o.can_read_billing AND o.expense_recognition_basis IS NOT NULL,
+                v.billing_enabled AND o.can_read_billing AND o.expense_allocation_basis IS NOT NULL
             FROM platform_provisioning.platform_session s
             JOIN platform_provisioning.platform_account a ON a.id = s.account_id
             LEFT JOIN (
@@ -99,7 +100,7 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                     reader.GetBoolean(4), reader.GetBoolean(5), reader.GetBoolean(6), reader.GetBoolean(7),
                     reader.GetBoolean(8), reader.GetBoolean(9), reader.GetBoolean(10), reader.GetBoolean(11), reader.GetBoolean(12),
                     reader.GetBoolean(13), reader.GetBoolean(14), reader.GetBoolean(15),
-                    reader.GetBoolean(16), reader.GetBoolean(17), reader.GetBoolean(18), reader.GetBoolean(19), reader.GetBoolean(20), reader.GetBoolean(21), reader.GetBoolean(22), reader.GetBoolean(23), reader.GetBoolean(24), reader.GetBoolean(25), reader.GetBoolean(26), reader.GetBoolean(27), reader.GetBoolean(28), reader.GetBoolean(29), reader.GetBoolean(30), reader.GetBoolean(31), reader.GetBoolean(32)));
+                    reader.GetBoolean(16), reader.GetBoolean(17), reader.GetBoolean(18), reader.GetBoolean(19), reader.GetBoolean(20), reader.GetBoolean(21), reader.GetBoolean(22), reader.GetBoolean(23), reader.GetBoolean(24), reader.GetBoolean(25), reader.GetBoolean(26), reader.GetBoolean(27), reader.GetBoolean(28), reader.GetBoolean(29), reader.GetBoolean(30), reader.GetBoolean(31), reader.GetBoolean(32), reader.GetBoolean(33)));
             }
         } while (await reader.ReadAsync(token));
 
@@ -147,7 +148,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
         var paymentWrite = recordPayment || allocatePayment || acceptCash || importBank || recognizeBank || reallocate || correctPayment || recognizeOverpayment || manageAdvance;
         var registerBudget = permission == RegisterPermission.RegisterBudget;
         var recognizeExpense = permission == RegisterPermission.RecognizeExpense;
-        var budgetWrite = registerBudget || recognizeExpense;
+        var allocateExpense = permission == RegisterPermission.AllocateExpense;
+        var budgetWrite = registerBudget || recognizeExpense || allocateExpense;
         var postOneOff = permission == RegisterPermission.PostOneOff;
         var recalculate = permission == RegisterPermission.RecalculateBilling;
         if (((submitting || approving) && target is null) || (correcting && correction is null) ||
@@ -171,6 +173,7 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                 WHEN @allocate_payment THEN o.payment_allocate_basis
                 WHEN @register_budget THEN o.budget_registration_basis
                 WHEN @recognize_expense THEN o.expense_recognition_basis
+                WHEN @allocate_expense THEN o.expense_allocation_basis
                 WHEN @post_one_off THEN o.one_off_post_basis
                 WHEN @recalculate THEN o.billing_recalculate_basis
                 WHEN @post_billing THEN o.billing_post_basis
@@ -211,6 +214,7 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                             OR (@recalculate AND o.billing_recalculate_basis IS NOT NULL)
                             OR (@register_budget AND o.budget_registration_basis IS NOT NULL)
                             OR (@recognize_expense AND o.expense_recognition_basis IS NOT NULL)
+                            OR (@allocate_expense AND o.expense_allocation_basis IS NOT NULL)
                             OR (@post_one_off AND o.one_off_post_basis IS NOT NULL)
                             OR (@record_payment AND o.payment_record_basis IS NOT NULL)
                             OR (@allocate_payment AND o.payment_allocate_basis IS NOT NULL)
@@ -248,6 +252,7 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
         authorization.Parameters.AddWithValue("recalculate", recalculate);
         authorization.Parameters.AddWithValue("register_budget", registerBudget);
         authorization.Parameters.AddWithValue("recognize_expense", recognizeExpense);
+        authorization.Parameters.AddWithValue("allocate_expense", allocateExpense);
         authorization.Parameters.AddWithValue("post_one_off", postOneOff);
         authorization.Parameters.AddWithValue("record_payment", recordPayment);
         authorization.Parameters.AddWithValue("allocate_payment", allocatePayment);
@@ -400,7 +405,7 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                 admit.Parameters.AddWithValue("plan_digest", payment.Digest);
             }
             if (budgetWrite)
-                admit.Parameters.AddWithValue("action", recognizeExpense ? "recognize-expense" : "register-budget");
+                admit.Parameters.AddWithValue("action", registerBudget ? "register-budget" : recognizeExpense ? "recognize-expense" : "allocate-expense");
             if (postOneOff || budgetWrite)
             {
                 admit.Parameters.AddWithValue("one_off", oneOff!.RequestId);

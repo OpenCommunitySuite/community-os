@@ -21,7 +21,7 @@ type Community = { id: string; name: string; canRead: boolean; canAdd: boolean; 
   canReadBilling: boolean; canPostBilling: boolean;
   canRecalculateBilling: boolean; canPostOneOff: boolean; canRecordPayment: boolean; canAllocatePayment: boolean; canAcceptCash: boolean;
   canImportBank: boolean; canRecognizeBank: boolean; canReallocatePayment: boolean; canCorrectPayment: boolean;
-  canRecognizeOverpayment: boolean; canManageAdvance: boolean; canRegisterBudget: boolean; canRecognizeExpense: boolean };
+  canRecognizeOverpayment: boolean; canManageAdvance: boolean; canRegisterBudget: boolean; canRecognizeExpense: boolean; canAllocateExpense: boolean };
 type Entry = { plotId: string; plotNumber: string; ownerId: string; ownerName: string; accountNumber: string;
   ownershipRevision: string };
 
@@ -174,7 +174,7 @@ function Register() {
     {community?.canReadBilling && <Budgets key={'budgets:' + community.id} community={community.id}
       canRegister={community.canRegisterBudget} />}
     {community?.canReadBilling && <Expenses key={'expenses:' + community.id} community={community.id}
-      canRecognize={community.canRecognizeExpense} />}
+      canRecognize={community.canRecognizeExpense} canAllocate={community.canAllocateExpense} />}
     {community?.canReadBilling && <WaterChargePreview key={'water-charge:' + community.id} endpoint={'/community/billing/' + community.id} />}
     {community?.canReadBilling && <Payments ref={paymentWorkspace} key={'payments:' + community.id} community={community.id}
       communityName={community.name}

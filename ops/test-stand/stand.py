@@ -350,7 +350,8 @@ def up(docker, config, config_dir):
         GRANT SELECT, INSERT ON community_billing.recalculation TO {WEB_ROLE};
         GRANT SELECT ON community_billing.effective_obligation TO {WEB_ROLE};
         GRANT SELECT, INSERT ON community_billing.one_off_batch TO {WEB_ROLE};
-        GRANT SELECT, INSERT ON community_billing.budget, community_billing.budget_item, community_billing.expense TO {WEB_ROLE};
+        GRANT SELECT, INSERT ON community_billing.budget, community_billing.budget_item, community_billing.expense,
+            community_billing.expense_distribution, community_billing.expense_distribution_part TO {WEB_ROLE};
         GRANT SELECT, INSERT ON community_billing.payment, community_billing.allocation_batch,
             community_billing.allocation TO {WEB_ROLE};
         GRANT SELECT ON community_billing.payment_remainder, community_billing.obligation_remainder TO {WEB_ROLE};

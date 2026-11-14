@@ -8,6 +8,32 @@ internal static class CommunityWaterWeb
     {
         var water = routes.MapGroup("/water/{community:guid}");
         CommunityElectricityImportWeb.Map(water, access, store);
+        water.MapGet("/verifications", (Guid community, HttpContext http, CancellationToken token) =>
+            access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadWater,
+                async _ => Results.Ok(new { Today = CommunityElectricityWeb.Today(), Meters = await store.VerificationMetersAsync(community, token) }),
+                Results.StatusCode(403), token));
+        water.MapPost("/meters/{meter:guid}/verifications", (Guid community, Guid meter, VerificationInput input,
+            HttpContext http, CancellationToken token) =>
+        {
+            var evidence = input.Evidence?.Trim();
+            if (meter == Guid.Empty || input.VerifiedOn == default || input.VerifiedOn > CommunityElectricityWeb.Today() ||
+                input.DueOn <= input.VerifiedOn || !Valid(evidence, 500))
+                return Task.FromResult<IResult>(Results.BadRequest());
+
+            return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.VerifyWater,
+                async actor =>
+                {
+                    var outcome = await store.VerifyMeterAsync(community, meter, input.VerifiedOn, input.DueOn, evidence!,
+                        CommunityElectricityWeb.Actor(actor), token);
+                    var response = new { Outcome = outcome };
+                    return outcome switch
+                    {
+                        "NotFound" => Results.NotFound(response),
+                        "Conflict" => Results.Conflict(response),
+                        _ => Results.Ok(response)
+                    };
+                }, Results.StatusCode(403), token, water: new(meter, input.VerifiedOn));
+        });
         water.MapGet("/balance", (Guid community, DateOnly from, DateOnly until, HttpContext http, CancellationToken token) =>
         {
             if (from == default || from >= until || until > CommunityElectricityWeb.Today())
@@ -130,4 +156,5 @@ internal static class CommunityWaterWeb
     private sealed record SetupInput(Guid? PlotId, string? Designation, string? Boundary, string? MeterDesignation, DateOnly StartsOn);
     private sealed record ReadingInput(DateOnly Date, string? Value);
     private sealed record ReplacementInput(Guid RequestId, DateOnly EffectiveOn, string? MeterDesignation, string? Reason);
+    private sealed record VerificationInput(DateOnly VerifiedOn, DateOnly DueOn, string? Evidence);
 }

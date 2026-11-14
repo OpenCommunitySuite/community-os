@@ -8,7 +8,7 @@ public sealed record RegisterCommunity(Guid Id, string Name, bool CanRead, bool 
     bool CanPublishElectricityTopology = false, bool CanReadWater = false, bool CanSetupWater = false,
     bool CanRecognizeWater = false, bool CanReadBilling = false, bool CanPostBilling = false, bool CanRecalculateBilling = false, bool CanPostOneOff = false,
     bool CanRecordPayment = false, bool CanAllocatePayment = false, bool CanAcceptCash = false, bool CanImportBank = false, bool CanRecognizeBank = false, bool CanReallocatePayment = false, bool CanCorrectPayment = false, bool CanRecognizeOverpayment = false, bool CanManageAdvance = false,
-    bool CanReplaceWater = false);
+    bool CanReplaceWater = false, bool CanVerifyWater = false);
 public sealed record RegisterActor(Guid AccountId, Guid SubjectId, string? AdditionBasis, Guid AdmissionId);
 public sealed record RegisterImportTarget(Guid DraftId, int Revision, string PlanId);
 public sealed record OwnershipCorrectionTarget(Guid PlotId, Guid Revision, Guid OwnerId);
@@ -23,7 +23,7 @@ public enum RegisterPermission
 {
     Read, Add, PrepareImport, WriteImportDraft, ReadImportApproval, SubmitImport, ApproveImport,
     ReadCorrectionCandidates, CorrectOwnership, ReadElectricity, SetupElectricity, RecognizeElectricity, ReplaceElectricity,
-    SetupCommonElectricity, PublishElectricityTopology, ReadWater, SetupWater, RecognizeWater, ReadBilling, PostBilling, RecalculateBilling, PostOneOff, RecordPayment, AllocatePayment, AcceptCash, ImportBank, RecognizeBank, ReallocatePayment, CorrectPayment, RecognizeOverpayment, ManageAdvance, ReplaceWater
+    SetupCommonElectricity, PublishElectricityTopology, ReadWater, SetupWater, RecognizeWater, ReadBilling, PostBilling, RecalculateBilling, PostOneOff, RecordPayment, AllocatePayment, AcceptCash, ImportBank, RecognizeBank, ReallocatePayment, CorrectPayment, RecognizeOverpayment, ManageAdvance, ReplaceWater, VerifyWater
 }
 
 public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
@@ -64,7 +64,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                 v.billing_enabled AND o.can_read_billing AND o.payment_correct_basis IS NOT NULL,
                 v.billing_enabled AND o.can_read_billing AND o.overpayment_recognize_basis IS NOT NULL,
                 v.billing_enabled AND o.can_read_billing AND o.advance_basis IS NOT NULL,
-                v.water_enabled AND o.can_read_water AND o.water_replacement_basis IS NOT NULL
+                v.water_enabled AND o.can_read_water AND o.water_replacement_basis IS NOT NULL,
+                v.water_enabled AND o.can_read_water AND o.water_verification_basis IS NOT NULL
             FROM platform_provisioning.platform_session s
             JOIN platform_provisioning.platform_account a ON a.id = s.account_id
             LEFT JOIN (
@@ -96,7 +97,7 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                     reader.GetBoolean(4), reader.GetBoolean(5), reader.GetBoolean(6), reader.GetBoolean(7),
                     reader.GetBoolean(8), reader.GetBoolean(9), reader.GetBoolean(10), reader.GetBoolean(11), reader.GetBoolean(12),
                     reader.GetBoolean(13), reader.GetBoolean(14), reader.GetBoolean(15),
-                    reader.GetBoolean(16), reader.GetBoolean(17), reader.GetBoolean(18), reader.GetBoolean(19), reader.GetBoolean(20), reader.GetBoolean(21), reader.GetBoolean(22), reader.GetBoolean(23), reader.GetBoolean(24), reader.GetBoolean(25), reader.GetBoolean(26), reader.GetBoolean(27), reader.GetBoolean(28), reader.GetBoolean(29)));
+                    reader.GetBoolean(16), reader.GetBoolean(17), reader.GetBoolean(18), reader.GetBoolean(19), reader.GetBoolean(20), reader.GetBoolean(21), reader.GetBoolean(22), reader.GetBoolean(23), reader.GetBoolean(24), reader.GetBoolean(25), reader.GetBoolean(26), reader.GetBoolean(27), reader.GetBoolean(28), reader.GetBoolean(29), reader.GetBoolean(30)));
             }
         } while (await reader.ReadAsync(token));
 
@@ -129,7 +130,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
         var setupWater = permission == RegisterPermission.SetupWater;
         var recognizeWater = permission == RegisterPermission.RecognizeWater;
         var replaceWater = permission == RegisterPermission.ReplaceWater;
-        var waterWrite = setupWater || recognizeWater || replaceWater;
+        var verifyWater = permission == RegisterPermission.VerifyWater;
+        var waterWrite = setupWater || recognizeWater || replaceWater || verifyWater;
         var postBilling = permission == RegisterPermission.PostBilling;
         var recordPayment = permission == RegisterPermission.RecordPayment;
         var allocatePayment = permission == RegisterPermission.AllocatePayment;
@@ -168,6 +170,7 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                 WHEN @setup_water THEN o.water_setup_basis
                 WHEN @recognize_water THEN o.water_recognition_basis
                 WHEN @replace_water THEN o.water_replacement_basis
+                WHEN @verify_water THEN o.water_verification_basis
                 WHEN @publish_topology THEN o.topology_publication_basis
                 WHEN @setup_common THEN o.common_electricity_setup_basis
                 WHEN @setup THEN o.electricity_setup_basis
@@ -194,7 +197,8 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
                     OR (v.water_enabled AND o.can_read_water AND (@read_water
                         OR (@setup_water AND o.water_setup_basis IS NOT NULL)
                         OR (@recognize_water AND o.water_recognition_basis IS NOT NULL)
-                        OR (@replace_water AND o.water_replacement_basis IS NOT NULL)))
+                        OR (@replace_water AND o.water_replacement_basis IS NOT NULL)
+                        OR (@verify_water AND o.water_verification_basis IS NOT NULL)))
                     OR (v.billing_enabled AND o.can_read_billing AND
                         (@read_billing OR (@post_billing AND o.billing_post_basis IS NOT NULL)
                             OR (@recalculate AND o.billing_recalculate_basis IS NOT NULL)
@@ -229,6 +233,7 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
         authorization.Parameters.AddWithValue("setup_water", setupWater);
         authorization.Parameters.AddWithValue("recognize_water", recognizeWater);
         authorization.Parameters.AddWithValue("replace_water", replaceWater);
+        authorization.Parameters.AddWithValue("verify_water", verifyWater);
         authorization.Parameters.AddWithValue("read_billing", permission == RegisterPermission.ReadBilling);
         authorization.Parameters.AddWithValue("post_billing", postBilling);
         authorization.Parameters.AddWithValue("recalculate", recalculate);
@@ -356,7 +361,9 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
             }
             if (waterWrite)
             {
-                admit.Parameters.AddWithValue("action", replaceWater ? "replace" : setupWater ? (water!.Topology ? "publish-topology" : "setup") : "recognize");
+                var waterAction = verifyWater ? "verify-meter" : replaceWater ? "replace" :
+                    setupWater ? (water!.Topology ? "publish-topology" : "setup") : "recognize";
+                admit.Parameters.AddWithValue("action", waterAction);
                 admit.Parameters.AddWithValue("target", water!.Id);
                 admit.Parameters.AddWithValue("date", water.Date);
                 admit.Parameters.AddWithValue("water_request", NpgsqlTypes.NpgsqlDbType.Uuid,

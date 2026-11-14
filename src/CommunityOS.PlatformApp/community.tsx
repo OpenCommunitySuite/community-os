@@ -15,7 +15,8 @@ type Community = { id: string; name: string; canRead: boolean; canAdd: boolean; 
   canApproveImport: boolean; canCorrectOwnership: boolean; canReadElectricity: boolean;
   canSetupElectricity: boolean; canRecognizeElectricity: boolean; canReplaceElectricity: boolean;
   canSetupCommonElectricity: boolean; canPublishElectricityTopology: boolean;
-  canReadWater: boolean; canSetupWater: boolean; canRecognizeWater: boolean; canReplaceWater: boolean; canReadBilling: boolean; canPostBilling: boolean;
+  canReadWater: boolean; canSetupWater: boolean; canRecognizeWater: boolean; canReplaceWater: boolean; canVerifyWater: boolean;
+  canReadBilling: boolean; canPostBilling: boolean;
   canRecalculateBilling: boolean; canPostOneOff: boolean; canRecordPayment: boolean; canAllocatePayment: boolean; canAcceptCash: boolean;
   canImportBank: boolean; canRecognizeBank: boolean; canReallocatePayment: boolean; canCorrectPayment: boolean;
   canRecognizeOverpayment: boolean; canManageAdvance: boolean };
@@ -160,7 +161,8 @@ function Register() {
       canReplace={community.canReplaceElectricity} canSetupCommon={community.canSetupCommonElectricity}
       canPublishTopology={community.canPublishElectricityTopology} />}
     {community?.canReadWater && <Water key={'water:' + community.id} community={community.id}
-      canSetup={community.canSetupWater} canRecognize={community.canRecognizeWater} canReplace={community.canReplaceWater} />}
+      canSetup={community.canSetupWater} canRecognize={community.canRecognizeWater} canReplace={community.canReplaceWater}
+      canVerify={community.canVerifyWater} />}
     {community?.canReadBilling && <Billing key={'billing:' + community.id} community={community.id}
       openStatement={async account => {
         if (paymentWorkspace.current) await paymentWorkspace.current.openStatement(account);

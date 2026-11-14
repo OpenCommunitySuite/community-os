@@ -10,6 +10,18 @@ internal static class CommunityBillingWeb
         CommunityOneOffWeb.Map(billing, access, store);
         CommunityPaymentWeb.Map(billing, access, store);
         CommunityBankWeb.Map(billing, access, store);
+        billing.MapGet("/water-accounts", (Guid community, HttpContext http, CancellationToken token) =>
+            access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
+                async _ => Results.Ok(await store.WaterBillingAccountsAsync(community, token)), Results.StatusCode(403), token));
+        billing.MapGet("/water-preview", (Guid community, Guid account, DateOnly from, DateOnly until,
+            HttpContext http, CancellationToken token) =>
+        {
+            if (account == Guid.Empty || from == default || from >= until || until > CommunityElectricityWeb.Today())
+                return Task.FromResult<IResult>(Results.BadRequest());
+            return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
+                async _ => await store.PreviewWaterAsync(community, account, from, until, token) is { } preview
+                    ? Results.Ok(preview) : Results.NotFound(), Results.StatusCode(403), token);
+        });
         billing.MapGet("/periods", (Guid community, HttpContext http, CancellationToken token) =>
             access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
                 async _ => Results.Ok(await store.ListPostedPeriodsAsync(community, token)), Results.StatusCode(403), token));

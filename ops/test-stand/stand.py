@@ -342,6 +342,7 @@ def up(docker, config, config_dir):
         GRANT SELECT, INSERT ON community_water.topology_revision, community_water.topology_point TO {WEB_ROLE};
         GRANT USAGE ON SCHEMA community_billing TO {WEB_ROLE};
         GRANT SELECT ON community_billing.tariff, community_billing.member_fee TO {WEB_ROLE};
+        GRANT SELECT ON community_billing.water_tariff TO {WEB_ROLE};
         GRANT SELECT, INSERT ON community_billing.posted_period, community_billing.accrual,
             community_billing.obligation TO {WEB_ROLE};
         GRANT SELECT, INSERT ON community_billing.recalculation TO {WEB_ROLE};

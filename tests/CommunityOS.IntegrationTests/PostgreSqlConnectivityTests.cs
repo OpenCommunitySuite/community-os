@@ -68,6 +68,9 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         var withWater = await billing.PreviewAsync(community, period, token, includeWater: true);
         Assert.Equal(50m, Assert.Single(withWater.Plan.Lines).Water!.AmountUah);
         Assert.NotEqual(first.Digest, withWater.Digest);
+        var nextWaterPeriod = new BillingPeriod(until, until.AddDays(1), until.AddDays(1), until.AddDays(15));
+        await electricity.RecognizeAsync(community, installation.Id, nextWaterPeriod.Until, 104m, nextWaterPeriod.Until, Actor(), token);
+        await waterStore.RecognizeAsync(community, waterInstallation, nextWaterPeriod.Until, 15m, nextWaterPeriod.Until, Actor(), token);
         await using var change = source.CreateCommand("""UPDATE community_billing.tariff SET rates = '{"total":5}';""");
         await change.ExecuteNonQueryAsync(token);
         Assert.Equal("StalePreview", (await billing.PostAsync(community, period, first.Digest, Actor(), token)).Outcome);
@@ -517,6 +520,31 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Equal(new[] { secondFee, fee, historical.Id }, directory.Select(entry => entry.Id));
         Assert.Equal(new DateOnly(2031, 2, 15), directory[0].DueOn);
         Assert.Empty(await billing.ListPostedPeriodsAsync(foreign, token));
+        var nextWaterPreview = await billing.PreviewAsync(community, nextWaterPeriod, token, includeWater: true);
+        Assert.True(nextWaterPreview.Plan.Ready);
+        Assert.Equal("StalePreview", (await billing.PostAsync(community, nextWaterPeriod, nextWaterPreview.Digest,
+            Actor(), token)).Outcome);
+        var waterPosting = await billing.PostAsync(community, nextWaterPeriod, nextWaterPreview.Digest,
+            Actor(), token, includeWater: true);
+        Assert.Equal("Posted", waterPosting.Outcome);
+        Assert.Equal("Replayed", (await billing.PostAsync(community, nextWaterPeriod, nextWaterPreview.Digest,
+            Actor(), token, includeWater: true)).Outcome);
+        var waterPeriodId = waterPosting.Result!.Id;
+        var waterBefore = (await billing.ReconcilePeriodAsync(community, waterPeriodId, token))!;
+        var waterObligation = Assert.Single(waterBefore.Details, row => row.Kind == "water");
+        Assert.Equal(50m, waterObligation.Charged);
+
+        var waterPayment = new PaymentInput(Guid.NewGuid(), Assert.Single(nextWaterPreview.Plan.Lines).DebtorId!.Value,
+            nextWaterPeriod.Until, 30m, "Synthetic water payment");
+        Assert.Equal("Recorded", (await billing.RecordPaymentAsync(community, waterPayment, Actor(), token)).Outcome);
+        var waterAllocation = new AllocationInput(Guid.NewGuid(), waterPayment.RequestId, "Synthetic water allocation",
+            [new(waterObligation.ObligationId, 30m)]);
+        var waterAllocationPreview = await billing.PreviewAllocationAsync(community, waterAllocation, token);
+        Assert.Equal("Allocated", (await billing.AllocateAsync(community, waterAllocation, waterAllocationPreview.Digest!,
+            Actor(), token)).Outcome);
+        var waterAfter = (await billing.ReconcilePeriodAsync(community, waterPeriodId, token))!;
+        Assert.Contains(new PeriodReconciliationLine("water", 50m, 30m, 20m, 0m), waterAfter.Totals);
+        Assert.Null(await billing.ReconcilePeriodAsync(foreign, waterPeriodId, token));
         var applyAll = apply with { RequestId = Guid.NewGuid(), SourceId = secondReserve.RequestId, ObligationId = secondFee };
         var releaseSome = release with { RequestId = Guid.NewGuid(), SourceId = secondReserve.RequestId };
         var applyAllPlan = await billing.PreviewAdvanceAsync(community, applyAll, token);

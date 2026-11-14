@@ -2,7 +2,8 @@ import { useRef, useState } from 'react';
 import { money } from './billing';
 
 type Budget = { id: string; title: string; startsOn: string; endsOn: string; evidence: string;
-  items: { id: string; designation: string; amount: number }[] };
+  plannedTotal: number; actualTotal: number; variance: number; periodUnallocated: number;
+  items: { id: string; designation: string; amount: number; actual: number; variance: number }[] };
 
 export function Budgets({ community, canRegister }: { community: string; canRegister: boolean }) {
   const endpoint = '/community/billing/' + community + '/budgets';
@@ -77,11 +78,15 @@ export function Budgets({ community, canRegister }: { community: string; canRegi
       <h3>{budget.title}</h3>
       <p>{budget.startsOn} — {budget.endsOn} · {budget.evidence}</p>
       <table><caption>Статті кошторису {budget.title}</caption>
-        <thead><tr><th>Стаття</th><th>План</th></tr></thead>
+        <thead><tr><th>Стаття</th><th>План</th><th>Факт</th><th>Відхилення</th></tr></thead>
         <tbody>{budget.items.map(item => <tr key={item.id}>
-          <th scope="row">{item.designation}</th><td>{money.format(item.amount)}</td>
+          <th scope="row">{item.designation}</th><td>{money.format(item.amount)}</td><td>{money.format(item.actual)}</td>
+          <td>{money.format(item.variance)}</td>
         </tr>)}</tbody>
+        <tfoot><tr><th scope="row">Разом</th><td>{money.format(budget.plannedTotal)}</td>
+          <td>{money.format(budget.actualTotal)}</td><td>{money.format(budget.variance)}</td></tr></tfoot>
       </table>
+      <p>Нерозподілені витрати спільноти за період: {money.format(budget.periodUnallocated)}</p>
     </section>)}
     <p role="status">{message}</p>
   </details>;

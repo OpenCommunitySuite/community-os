@@ -16,13 +16,46 @@ public sealed partial class PostgresBillingStore
         RunAsync(community, async (connection, transaction) =>
         {
             await using var query = Command(connection, transaction, community, null, """
+                WITH current_parts AS (
+                    SELECT d.expense_id, p.budget_item_id, p.amount
+                    FROM community_billing.expense_distribution d
+                    JOIN community_billing.expense_distribution_part p
+                        ON (p.community_id, p.distribution_id) = (d.community_id, d.id)
+                    WHERE d.community_id = @community AND NOT EXISTS (
+                        SELECT 1 FROM community_billing.expense_distribution successor
+                        WHERE (successor.community_id, successor.expense_id, successor.previous_id)
+                            = (d.community_id, d.expense_id, d.id)
+                    )
+                ), actual_by_item AS (
+                    SELECT budget_item_id, sum(amount) AS amount FROM current_parts GROUP BY budget_item_id
+                ), allocated_by_expense AS (
+                    SELECT expense_id, sum(amount) AS amount FROM current_parts GROUP BY expense_id
+                ), expense_remainders AS (
+                    SELECT e.incurred_on, e.amount - coalesce(a.amount, 0) AS amount
+                    FROM community_billing.expense e
+                    LEFT JOIN allocated_by_expense a ON a.expense_id = e.id
+                    WHERE e.community_id = @community
+                )
                 SELECT coalesce(jsonb_agg(jsonb_build_object('id', b.id, 'title', b.title,
                     'startsOn', b.starts_on, 'endsOn', b.ends_on, 'evidence', b.evidence,
-                    'items', (SELECT jsonb_agg(jsonb_build_object('id', i.id, 'designation', i.designation,
-                        'amount', i.amount) ORDER BY i.designation, i.id)
-                        FROM community_billing.budget_item i WHERE (i.community_id,i.budget_id)=(b.community_id,b.id)))
-                    ORDER BY b.starts_on DESC,b.id), '[]')::text
-                FROM community_billing.budget b WHERE b.community_id=@community;
+                    'plannedTotal', items.planned, 'actualTotal', items.actual,
+                    'variance', items.planned - items.actual,
+                    'periodUnallocated', (SELECT coalesce(sum(r.amount), 0) FROM expense_remainders r
+                        WHERE r.incurred_on BETWEEN b.starts_on AND b.ends_on),
+                    'items', items.rows)
+                    ORDER BY b.starts_on DESC, b.id), '[]')::text
+                FROM community_billing.budget b
+                CROSS JOIN LATERAL (
+                    SELECT coalesce(sum(i.amount), 0) AS planned,
+                        coalesce(sum(a.amount), 0) AS actual,
+                        coalesce(jsonb_agg(jsonb_build_object('id', i.id, 'designation', i.designation,
+                            'amount', i.amount, 'actual', coalesce(a.amount, 0),
+                            'variance', i.amount - coalesce(a.amount, 0)) ORDER BY i.designation, i.id), '[]') AS rows
+                    FROM community_billing.budget_item i
+                    LEFT JOIN actual_by_item a ON a.budget_item_id = i.id
+                    WHERE (i.community_id, i.budget_id) = (b.community_id, b.id)
+                ) items
+                WHERE b.community_id = @community;
                 """);
             return JsonSerializer.Deserialize<JsonElement>((string)(await query.ExecuteScalarAsync(token))!);
         }, token);

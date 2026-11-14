@@ -56,6 +56,7 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
   const [statementRequest, setStatementRequest] = useState<{ account: string }>();
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [selected, setSelected] = useState('');
+  const paymentPicker = useRef<HTMLSelectElement>(null);
   const [receipt, setReceipt] = useState<{ input: Receipt; cash: boolean }>();
   const [draft, setDraft] = useState<{ input: Allocation; preview: Preview }>();
   const [message, setMessage] = useState('');
@@ -135,7 +136,13 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
   return <section aria-labelledby="payments-heading">
     <h2 id="payments-heading">Платежі та розподіл</h2>
     <button disabled={busy} onClick={() => void run(refresh)}>Завантажити платежі та зобов’язання</button>
-    {desk && <PaymentSummary payments={desk.payments} payerNames={payerNames} />}
+    {desk && <PaymentSummary payments={desk.payments} payerNames={payerNames} openPayment={id => {
+      if (id !== selected) {
+        setSelected(id);
+        setDraft(undefined);
+      }
+      paymentPicker.current?.focus();
+    }} />}
     {desk && <AccountStatement community={communityName} today={today} debts={openDebts} payerNames={payerNames}
       account={statementAccount} setAccount={setStatementAccount} detailsRef={statementDetails} />}
     {desk && <details>
@@ -232,7 +239,7 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
         setMessage(receipt.cash ? 'Прийом готівки та платіж зареєстровано.' : 'Платіж зареєстровано.');
       })}>{receipt.cash ? 'Підтвердити прийом готівки' : 'Підтвердити реєстрацію платежу'}</button>
     </div>}
-    {desk && <label>Визнаний платіж <select value={selected} disabled={busy} onChange={event => {
+    {desk && <label>Визнаний платіж <select ref={paymentPicker} value={selected} disabled={busy} onChange={event => {
       setSelected(event.target.value); setDraft(undefined);
     }}><option value="">Оберіть платіж</option>
       {desk.payments.map(item => <option key={item.id} value={item.id}>

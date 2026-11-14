@@ -14,7 +14,9 @@ const totals = (label: string, rows: Receipt[]) => ({
   available: rows.reduce((sum, row) => sum + cents(row.available), 0),
 });
 
-export function PaymentSummary({ payments, payerNames }: { payments: Receipt[]; payerNames: Map<string, string> }) {
+export function PaymentSummary({ payments, payerNames, openPayment }: {
+  payments: Receipt[]; payerNames: Map<string, string>; openPayment: (id: string) => void;
+}) {
   const [from, setFrom] = useState('');
   const [through, setThrough] = useState('');
   const [payer, setPayer] = useState('');
@@ -67,9 +69,11 @@ export function PaymentSummary({ payments, payerNames }: { payments: Receipt[]; 
       {rows.length === 0 ? <p>За вибраними умовами надходжень немає.</p> :
         <table>
           <caption>Платежі за вибраний період</caption>
-          <thead><tr><th>Дата отримання</th><th>Платник</th><th>Джерело</th><th>Підстава</th><th>Чинна сума</th><th>Поточний залишок</th></tr></thead>
+          <thead><tr><th>Дата отримання</th><th>Платник</th><th>Джерело</th><th>Підстава</th><th>Чинна сума</th><th>Поточний залишок</th><th>Платіж</th></tr></thead>
           <tbody>{rows.map(row => <tr key={row.id}><td>{row.receivedOn}</td><td>{payerNames.get(row.payerId)}</td><td>{channels[channel(row)]}</td>
-            <td>{row.reason}</td><td>{money.format(row.amount)}</td><td>{money.format(row.available)}</td></tr>)}</tbody>
+            <td>{row.reason}</td><td>{money.format(row.amount)}</td><td>{money.format(row.available)}</td>
+            <td><button type="button" onClick={() => openPayment(row.id)}
+              aria-label={`Відкрити платіж ${row.receivedOn} · ${row.reason} · ${money.format(row.amount)}`}>Відкрити</button></td></tr>)}</tbody>
         </table>}
     </>}
   </details>;

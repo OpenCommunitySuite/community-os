@@ -108,6 +108,8 @@
           Link="029_water_topology.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/030_water_installation_history.sql"
           Link="030_water_installation_history.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/031_water_reading_import_source.sql"
+          Link="031_water_reading_import_source.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/017_regular_billing.sql"
           Link="017_regular_billing.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/018_billing_recalculation.sql"

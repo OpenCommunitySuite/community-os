@@ -12,9 +12,11 @@ public static class ElectricityReadingImport
     public const int MaximumBytes = 128 * 1024;
     public const string Header = "installation_id,measured_on,channel,value_kwh";
 
-    public static IReadOnlyList<ElectricityImportRecord> Parse(TextReader reader)
+    public const string WaterHeader = "installation_id,measured_on,value_m3";
+
+    public static IReadOnlyList<ElectricityImportRecord> Parse(TextReader reader, bool water = false)
     {
-        if (reader.ReadLine() != Header)
+        if (reader.ReadLine() != (water ? WaterHeader : Header))
             throw new FormatException("InvalidHeader");
 
         var rows = new List<ElectricityImportRecord>();
@@ -22,14 +24,19 @@ public static class ElectricityReadingImport
         {
             if (rows.Count == MaximumRecords)
                 throw new FormatException("TooManyRecords");
-            rows.Add(ParseLine(rows.Count + 2, line));
+            var fields = line.Split(',');
+            if (water && fields is [var id, var date, var value])
+                fields = [id, date, ManualElectricity.Total, value];
+            else if (water)
+                fields = [];
+            rows.Add(ParseLine(rows.Count + 2, fields));
         }
         return rows;
     }
 
-    private static ElectricityImportRecord ParseLine(int number, string line)
+    private static ElectricityImportRecord ParseLine(int number, string[] fields)
     {
-        if (line.Split(',') is not [var id, var date, var channel, var value])
+        if (fields is not [var id, var date, var channel, var value])
             return new(number, null, "InvalidFields");
         if (!Guid.TryParseExact(id, "D", out var installation) || installation == Guid.Empty)
             return new(number, null, "InvalidInstallation");

@@ -16,7 +16,7 @@ export function WaterBalance({ read }: { read: (path: string) => Promise<Balance
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState('');
-  const [missingOnly, setMissingOnly] = useState(false);
+  const [rowFilter, setRowFilter] = useState('all');
   const result = calculation?.result;
   const splitOn = result?.outcome === 'TopologyChanged' ? result.splitOn : null;
   const names = new Map(result?.points.map(point => [point.id, point.designation]));
@@ -25,7 +25,9 @@ export function WaterBalance({ read }: { read: (path: string) => Promise<Balance
   const points = result?.points ?? [];
   const parents = new Map(points.map(point => [point.id, point.parentId]));
   const visible = points.filter(point => {
-    if (missingOnly && !point.missingStart && !point.missingEnd) return false;
+    if (rowFilter === 'missing' && !point.missingStart && !point.missingEnd) return false;
+    const difference = branches.get(point.id)?.difference ?? 0;
+    if (rowFilter === 'imbalance' && difference === 0) return false;
     if (!selectedBranch) return true;
     for (let id: string | null | undefined = point.id; id; id = parents.get(id))
       if (id === selectedBranch) return true;
@@ -84,7 +86,11 @@ export function WaterBalance({ read }: { read: (path: string) => Promise<Balance
       <option value="">Усе дерево</option>
       {points.filter(point => branches.has(point.id)).map(point => <option key={point.id} value={point.id}>{point.designation}</option>)}
     </select></label>{' '}
-    <label><input type="checkbox" checked={missingOnly} onChange={event => setMissingOnly(event.target.checked)} /> Лише точки без граничних показань</label>{' '}
+    <label>Показати <select value={rowFilter} onChange={event => setRowFilter(event.target.value)}>
+      <option value="all">Усі точки</option>
+      <option value="missing">Точки без граничних показань</option>
+      <option value="imbalance">Гілки з небалансом</option>
+    </select></label>{' '}
     <button type="button" onClick={download}>Завантажити звірку води CSV</button>
     {visible.length === 0 && <p role="status">За вибраними умовами точок немає.</p>}
     <table>

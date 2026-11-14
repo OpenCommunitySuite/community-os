@@ -770,6 +770,8 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Contains(new WaterPlacement(leaf, waterRoot), (await water.TopologyOnAsync(community, starts, token))!.Points);
         Assert.Contains(new WaterPlacement(leaf, street), (await water.TopologyOnAsync(community, starts.AddDays(1), token))!.Points);
         Assert.Null(await water.TopologyOnAsync(foreign, starts.AddDays(1), token));
+        Assert.Equal(new[] { starts.AddDays(1), starts }, await water.TopologyDatesAsync(community, token));
+        Assert.Empty(await water.TopologyDatesAsync(foreign, token));
         Assert.Equal(2, waterPoints.Count);
         Assert.Empty((await water.SeriesAsync(community, waterPoints.Single(p => p.PlotId is not null).InstallationId, token))!.Readings);
         Assert.Null(await water.SeriesAsync(foreign, waterMeter, token));

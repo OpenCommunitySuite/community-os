@@ -55,6 +55,19 @@ public sealed partial class PostgresWaterStore
             return TopologyPublicationOutcome.Published;
         }, token);
 
+    public Task<IReadOnlyList<DateOnly>> TopologyDatesAsync(Guid community, CancellationToken token) =>
+        RunAsync<IReadOnlyList<DateOnly>>(community, async (connection, transaction) =>
+        {
+            await using var query = Query(connection, transaction, community, """
+                SELECT starts_on FROM community_water.topology_revision
+                WHERE community_id=@community ORDER BY starts_on DESC;
+                """);
+            await using var reader = await query.ExecuteReaderAsync(token);
+            var dates = new List<DateOnly>();
+            while (await reader.ReadAsync(token)) dates.Add(reader.GetFieldValue<DateOnly>(0));
+            return dates;
+        }, token);
+
     public Task<WaterTopology?> TopologyOnAsync(Guid community, DateOnly date, CancellationToken token) =>
         RunAsync<WaterTopology?>(community, async (connection, transaction) =>
         {

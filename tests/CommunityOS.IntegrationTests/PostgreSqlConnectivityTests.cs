@@ -22,7 +22,8 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "017_regular_billing.sql", "018_billing_recalculation.sql", "019_one_off_accrual.sql",
                      "020_manual_payment.sql", "021_cash_acceptance.sql", "022_bank_statement.sql", "023_bank_dbf.sql",
                      "024_payment_reallocation.sql", "025_payment_correction.sql", "026_overpayment_recognition.sql",
-                     "027_member_fee_advance.sql", "028_member_fee_advance_release.sql" })
+                     "027_member_fee_advance.sql", "028_member_fee_advance_release.sql",
+                     "016_manual_water.sql", "030_water_installation_history.sql", "032_water_tariff.sql", "033_water_accrual.sql" })
         {
             await using var migration = source.CreateCommand(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token));
             await migration.ExecuteNonQueryAsync(token);
@@ -53,6 +54,20 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Equal(480m, Assert.Single(first.Plan.Lines).Electricity!.AmountUah);
         Assert.Null(await billing.HistoryAsync(community, period, token));
         Assert.Empty((await billing.PreviewAsync(foreign, period, token)).Plan.Lines);
+        var waterStore = new PostgresWaterStore(source);
+        Assert.Equal(ElectricitySetupOutcome.Created, await waterStore.SetupAsync(community,
+            new(Guid.NewGuid(), plot.PlotId, "", null, "Billing water meter", from), Actor(), token));
+        var waterInstallation = Assert.Single(await waterStore.ListAsync(community, token)).InstallationId;
+        await waterStore.RecognizeAsync(community, waterInstallation, from, 10m, until, Actor(), token);
+        await waterStore.RecognizeAsync(community, waterInstallation, until, 12.5m, until, Actor(), token);
+        await using var waterTariff = source.CreateCommand("""
+            INSERT INTO community_billing.water_tariff VALUES (@community, gen_random_uuid(), '2026-01-01', NULL, 'Test water tariff', 20);
+            """);
+        waterTariff.Parameters.AddWithValue("community", community);
+        await waterTariff.ExecuteNonQueryAsync(token);
+        var withWater = await billing.PreviewAsync(community, period, token, includeWater: true);
+        Assert.Equal(50m, Assert.Single(withWater.Plan.Lines).Water!.AmountUah);
+        Assert.NotEqual(first.Digest, withWater.Digest);
         await using var change = source.CreateCommand("""UPDATE community_billing.tariff SET rates = '{"total":5}';""");
         await change.ExecuteNonQueryAsync(token);
         Assert.Equal("StalePreview", (await billing.PostAsync(community, period, first.Digest, Actor(), token)).Outcome);

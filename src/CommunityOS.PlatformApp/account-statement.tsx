@@ -5,7 +5,7 @@ import { money } from './billing';
 type Debt = { id: string; account: string; payerId: string; kind: string; dueOn: string; outstanding: number };
 
 export const debtKinds: Record<string, string> = {
-  electricity: 'Електроенергія', 'member-fee': 'Членський внесок', 'one-off': 'Разове нарахування',
+  electricity: 'Електроенергія', water: 'Вода', 'member-fee': 'Членський внесок', 'one-off': 'Разове нарахування',
 };
 
 export function AccountStatement({ community, today, debts, payerNames, account, setAccount, detailsRef, openDebts }: {

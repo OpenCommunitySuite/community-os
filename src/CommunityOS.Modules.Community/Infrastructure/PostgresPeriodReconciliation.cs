@@ -38,7 +38,8 @@ public sealed partial class PostgresBillingStore
                         reader.GetDecimal(4), reader.GetDecimal(5), reader.GetDecimal(6), reader.GetDecimal(7)));
             } while (await reader.ReadAsync(token));
             var byKind = details.ToLookup(row => row.Kind);
-            var totals = new[] { "electricity", "member-fee" }.Select(kind =>
+            string[] kinds = byKind.Contains("water") ? ["electricity", "member-fee", "water"] : ["electricity", "member-fee"];
+            var totals = kinds.Select(kind =>
             {
                 var rows = byKind[kind];
                 return new PeriodReconciliationLine(kind, rows.Sum(row => row.Charged), rows.Sum(row => row.Settled),

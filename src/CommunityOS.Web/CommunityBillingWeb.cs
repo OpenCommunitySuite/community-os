@@ -30,12 +30,12 @@ internal static class CommunityBillingWeb
                 async _ => await store.ReconcilePeriodAsync(community, period, token) is { } lines
                     ? Results.Ok(lines) : Results.NotFound(), Results.StatusCode(403), token));
         billing.MapGet("/preview", (Guid community, DateOnly from, DateOnly until, DateOnly calculatedOn, DateOnly dueOn,
-            HttpContext http, CancellationToken token) =>
+            bool? includeWater, HttpContext http, CancellationToken token) =>
         {
             var period = new BillingPeriod(from, until, calculatedOn, dueOn);
             if (!Valid(period)) return Task.FromResult<IResult>(Results.BadRequest());
             return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
-                async _ => Results.Ok(await store.PreviewAsync(community, period, token)), Results.StatusCode(403), token);
+                async _ => Results.Ok(await store.PreviewAsync(community, period, token, includeWater == true)), Results.StatusCode(403), token);
         });
         billing.MapGet("/history", (Guid community, DateOnly from, DateOnly until, HttpContext http, CancellationToken token) =>
             access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
@@ -49,7 +49,7 @@ internal static class CommunityBillingWeb
             return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.PostBilling,
                 async actor =>
                 {
-                    var result = await store.PostAsync(community, period, digest, CommunityElectricityWeb.Actor(actor), token);
+                    var result = await store.PostAsync(community, period, digest, CommunityElectricityWeb.Actor(actor), token, input.IncludeWater);
                     return result.Result is null ? Results.Conflict(result) : Results.Ok(result);
                 }, Results.StatusCode(403), token, billing: new(period.From, period.Until, digest));
         });
@@ -58,5 +58,5 @@ internal static class CommunityBillingWeb
     private static bool Valid(BillingPeriod period) => period.From != default && period.From < period.Until &&
         period.Until <= period.CalculatedOn && period.CalculatedOn <= period.DueOn;
 
-    private sealed record PostInput(BillingPeriod? Period, string? Digest);
+    private sealed record PostInput(BillingPeriod? Period, string? Digest, bool IncludeWater = false);
 }

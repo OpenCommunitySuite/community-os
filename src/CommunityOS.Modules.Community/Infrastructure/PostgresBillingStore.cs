@@ -1,6 +1,7 @@
 using System.Data;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using CommunityOS.Modules.Community.Application.Electricity;
 using CommunityOS.Modules.Community.Application.Finance;
 using Npgsql;
@@ -10,8 +11,10 @@ namespace CommunityOS.Modules.Community.Infrastructure;
 public sealed record BillingPeriod(DateOnly From, DateOnly Until, DateOnly CalculatedOn, DateOnly DueOn);
 public sealed record BillingFee(Guid Id, DateOnly From, DateOnly? Until, string Basis, decimal AmountUah);
 public sealed record BillingLine(Guid AccountId, string AccountNumber, Guid? DebtorId, string Status,
-    ChargePreview? Electricity, BillingFee? Fee);
-public sealed record BillingPlan(BillingPeriod Period, IReadOnlyList<BillingLine> Lines)
+    ChargePreview? Electricity, BillingFee? Fee,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] WaterChargePreview? Water = null);
+public sealed record BillingPlan(BillingPeriod Period, IReadOnlyList<BillingLine> Lines,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool IncludeWater = false)
 {
     public bool Ready => Lines.Count > 0 && Lines.All(line => line.Status == "Ready");
 }
@@ -24,8 +27,9 @@ public sealed partial class PostgresBillingStore(NpgsqlDataSource source)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    public Task<BillingSnapshot> PreviewAsync(Guid community, BillingPeriod period, CancellationToken token) =>
-        RunAsync(community, (connection, transaction) => CalculateAsync(connection, transaction, community, period, token), token);
+    public Task<BillingSnapshot> PreviewAsync(Guid community, BillingPeriod period, CancellationToken token, bool includeWater = false) =>
+        RunAsync(community, (connection, transaction) => CalculateAsync(connection, transaction, community, period, token,
+            includeWater: includeWater), token);
 
     public Task<PostedBilling?> HistoryAsync(Guid community, BillingPeriod period, CancellationToken token) =>
         RunAsync(community, (connection, transaction) => ReadPostedAsync(connection, transaction, community, period, token), token);
@@ -47,7 +51,7 @@ public sealed partial class PostgresBillingStore(NpgsqlDataSource source)
         }, token);
 
     public async Task<BillingPosting> PostAsync(Guid community, BillingPeriod period, string digest,
-        ElectricityActor actor, CancellationToken token)
+        ElectricityActor actor, CancellationToken token, bool includeWater = false)
     {
         try
         {
@@ -56,7 +60,7 @@ public sealed partial class PostgresBillingStore(NpgsqlDataSource source)
                 var existing = await ReadPostedAsync(connection, transaction, community, period, token);
                 if (existing is not null)
                     return existing.Digest == digest ? new("Replayed", existing) : new("PeriodAlreadyPosted");
-                var snapshot = await CalculateAsync(connection, transaction, community, period, token);
+                var snapshot = await CalculateAsync(connection, transaction, community, period, token, includeWater: includeWater);
                 if (snapshot.Digest != digest) return new("StalePreview");
                 if (!snapshot.Plan.Ready) return new("Incomplete");
                 var id = Guid.CreateVersion7();
@@ -79,8 +83,10 @@ public sealed partial class PostgresBillingStore(NpgsqlDataSource source)
                         WITH rows AS (
                             INSERT INTO community_billing.accrual
                                 (community_id,id,period_id,personal_account_id,debtor_id,kind,amount_uah)
-                            VALUES (@community,@electricity_id,@period,@account,@debtor,'electricity',@electricity),
-                                   (@community,@fee_id,@period,@account,@debtor,'member-fee',@fee)
+                            SELECT @community,id,@period,@account,@debtor,kind,amount
+                            FROM (VALUES (@electricity_id,'electricity',@electricity),
+                                         (@fee_id,'member-fee',@fee), (@water_id,'water',@water)) AS items(id,kind,amount)
+                            WHERE amount IS NOT NULL
                             RETURNING id
                         )
                         INSERT INTO community_billing.obligation (community_id,id,accrual_id)
@@ -93,6 +99,8 @@ public sealed partial class PostgresBillingStore(NpgsqlDataSource source)
                     detail.Parameters.AddWithValue("fee_id", Guid.CreateVersion7());
                     detail.Parameters.AddWithValue("electricity", line.Electricity!.AmountUah!.Value);
                     detail.Parameters.AddWithValue("fee", line.Fee!.AmountUah);
+                    detail.Parameters.AddWithValue("water_id", Guid.CreateVersion7());
+                    detail.Parameters.AddWithValue("water", NpgsqlTypes.NpgsqlDbType.Numeric, (object?)line.Water?.AmountUah ?? DBNull.Value);
                     await detail.ExecuteNonQueryAsync(token);
                 }
                 return new("Posted", await ReadPostedAsync(connection, transaction, community, period, token));
@@ -109,7 +117,7 @@ public sealed partial class PostgresBillingStore(NpgsqlDataSource source)
     }
 
     private static async Task<BillingSnapshot> CalculateAsync(NpgsqlConnection connection, NpgsqlTransaction transaction,
-        Guid community, BillingPeriod period, CancellationToken token, Guid? account = null)
+        Guid community, BillingPeriod period, CancellationToken token, Guid? account = null, bool includeWater = false)
     {
         var tariffs = new List<PreviewTariff>();
         await using (var command = Command(connection, transaction, community, period, """
@@ -159,6 +167,9 @@ public sealed partial class PostgresBillingStore(NpgsqlDataSource source)
                     reader.IsDBNull(6) ? null : reader.GetString(6), reader.IsDBNull(7) ? 1m : reader.GetDecimal(7)));
         }
 
+        var waterAccounts = includeWater
+            ? (await ReadWaterAccountsAsync(connection, transaction, community, token)).Select(item => item.Id).ToHashSet()
+            : new HashSet<Guid>();
         var lines = new List<BillingLine>();
         foreach (var group in inputs.GroupBy(input => input.Id))
         {
@@ -174,9 +185,13 @@ public sealed partial class PostgresBillingStore(NpgsqlDataSource source)
             var status = debtor is null ? "AmbiguousDebtor" : electricity is null ? "MissingInstallation" :
                 electricity.Status != ChargePreviewStatus.Ready ? electricity.Status.ToString() :
                 fee is null ? "MissingOrAmbiguousFee" : "Ready";
-            lines.Add(new(input.Id, input.Number, debtor, status, electricity, fee));
+            var water = waterAccounts.Contains(input.Id)
+                ? await CalculateWaterAsync(connection, transaction, community, input.Id, period.From, period.Until, token)
+                : null;
+            if (status == "Ready" && water is { Status: not "Ready" }) status = water.Status;
+            lines.Add(new(input.Id, input.Number, debtor, status, electricity, fee, water));
         }
-        var plan = new BillingPlan(period, lines);
+        var plan = new BillingPlan(period, lines, includeWater);
         return new(plan, Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(plan, Json))));
     }
 

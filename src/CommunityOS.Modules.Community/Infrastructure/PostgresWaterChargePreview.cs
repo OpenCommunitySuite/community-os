@@ -1,3 +1,5 @@
+using Npgsql;
+
 namespace CommunityOS.Modules.Community.Infrastructure;
 
 public sealed record WaterChargePreview(string Status, string AccountNumber, Guid? InstallationId = null,
@@ -8,7 +10,10 @@ public sealed record WaterBillingAccount(Guid Id, string Number);
 public sealed partial class PostgresBillingStore
 {
     public Task<IReadOnlyList<WaterBillingAccount>> WaterBillingAccountsAsync(Guid community, CancellationToken token) =>
-        RunAsync<IReadOnlyList<WaterBillingAccount>>(community, async (connection, transaction) =>
+        RunAsync(community, (connection, transaction) => ReadWaterAccountsAsync(connection, transaction, community, token), token);
+
+    private static async Task<IReadOnlyList<WaterBillingAccount>> ReadWaterAccountsAsync(NpgsqlConnection connection,
+        NpgsqlTransaction transaction, Guid community, CancellationToken token)
         {
             await using var query = Command(connection, transaction, community, null, """
                 SELECT a.id,a.number FROM community_register.personal_account a
@@ -19,10 +24,14 @@ public sealed partial class PostgresBillingStore
             var accounts = new List<WaterBillingAccount>();
             while (await reader.ReadAsync(token)) accounts.Add(new(reader.GetGuid(0), reader.GetString(1)));
             return accounts;
-        }, token);
+        }
 
     public Task<WaterChargePreview?> PreviewWaterAsync(Guid community, Guid account, DateOnly from, DateOnly until,
-        CancellationToken token) => RunAsync<WaterChargePreview?>(community, async (connection, transaction) =>
+        CancellationToken token) => RunAsync(community, (connection, transaction) =>
+            CalculateWaterAsync(connection, transaction, community, account, from, until, token), token);
+
+    private static async Task<WaterChargePreview?> CalculateWaterAsync(NpgsqlConnection connection,
+        NpgsqlTransaction transaction, Guid community, Guid account, DateOnly from, DateOnly until, CancellationToken token)
     {
         await using var query = Command(connection, transaction, community, new(from, until, until, until), """
             SELECT a.number, i.id, o.id, c.id, c.value_m3-o.value_m3,
@@ -61,5 +70,5 @@ public sealed partial class PostgresBillingStore
         };
         if (await reader.ReadAsync(token)) return preview with { Status = "AmbiguousTariff" };
         return coversPeriod ? ready : preview with { Status = "TariffChanges" };
-    }, token);
+    }
 }

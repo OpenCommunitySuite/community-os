@@ -135,7 +135,7 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
   return <section aria-labelledby="payments-heading">
     <h2 id="payments-heading">Платежі та розподіл</h2>
     <button disabled={busy} onClick={() => void run(refresh)}>Завантажити платежі та зобов’язання</button>
-    {desk && <PaymentSummary payments={desk.payments} />}
+    {desk && <PaymentSummary payments={desk.payments} payerNames={payerNames} />}
     {desk && <AccountStatement community={communityName} today={today} debts={openDebts} payerNames={payerNames}
       account={statementAccount} setAccount={setStatementAccount} detailsRef={statementDetails} />}
     {desk && <details>

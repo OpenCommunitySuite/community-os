@@ -57,6 +57,7 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
   const statementDetails = useRef<HTMLDetailsElement>(null);
   const [statementRequest, setStatementRequest] = useState<{ account: string }>();
   const [overdueOnly, setOverdueOnly] = useState(false);
+  const [debtKind, setDebtKind] = useState('');
   const [selected, setSelected] = useState('');
   const paymentPicker = useRef<HTMLSelectElement>(null);
   const [receipt, setReceipt] = useState<{ input: Receipt; cash: boolean }>();
@@ -69,7 +70,7 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
   const debtRows = openDebts.filter(item =>
     (exactDebtAccount ? item.account === debtAccount :
       item.account.toLocaleLowerCase('uk-UA').includes(debtAccount.trim().toLocaleLowerCase('uk-UA'))) &&
-    (!overdueOnly || item.dueOn < today));
+    (!overdueOnly || item.dueOn < today) && (!debtKind || item.kind === debtKind));
   const debtTotal = debtRows.reduce((sum, item) => sum + Math.round(item.outstanding * 100), 0);
   const overdueTotal = debtRows.reduce((sum, item) => sum + (item.dueOn < today ? Math.round(item.outstanding * 100) : 0), 0);
   const payerNames = new Map(desk?.payers.map(payer => [payer.id, payer.name]));
@@ -157,6 +158,7 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
         setDebtAccount(account);
         setExactDebtAccount(true);
         setOverdueOnly(false);
+        setDebtKind('');
         const details = debtDetails.current;
         if (details) {
           details.open = true;
@@ -171,6 +173,10 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
         setExactDebtAccount(false);
       }} /></label>{' '}
       <label><input type="checkbox" checked={overdueOnly} onChange={event => setOverdueOnly(event.target.checked)} /> Лише прострочені</label>
+      {' '}<label>Вид нарахування <select value={debtKind} onChange={event => setDebtKind(event.target.value)}>
+        <option value="">Усі види</option>
+        {Object.entries(debtKinds).map(([kind, label]) => <option key={kind} value={kind}>{label}</option>)}
+      </select></label>{' '}
       <button type="button" disabled={busy} onClick={downloadDebts}>Завантажити заборгованість CSV</button>
       <dl>
         <dt>Заборгованість за вибіркою</dt><dd>{money.format(debtTotal / 100)}</dd>

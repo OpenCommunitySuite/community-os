@@ -113,6 +113,12 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
     setStatementRequest({ account });
   }
 
+  function statementLink(obligationId: string, label: string) {
+    const target = desk?.obligations.find(item => item.id === obligationId);
+    return target ? <button type="button" onClick={() => showStatement(target.account)}
+      aria-label={`${label} ${target.account}`}>{target.account}</button> : obligationId;
+  }
+
   useImperativeHandle(ref, () => ({
     async openStatement(account: string) {
       await refresh();
@@ -259,7 +265,9 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
         post={request} refresh={refresh} />
       {payment.reallocations.length > 0 && <ul aria-label="Історія перерозподілів">
         {payment.reallocations.map(entry => <li key={entry.id}>
-          {entry.id} · {entry.sourceBatchId} · {entry.sourceObligationId} → {entry.targetObligationId} · {money.format(entry.amount)}
+          {entry.id} · {entry.sourceBatchId} ·{' '}
+          {statementLink(entry.sourceObligationId, 'Відкрити виписку за вихідним рахунком')}
+          {' → '}{statementLink(entry.targetObligationId, 'Відкрити виписку за цільовим рахунком')} · {money.format(entry.amount)}
           {' · '}{entry.reason} · Автор {entry.author} · {when(entry.recordedAt)}
         </li>)}
       </ul>}
@@ -286,14 +294,10 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
       {payment.allocations.length > 0 && <ul aria-label="Історія розподілів">
         {payment.allocations.map(entry => <li key={entry.id}>
           {entry.reason} · Автор {entry.author} · {when(entry.recordedAt)}
-          <ul>{entry.lines.map(line => {
-            const target = desk?.obligations.find(item => item.id === line.obligationId);
-            return <li key={line.obligationId}>
-              {target ? <button type="button" onClick={() => showStatement(target.account)}
-                aria-label={`Відкрити виписку за рахунком ${target.account}`}>{target.account}</button> : line.obligationId}
+          <ul>{entry.lines.map(line => <li key={line.obligationId}>
+              {statementLink(line.obligationId, 'Відкрити виписку за рахунком')}
               {' · '}{money.format(line.amount)}
-            </li>;
-          })}</ul>
+            </li>)}</ul>
         </li>)}
       </ul>}
       {obligations.length > 0 && <form onChange={() => setDraft(undefined)} onSubmit={event => {

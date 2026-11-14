@@ -14,6 +14,9 @@ internal static class CommunityWaterWeb
             return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadWater,
                 async _ => Results.Ok(await store.BalanceAsync(community, from, until, token)), Results.StatusCode(403), token);
         });
+        water.MapGet("/topology/dates", (Guid community, HttpContext http, CancellationToken token) =>
+            access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadWater,
+                async _ => Results.Ok(await store.TopologyDatesAsync(community, token)), Results.StatusCode(403), token));
         water.MapGet("/topology", (Guid community, DateOnly date, HttpContext http, CancellationToken token) =>
             access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadWater,
                 async _ => await store.TopologyOnAsync(community, date, token) is { } topology

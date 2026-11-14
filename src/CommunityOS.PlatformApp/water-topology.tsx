@@ -5,10 +5,11 @@ type Placement = { pointId: string; parentId: string | null };
 type Topology = { startsOn: string; points: Placement[] };
 
 export function WaterTopology({ points, canSetup, read, post }: {
-  points: Point[]; canSetup: boolean; read: (path: string) => Promise<Topology | null>;
+  points: Point[]; canSetup: boolean; read: <T>(path: string) => Promise<T>;
   post: (path: string, data: object) => Promise<unknown>;
 }) {
   const [date, setDate] = useState('');
+  const [dates, setDates] = useState<string[]>();
   const [startsOn, setStartsOn] = useState('');
   const [root, setRoot] = useState('');
   const [parents, setParents] = useState<Record<string, string>>({});
@@ -48,7 +49,19 @@ export function WaterTopology({ points, canSetup, read, post }: {
     setReassigned(moved);
   }
 
-  async function run(publish: boolean) {
+  async function loadDates() {
+    setBusy(true);
+    setError('');
+    try {
+      setDates(await read<string[]>('/topology/dates'));
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Історія дерева недоступна.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function run(publish: boolean, selectedDate = date) {
     setBusy(true);
     setError('');
     try {
@@ -57,8 +70,9 @@ export function WaterTopology({ points, canSetup, read, post }: {
         await post('/topology', { startsOn, points: placements });
         setDate(startsOn);
         setReassigned(0);
+        setDates(undefined);
       }
-      setResult(await read('/topology?date=' + encodeURIComponent(publish ? startsOn : date)));
+      setResult(await read<Topology | null>('/topology?date=' + encodeURIComponent(publish ? startsOn : selectedDate)));
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Дерево недоступне.');
     } finally {
@@ -80,6 +94,18 @@ export function WaterTopology({ points, canSetup, read, post }: {
       setResult(undefined);
     }} disabled={busy} /></label>{' '}
     <button type="button" disabled={!date || busy} onClick={() => void run(false)}>Показати дерево</button>
+    {' '}<button type="button" disabled={busy} onClick={() => void loadDates()}>Показати історію версій</button>
+    {dates?.length === 0 && <p>Опублікованих версій немає.</p>}
+    {dates && dates.length > 0 && <label>Опубліковані версії <select value={dates.includes(date) ? date : ''}
+      disabled={busy} onChange={event => {
+        const selected = event.target.value;
+        setDate(selected);
+        setResult(undefined);
+        void run(false, selected);
+      }}>
+      <option value="" disabled>Оберіть дату версії</option>
+      {dates.map(day => <option key={day} value={day}>{day}</option>)}
+    </select></label>}
     {canSetup && <fieldset disabled={busy}>
       <legend>Нова версія дерева води</legend>
       <label>Дата набрання чинності <input type="date" value={startsOn}

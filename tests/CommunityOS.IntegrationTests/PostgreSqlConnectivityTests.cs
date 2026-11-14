@@ -1356,7 +1356,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "023_cash_acceptance_access.sql", "024_bank_statement_access.sql", "025_reallocation_access.sql",
                      "026_payment_correction_access.sql", "027_overpayment_access.sql", "028_member_fee_advance_access.sql",
                      "029_water_topology_admission.sql", "030_water_replacement_access.sql", "031_water_verification_access.sql",
-                     "032_budget_access.sql", "033_expense_access.sql" })
+                     "032_budget_access.sql", "033_expense_access.sql", "034_expense_allocation_access.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);

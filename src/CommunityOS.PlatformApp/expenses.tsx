@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
 import { money } from './billing';
+import { ExpenseDistribution } from './expense-distribution';
 
 type Expense = { id: string; incurredOn: string; purpose: string; amount: number; evidence: string };
 
-export function Expenses({ community, canRecognize }: { community: string; canRecognize: boolean }) {
+export function Expenses({ community, canRecognize, canAllocate }: { community: string; canRecognize: boolean; canAllocate: boolean }) {
   const endpoint = '/community/billing/' + community + '/expenses';
   const [expenses, setExpenses] = useState<Expense[]>();
   const [busy, setBusy] = useState(false);
@@ -63,9 +64,10 @@ export function Expenses({ community, canRecognize }: { community: string; canRe
     </form>}
     {expenses?.length === 0 && <p>Визнаних витрат немає.</p>}
     {!!expenses?.length && <table><caption>Визнані витрати</caption>
-      <thead><tr><th>Дата</th><th>Призначення</th><th>Сума</th><th>Підстава</th></tr></thead>
+      <thead><tr><th>Дата</th><th>Призначення</th><th>Сума</th><th>Підстава</th><th>Розподіл</th></tr></thead>
       <tbody>{expenses.map(expense => <tr key={expense.id}><td>{expense.incurredOn}</td>
         <th scope="row">{expense.purpose}</th><td>{money.format(expense.amount)}</td><td>{expense.evidence}</td>
+        <td><ExpenseDistribution endpoint={endpoint + '/' + expense.id + '/distribution'} canAllocate={canAllocate} /></td>
       </tr>)}</tbody>
     </table>}
     <p role="status">{message}</p>

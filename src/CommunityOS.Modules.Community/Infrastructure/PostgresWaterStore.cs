@@ -15,7 +15,7 @@ public sealed record WaterInterval(DateOnly From, DateOnly To, string ValueExact
 public sealed record WaterSeries(IReadOnlyList<WaterReading> Readings, IReadOnlyList<WaterInterval> Intervals, string Unit = "m³");
 public sealed record WaterPlot(Guid Id, string Number);
 
-public sealed class PostgresWaterStore(NpgsqlDataSource source)
+public sealed partial class PostgresWaterStore(NpgsqlDataSource source)
 {
     public Task<IReadOnlyList<WaterPlot>> PlotsAsync(Guid community, CancellationToken token) =>
         RunAsync<IReadOnlyList<WaterPlot>>(community, async (connection, transaction) =>

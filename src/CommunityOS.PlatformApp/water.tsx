@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { WaterTopology } from './water-topology';
 
 type Point = { id: string; plotId: string | null; designation: string; boundary: string | null;
   installationId: string; meterDesignation: string; startsOn: string };
@@ -14,6 +15,7 @@ const messages: Record<string, string> = {
   OutsideInstallation: 'Дата вимірювання поза періодом установки.',
   FutureDate: 'Дата вимірювання не може бути в майбутньому.',
   InvalidValue: 'Вкажіть невід’ємне значення з точністю до 0,001 м³.',
+  InvalidTree: 'Перевірте зв’язки дерева та дати встановлення лічильників.',
 };
 
 async function checked(response: Response) {
@@ -69,6 +71,7 @@ export function Water({ community, canSetup, canRecognize }: {
 
   return <section aria-labelledby="water-heading">
     <h2 id="water-heading">Облік технічної води</h2>
+    <WaterTopology points={points} canSetup={canSetup} read={read} post={post} />
     {canSetup && <details>
       <summary>Зареєструвати точку води</summary>
       <form onSubmit={event => {

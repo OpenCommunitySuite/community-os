@@ -100,6 +100,8 @@
           Link="015_electricity_reading_import_source.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/016_manual_water.sql"
           Link="016_manual_water.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/029_water_topology.sql"
+          Link="029_water_topology.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/017_regular_billing.sql"
           Link="017_regular_billing.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/CommunityOS.Modules.Community/Infrastructure/Migrations/018_billing_recalculation.sql"

@@ -7,6 +7,30 @@ internal static class CommunityWaterWeb
     public static void Map(RouteGroupBuilder routes, RegisterAccessStore access, PostgresWaterStore store)
     {
         var water = routes.MapGroup("/water/{community:guid}");
+        water.MapGet("/topology", (Guid community, DateOnly date, HttpContext http, CancellationToken token) =>
+            access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadWater,
+                async _ => await store.TopologyOnAsync(community, date, token) is { } topology
+                    ? Results.Ok(topology) : Results.Text("null", "application/json"), Results.StatusCode(403), token));
+        water.MapPost("/topology", (Guid community, WaterTopology input, HttpContext http, CancellationToken token) =>
+        {
+            if (input.StartsOn == default || input.StartsOn > CommunityElectricityWeb.Today() ||
+                input.Points is not { Count: > 0 and <= 2000 } || input.Points.Any(p => p is null ||
+                    p.PointId == Guid.Empty || p.ParentId == Guid.Empty) ||
+                input.Points.Select(p => p.PointId).Distinct().Count() != input.Points.Count)
+                return Task.FromResult<IResult>(Results.BadRequest());
+            var roots = input.Points.Where(p => p.ParentId is null).ToArray();
+            if (roots.Length != 1) return Task.FromResult<IResult>(Results.BadRequest());
+            var root = roots[0].PointId;
+            var parents = input.Points.Where(p => p.ParentId is not null).ToDictionary(p => p.PointId, p => p.ParentId!.Value);
+            return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.SetupWater,
+                async actor =>
+                {
+                    var result = await store.PublishTopologyAsync(community, input.StartsOn, root, parents,
+                        CommunityElectricityWeb.Actor(actor), token);
+                    var response = new { Outcome = result.ToString() };
+                    return result == TopologyPublicationOutcome.Published ? Results.Ok(response) : Results.Conflict(response);
+                }, Results.StatusCode(403), token, water: new(root, input.StartsOn, Topology: true));
+        });
         water.MapGet("/points", (Guid community, HttpContext http, CancellationToken token) =>
             access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadWater,
                 async _ => Results.Ok(await store.ListAsync(community, token)), Results.StatusCode(403), token));

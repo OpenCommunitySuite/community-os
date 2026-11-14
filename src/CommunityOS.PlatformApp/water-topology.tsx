@@ -9,6 +9,7 @@ export function WaterTopology({ points, canSetup, read, post }: {
   post: (path: string, data: object) => Promise<unknown>;
 }) {
   const [date, setDate] = useState('');
+  const [startsOn, setStartsOn] = useState('');
   const [root, setRoot] = useState('');
   const [parents, setParents] = useState<Record<string, string>>({});
   const [result, setResult] = useState<Topology | null>();
@@ -16,6 +17,7 @@ export function WaterTopology({ points, canSetup, read, post }: {
   const [busy, setBusy] = useState(false);
   const common = points.filter(point => !point.plotId);
   const names = new Map(points.map(point => [point.id, point.designation]));
+  const publishedRoot = result?.points.find(point => point.parentId === null);
 
   async function run(publish: boolean) {
     setBusy(true);
@@ -25,9 +27,10 @@ export function WaterTopology({ points, canSetup, read, post }: {
         const placements: Placement[] = [{ pointId: root, parentId: null }];
         for (const [pointId, parentId] of Object.entries(parents))
           if (pointId !== root && parentId) placements.push({ pointId, parentId });
-        await post('/topology', { startsOn: date, points: placements });
+        await post('/topology', { startsOn, points: placements });
+        setDate(startsOn);
       }
-      setResult(await read('/topology?date=' + encodeURIComponent(date)));
+      setResult(await read('/topology?date=' + encodeURIComponent(publish ? startsOn : date)));
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Дерево недоступне.');
     } finally {
@@ -51,6 +54,8 @@ export function WaterTopology({ points, canSetup, read, post }: {
     <button type="button" disabled={!date || busy} onClick={() => void run(false)}>Показати дерево</button>
     {canSetup && <fieldset disabled={busy}>
       <legend>Нова версія дерева води</legend>
+      <label>Дата набрання чинності <input type="date" value={startsOn}
+        onChange={event => setStartsOn(event.target.value)} /></label>{' '}
       <label>Загальна точка <select value={root} onChange={event => {
         setRoot(event.target.value);
         setParents({});
@@ -66,10 +71,17 @@ export function WaterTopology({ points, canSetup, read, post }: {
             .map(candidate => <option key={candidate.id} value={candidate.id}>{candidate.designation}</option>)}
         </select></label>
       </div>)}
-      <button type="button" disabled={!date || !root} onClick={() => void run(true)}>Опублікувати дерево</button>
+      <button type="button" disabled={!startsOn || !root} onClick={() => void run(true)}>Опублікувати дерево</button>
     </fieldset>}
     {error && <p role="alert">{error}</p>}
     {result === null && <p>На цю дату дерево не опубліковано.</p>}
-    {result && <section aria-label="Опубліковане дерево води"><p>Діє з {result.startsOn}</p>{branch(null)}</section>}
+    {result && <section aria-label="Опубліковане дерево води"><p>Діє з {result.startsOn}</p>{branch(null)}
+      {canSetup && publishedRoot && <button type="button" disabled={busy} onClick={() => {
+        setRoot(publishedRoot.pointId);
+        setParents(Object.fromEntries(result.points.flatMap(point => point.parentId ? [[point.pointId, point.parentId]] : [])));
+        setStartsOn('');
+        setError('');
+      }}>Скопіювати зв’язки в нову версію</button>}
+    </section>}
   </details>;
 }

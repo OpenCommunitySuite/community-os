@@ -339,6 +339,7 @@ def up(docker, config, config_dir):
         GRANT UPDATE (lock_marker) ON community_water.installation TO {WEB_ROLE};
         GRANT UPDATE (ends_before) ON community_water.installation TO {WEB_ROLE};
         GRANT SELECT, INSERT ON community_water.replacement TO {WEB_ROLE};
+        GRANT SELECT, INSERT ON community_water.meter_verification TO {WEB_ROLE};
         GRANT SELECT, INSERT ON community_water.topology_revision, community_water.topology_point TO {WEB_ROLE};
         GRANT USAGE ON SCHEMA community_billing TO {WEB_ROLE};
         GRANT SELECT ON community_billing.tariff, community_billing.member_fee TO {WEB_ROLE};

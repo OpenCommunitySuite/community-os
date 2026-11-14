@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { WaterTopology } from './water-topology';
 import { WaterBalance } from './water-balance';
 import { ReadingImport } from './reading-import';
+import { WaterVerification } from './water-verification';
 
 type Point = { id: string; plotId: string | null; designation: string; boundary: string | null;
   installationId: string; meterDesignation: string; startsOn: string };
@@ -24,18 +25,19 @@ const messages: Record<string, string> = {
   Conflict: 'Установку вже закрито, позначення зайняте або дані запиту змінилися. Перевірте історію.',
 };
 
-async function checked(response: Response, topologyPublication = false) {
+async function checked(response: Response, topologyPublication = false, verification = false) {
   if (response.ok) return response;
   if (response.status === 403) throw new Error('Дозвіл на цю дію відсутній.');
   const data = await response.json().catch(() => null);
+  if (verification && data?.outcome === 'Conflict') throw new Error('За цю дату вже записано інші відомості про повірку.');
   if (topologyPublication && data?.outcome === 'DateConflict') {
     throw new Error('Виберіть дату, пізнішу за дату набрання чинності останньою опублікованою версією дерева.');
   }
   throw new Error(messages[data?.outcome] ?? 'Перевірте дані та повторіть спробу.');
 }
 
-export function Water({ community, canSetup, canRecognize, canReplace }: {
-  community: string; canSetup: boolean; canRecognize: boolean; canReplace: boolean;
+export function Water({ community, canSetup, canRecognize, canReplace, canVerify }: {
+  community: string; canSetup: boolean; canRecognize: boolean; canReplace: boolean; canVerify: boolean;
 }) {
   const endpoint = '/community/water/' + community;
   const [points, setPoints] = useState<Point[]>([]);
@@ -86,7 +88,8 @@ export function Water({ community, canSetup, canRecognize, canReplace }: {
   async function post(path: string, data: object) {
     const { token } = await (await checked(await fetch('/platform/csrf'))).json();
     return (await checked(await fetch(endpoint + path, { method: 'POST', body: JSON.stringify(data),
-      headers: { 'Content-Type': 'application/json', 'X-Platform-CSRF': token } }), path === '/topology')).json();
+      headers: { 'Content-Type': 'application/json', 'X-Platform-CSRF': token } }),
+    path === '/topology', path.endsWith('/verifications'))).json();
   }
 
   useEffect(() => { void run(loadPoints); }, [endpoint]);
@@ -95,6 +98,7 @@ export function Water({ community, canSetup, canRecognize, canReplace }: {
     <h2 id="water-heading">Облік технічної води</h2>
     <WaterTopology points={points} canSetup={canSetup} read={read} post={post} />
     <WaterBalance read={read} />
+    <WaterVerification canVerify={canVerify} read={read} post={post} />
     <ReadingImport endpoint={endpoint} canApply={canRecognize} water onApplied={() => readSeries(readingInstallation)} />
     {canSetup && <details>
       <summary>Зареєструвати точку води</summary>

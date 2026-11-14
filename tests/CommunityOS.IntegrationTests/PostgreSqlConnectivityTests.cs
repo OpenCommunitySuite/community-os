@@ -583,7 +583,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "012_common_electricity_points.sql", "013_meter_installation_details.sql",
                      "014_electricity_metering_trees.sql", "015_electricity_reading_import_source.sql", "016_manual_water.sql",
                      "029_water_topology.sql", "030_water_installation_history.sql", "031_water_reading_import_source.sql",
-                     "017_regular_billing.sql", "032_water_tariff.sql" })
+                     "017_regular_billing.sql", "032_water_tariff.sql", "034_water_meter_verification.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -910,6 +910,21 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Collection(await water.InstallationsAsync(community, waterRoot, token),
             current => Assert.Equal(waterReplaced.InstallationId, current.Id),
             past => Assert.Equal(waterReplacement.EffectiveOn, past.EndsBefore));
+        var removedMeter = Assert.Single(await water.VerificationMetersAsync(community, token), meter => !meter.Active);
+        var due = starts.AddYears(1);
+        var verificationRace = await Task.WhenAll(
+            water.VerifyMeterAsync(community, removedMeter.Id, starts, due, "Synthetic verification", Actor(), token),
+            water.VerifyMeterAsync(community, removedMeter.Id, starts, due, "Synthetic verification", Actor(), token));
+        Assert.Contains("Recorded", verificationRace);
+        Assert.Contains("Replayed", verificationRace);
+        Assert.Equal("Conflict",
+            await water.VerifyMeterAsync(community, removedMeter.Id, starts, due.AddDays(1), "Synthetic verification", Actor(), token));
+        Assert.Equal("NotFound",
+            await water.VerifyMeterAsync(foreign, removedMeter.Id, starts, due, "Synthetic verification", Actor(), token));
+        Assert.Empty(await water.VerificationMetersAsync(foreign, token));
+        var verificationMeters = await water.VerificationMetersAsync(community, token);
+        Assert.Equal(due, Assert.Single(verificationMeters.Single(meter => meter.Id == removedMeter.Id).History).DueOn);
+        Assert.All(verificationMeters.Where(meter => meter.Active), meter => Assert.Empty(meter.History));
 
         var newWaterInstallation = waterReplaced.InstallationId!.Value;
         var opening = waterReplacement.EffectiveOn;
@@ -1340,7 +1355,7 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "020_recalculation_access.sql", "021_one_off_access.sql", "022_payment_access.sql",
                      "023_cash_acceptance_access.sql", "024_bank_statement_access.sql", "025_reallocation_access.sql",
                      "026_payment_correction_access.sql", "027_overpayment_access.sql", "028_member_fee_advance_access.sql",
-                     "029_water_topology_admission.sql", "030_water_replacement_access.sql" })
+                     "029_water_topology_admission.sql", "030_water_replacement_access.sql", "031_water_verification_access.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);

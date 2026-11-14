@@ -1551,6 +1551,34 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
             """);
         await waterGrant.ExecuteNonQueryAsync(token);
         Assert.True(await TryRecognizeWater(community));
+        var verificationTarget = Guid.NewGuid();
+        Task<Guid> TryVerifyWater(Guid id) => access.WithAccessAsync(session, id, RegisterPermission.VerifyWater,
+            actor => Task.FromResult(actor.AdmissionId), Guid.Empty, token, water: new(verificationTarget, topologyDate));
+        Assert.Equal(Guid.Empty, await TryVerifyWater(community));
+        await using var verificationGrant = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator SET water_verification_basis = 'synthetic verification';
+            """);
+        await verificationGrant.ExecuteNonQueryAsync(token);
+        Assert.True(Assert.Single((await access.ListAsync(session, token))!).CanVerifyWater);
+        Assert.Equal(Guid.Empty, await TryVerifyWater(Guid.NewGuid()));
+        var verificationAdmission = await TryVerifyWater(community);
+        Assert.NotEqual(Guid.Empty, verificationAdmission);
+        await using var verificationAudit = source.CreateCommand("""
+            SELECT count(*) FROM platform_provisioning.water_admission
+            WHERE id=@id AND action='verify-meter' AND community_id=@community
+              AND target_id=@target AND effective_on=@date AND basis='synthetic verification';
+            """);
+        verificationAudit.Parameters.AddWithValue("id", verificationAdmission);
+        verificationAudit.Parameters.AddWithValue("community", community);
+        verificationAudit.Parameters.AddWithValue("target", verificationTarget);
+        verificationAudit.Parameters.AddWithValue("date", topologyDate);
+        Assert.Equal(1L, await verificationAudit.ExecuteScalarAsync(token));
+        await using var verificationRevoke = source.CreateCommand("""
+            UPDATE platform_provisioning.register_operator SET water_verification_basis = NULL;
+            """);
+        await verificationRevoke.ExecuteNonQueryAsync(token);
+        Assert.False(Assert.Single((await access.ListAsync(session, token))!).CanVerifyWater);
+        Assert.Equal(Guid.Empty, await TryVerifyWater(community));
         Assert.False(await TryRecognizeWater(Guid.NewGuid()));
         Assert.True(Assert.Single((await access.ListAsync(session, token))!).CanReadWater);
         await using var waterRevocation = source.CreateCommand("""

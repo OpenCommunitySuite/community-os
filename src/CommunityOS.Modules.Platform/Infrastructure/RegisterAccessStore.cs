@@ -13,7 +13,7 @@ public sealed record RegisterImportTarget(Guid DraftId, int Revision, string Pla
 public sealed record OwnershipCorrectionTarget(Guid PlotId, Guid Revision, Guid OwnerId);
 public sealed record ElectricityTarget(Guid Id, DateOnly Date, Guid? RequestId = null, string? RegisterMode = null,
     string? Channel = null);
-public sealed record WaterTarget(Guid Id, DateOnly Date);
+public sealed record WaterTarget(Guid Id, DateOnly Date, bool Topology = false);
 public sealed record BillingTarget(DateOnly From, DateOnly Until, string Digest);
 public sealed record PaymentTarget(Guid RequestId, string Digest);
 public sealed record OneOffTarget(Guid RequestId, string Digest);
@@ -350,7 +350,7 @@ public sealed class RegisterAccessStore(NpgsqlDataSource dataSource)
             }
             if (waterWrite)
             {
-                admit.Parameters.AddWithValue("action", setupWater ? "setup" : "recognize");
+                admit.Parameters.AddWithValue("action", setupWater ? (water!.Topology ? "publish-topology" : "setup") : "recognize");
                 admit.Parameters.AddWithValue("target", water!.Id);
                 admit.Parameters.AddWithValue("date", water.Date);
             }

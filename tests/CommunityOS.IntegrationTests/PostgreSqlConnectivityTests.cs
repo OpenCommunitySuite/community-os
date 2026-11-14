@@ -532,7 +532,8 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         foreach (var file in new[] { "001_manual_register.sql", "002_ownership_correction.sql",
                      "009_electricity_readings.sql", "010_electricity_replacement.sql", "011_electricity_register_channels.sql",
                      "012_common_electricity_points.sql", "013_meter_installation_details.sql",
-                     "014_electricity_metering_trees.sql", "015_electricity_reading_import_source.sql", "016_manual_water.sql" })
+                     "014_electricity_metering_trees.sql", "015_electricity_reading_import_source.sql", "016_manual_water.sql",
+                     "029_water_topology.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -748,6 +749,27 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Empty(await water.ListAsync(foreign, token));
         var waterPoints = await water.ListAsync(community, token);
         var waterMeter = waterPoints.Single(p => p.PlotId is null).InstallationId;
+        var waterRoot = waterPoints.Single(p => p.PlotId is null).Id;
+        var leaf = waterSetup.PointId;
+        Assert.Null(await water.TopologyOnAsync(community, starts, token));
+        Assert.Equal(TopologyPublicationOutcome.Published, await water.PublishTopologyAsync(community, starts, waterRoot,
+            new Dictionary<Guid, Guid> { [leaf] = waterRoot }, Actor(), token));
+        var street = Guid.NewGuid();
+        Assert.Equal(ElectricitySetupOutcome.Created, await water.SetupAsync(community,
+            new(street, null, "Street water", "Street boundary", "Street meter", starts.AddDays(1)), Actor(), token));
+        Assert.Equal(TopologyPublicationOutcome.InvalidTree, await water.PublishTopologyAsync(community, starts.AddDays(1), waterRoot,
+            new Dictionary<Guid, Guid> { [leaf] = street, [street] = leaf }, Actor(), token));
+        Assert.Equal(TopologyPublicationOutcome.InvalidTree, await water.PublishTopologyAsync(foreign, starts.AddDays(1), waterRoot,
+            new Dictionary<Guid, Guid> { [leaf] = waterRoot }, Actor(), token));
+        var links = new Dictionary<Guid, Guid> { [leaf] = street, [street] = waterRoot };
+        var publishRace = await Task.WhenAll(
+            water.PublishTopologyAsync(community, starts.AddDays(1), waterRoot, links, Actor(), token),
+            water.PublishTopologyAsync(community, starts.AddDays(1), waterRoot, links, Actor(), token));
+        Assert.Contains(TopologyPublicationOutcome.Published, publishRace);
+        Assert.Contains(TopologyPublicationOutcome.DateConflict, publishRace);
+        Assert.Contains(new WaterPlacement(leaf, waterRoot), (await water.TopologyOnAsync(community, starts, token))!.Points);
+        Assert.Contains(new WaterPlacement(leaf, street), (await water.TopologyOnAsync(community, starts.AddDays(1), token))!.Points);
+        Assert.Null(await water.TopologyOnAsync(foreign, starts.AddDays(1), token));
         Assert.Equal(2, waterPoints.Count);
         Assert.Empty((await water.SeriesAsync(community, waterPoints.Single(p => p.PlotId is not null).InstallationId, token))!.Readings);
         Assert.Null(await water.SeriesAsync(foreign, waterMeter, token));

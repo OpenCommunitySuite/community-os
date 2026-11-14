@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import type { Ref } from 'react';
 import { createPortal } from 'react-dom';
 import { money } from './billing';
 
@@ -8,10 +8,10 @@ export const debtKinds: Record<string, string> = {
   electricity: 'Електроенергія', 'member-fee': 'Членський внесок', 'one-off': 'Разове нарахування',
 };
 
-export function AccountStatement({ community, today, debts, payerNames }: {
+export function AccountStatement({ community, today, debts, payerNames, account, setAccount, detailsRef }: {
   community: string; today: string; debts: Debt[]; payerNames: Map<string, string>;
+  account: string; setAccount: (account: string) => void; detailsRef: Ref<HTMLDetailsElement>;
 }) {
-  const [account, setAccount] = useState('');
   const accounts = [...new Set(debts.map(row => row.account))].sort((a, b) => a.localeCompare(b, 'uk-UA'));
   const selected = accounts.includes(account);
   const rows = debts.filter(row => row.account === account);
@@ -32,7 +32,7 @@ export function AccountStatement({ community, today, debts, payerNames }: {
     </table>
   </>;
 
-  return <details>
+  return <details ref={detailsRef}>
     <summary>Виписка за особовим рахунком</summary>
     <label>Особовий рахунок для виписки <select value={selected ? account : ''} onChange={event => setAccount(event.target.value)}>
       <option value="">Оберіть рахунок</option>

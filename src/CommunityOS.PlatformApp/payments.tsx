@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { money } from './billing';
 import { Reallocation, type TransferLine } from './reallocation';
 import { PaymentCorrection } from './payment-correction';
@@ -48,6 +48,8 @@ export function Payments({ community, communityName, canRecord, canAllocate, can
   const [today, setToday] = useState('');
   const [balancePayer, setBalancePayer] = useState('');
   const [debtAccount, setDebtAccount] = useState('');
+  const [statementAccount, setStatementAccount] = useState('');
+  const statementDetails = useRef<HTMLDetailsElement>(null);
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [selected, setSelected] = useState('');
   const [receipt, setReceipt] = useState<{ input: Receipt; cash: boolean }>();
@@ -112,7 +114,8 @@ export function Payments({ community, communityName, canRecord, canAllocate, can
     <h2 id="payments-heading">Платежі та розподіл</h2>
     <button disabled={busy} onClick={() => void run(refresh)}>Завантажити платежі та зобов’язання</button>
     {desk && <PaymentSummary payments={desk.payments} />}
-    {desk && <AccountStatement community={communityName} today={today} debts={openDebts} payerNames={payerNames} />}
+    {desk && <AccountStatement community={communityName} today={today} debts={openDebts} payerNames={payerNames}
+      account={statementAccount} setAccount={setStatementAccount} detailsRef={statementDetails} />}
     {desk && <details>
       <summary>Реєстр заборгованості</summary>
       <p>Поточні залишки станом на {today} за датою Києва.</p>
@@ -128,7 +131,14 @@ export function Payments({ community, communityName, canRecord, canAllocate, can
           <caption>Реєстр непогашених зобов’язань</caption>
           <thead><tr><th>Рахунок</th><th>Платник</th><th>Вид</th><th>Строк оплати</th><th>Залишок</th><th>Стан</th></tr></thead>
           <tbody>{debtRows.map(item => <tr key={item.id}>
-            <td>{item.account}</td><td>{payerNames.get(item.payerId)}</td>
+            <td><button type="button" aria-label={`Відкрити виписку за рахунком ${item.account}`} onClick={() => {
+              setStatementAccount(item.account);
+              const details = statementDetails.current;
+              if (details) {
+                details.open = true;
+                details.querySelector('select')?.focus();
+              }
+            }}>{item.account}</button></td><td>{payerNames.get(item.payerId)}</td>
             <td>{debtKinds[item.kind] ?? item.kind}</td>
             <td>{item.dueOn}</td><td>{money.format(item.outstanding)}</td>
             <td>{debtStatus(item)}</td>

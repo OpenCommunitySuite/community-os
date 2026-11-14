@@ -784,6 +784,24 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
             13m, today, Actor(), token)).Outcome);
         Assert.Equal(ReadingOutcome.Recognized, (await water.RecognizeAsync(community, waterMeter, starts.AddDays(1),
             11m, today, Actor(), token)).Outcome);
+        var waterBalanceStart = starts.AddDays(1);
+        var end = starts.AddDays(2);
+        Assert.Equal("NoTopology", (await water.BalanceAsync(foreign, waterBalanceStart, end, token)).Outcome);
+        Assert.Equal("TopologyChanged", (await water.BalanceAsync(community, starts, end, token)).Outcome);
+        var incomplete = await water.BalanceAsync(community, starts, waterBalanceStart, token);
+        Assert.Equal("Ready", incomplete.Outcome);
+        Assert.Null(Assert.Single(incomplete.Branches).Difference);
+        Assert.True(Assert.Single(incomplete.Points, point => point.Id == leaf).MissingStart);
+        var installed = await water.ListAsync(community, token);
+        foreach (var (point, reading) in new[] { (street, 1m), (leaf, 0.75m) })
+        {
+            var meter = installed.Single(item => item.Id == point).InstallationId;
+            Assert.Equal(ReadingOutcome.Recognized, (await water.RecognizeAsync(community, meter, waterBalanceStart, 0m, today, Actor(), token)).Outcome);
+            Assert.Equal(ReadingOutcome.Recognized, (await water.RecognizeAsync(community, meter, end, reading, today, Actor(), token)).Outcome);
+        }
+        var balanced = await water.BalanceAsync(community, waterBalanceStart, end, token);
+        Assert.Contains(new WaterBalanceBranch(waterRoot, 1m, 0.5m), balanced.Branches);
+        Assert.Contains(new WaterBalanceBranch(street, 0.75m, 0.25m), balanced.Branches);
         Assert.Empty((await store.SeriesAsync(community, newDual.Id, token))!.Intervals);
     }
 

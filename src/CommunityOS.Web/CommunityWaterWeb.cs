@@ -7,6 +7,13 @@ internal static class CommunityWaterWeb
     public static void Map(RouteGroupBuilder routes, RegisterAccessStore access, PostgresWaterStore store)
     {
         var water = routes.MapGroup("/water/{community:guid}");
+        water.MapGet("/balance", (Guid community, DateOnly from, DateOnly until, HttpContext http, CancellationToken token) =>
+        {
+            if (from == default || from >= until || until > CommunityElectricityWeb.Today())
+                return Task.FromResult<IResult>(Results.BadRequest());
+            return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadWater,
+                async _ => Results.Ok(await store.BalanceAsync(community, from, until, token)), Results.StatusCode(403), token);
+        });
         water.MapGet("/topology", (Guid community, DateOnly date, HttpContext http, CancellationToken token) =>
             access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadWater,
                 async _ => await store.TopologyOnAsync(community, date, token) is { } topology

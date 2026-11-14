@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { WaterTopology } from './water-topology';
+import { WaterBalance } from './water-balance';
 
 type Point = { id: string; plotId: string | null; designation: string; boundary: string | null;
   installationId: string; meterDesignation: string; startsOn: string };
@@ -72,6 +73,7 @@ export function Water({ community, canSetup, canRecognize }: {
   return <section aria-labelledby="water-heading">
     <h2 id="water-heading">Облік технічної води</h2>
     <WaterTopology points={points} canSetup={canSetup} read={read} post={post} />
+    <WaterBalance read={read} />
     {canSetup && <details>
       <summary>Зареєструвати точку води</summary>
       <form onSubmit={event => {

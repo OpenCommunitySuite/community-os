@@ -58,6 +58,8 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
   const [statementRequest, setStatementRequest] = useState<{ account: string }>();
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [debtKind, setDebtKind] = useState('');
+  const [dueFrom, setDueFrom] = useState('');
+  const [dueThrough, setDueThrough] = useState('');
   const [selected, setSelected] = useState('');
   const paymentPicker = useRef<HTMLSelectElement>(null);
   const [receipt, setReceipt] = useState<{ input: Receipt; cash: boolean }>();
@@ -67,10 +69,12 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
   const payment = desk?.payments.find(item => item.id === selected);
   const obligations = desk?.obligations.filter(item => item.payerId === payment?.payerId && item.outstanding > 0) ?? [];
   const openDebts = desk?.obligations.filter(item => item.outstanding > 0) ?? [];
+  const invalidDueRange = Boolean(dueFrom && dueThrough && dueFrom > dueThrough);
   const debtRows = openDebts.filter(item =>
     (exactDebtAccount ? item.account === debtAccount :
       item.account.toLocaleLowerCase('uk-UA').includes(debtAccount.trim().toLocaleLowerCase('uk-UA'))) &&
-    (!overdueOnly || item.dueOn < today) && (!debtKind || item.kind === debtKind));
+    (!overdueOnly || item.dueOn < today) && (!debtKind || item.kind === debtKind) &&
+    (!dueFrom || item.dueOn >= dueFrom) && (!dueThrough || item.dueOn <= dueThrough));
   const debtTotal = debtRows.reduce((sum, item) => sum + Math.round(item.outstanding * 100), 0);
   const overdueTotal = debtRows.reduce((sum, item) => sum + (item.dueOn < today ? Math.round(item.outstanding * 100) : 0), 0);
   const payerNames = new Map(desk?.payers.map(payer => [payer.id, payer.name]));
@@ -159,6 +163,8 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
         setExactDebtAccount(true);
         setOverdueOnly(false);
         setDebtKind('');
+        setDueFrom('');
+        setDueThrough('');
         const details = debtDetails.current;
         if (details) {
           details.open = true;
@@ -177,6 +183,9 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
         <option value="">Усі види</option>
         {Object.entries(debtKinds).map(([kind, label]) => <option key={kind} value={kind}>{label}</option>)}
       </select></label>{' '}
+      <label>Строк оплати з <input type="date" value={dueFrom} onChange={event => setDueFrom(event.target.value)} /></label>{' '}
+      <label>Строк оплати до включно <input type="date" value={dueThrough} onChange={event => setDueThrough(event.target.value)} /></label>{' '}
+      {invalidDueRange ? <p role="alert">Початкова дата має передувати кінцевій або збігатися з нею.</p> : <>
       <button type="button" disabled={busy} onClick={downloadDebts}>Завантажити заборгованість CSV</button>
       <dl>
         <dt>Заборгованість за вибіркою</dt><dd>{money.format(debtTotal / 100)}</dd>
@@ -194,6 +203,7 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
             <td>{debtStatus(item)}</td>
           </tr>)}</tbody>
         </table>}
+      </>}
     </details>}
     {desk && <details>
       <summary>Залишки розрахунків</summary>

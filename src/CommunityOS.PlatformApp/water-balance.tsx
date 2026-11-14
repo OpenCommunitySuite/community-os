@@ -14,6 +14,7 @@ export function WaterBalance({ read }: { read: (path: string) => Promise<Balance
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState('');
+  const [missingOnly, setMissingOnly] = useState(false);
   const result = calculation?.result;
   const names = new Map(result?.points.map(point => [point.id, point.designation]));
   const branches = new Map(result?.branches.map(branch => [branch.id, branch]));
@@ -21,6 +22,7 @@ export function WaterBalance({ read }: { read: (path: string) => Promise<Balance
   const points = result?.points ?? [];
   const parents = new Map(points.map(point => [point.id, point.parentId]));
   const visible = points.filter(point => {
+    if (missingOnly && !point.missingStart && !point.missingEnd) return false;
     if (!selectedBranch) return true;
     for (let id: string | null | undefined = point.id; id; id = parents.get(id))
       if (id === selectedBranch) return true;
@@ -71,7 +73,9 @@ export function WaterBalance({ read }: { read: (path: string) => Promise<Balance
       <option value="">Усе дерево</option>
       {points.filter(point => branches.has(point.id)).map(point => <option key={point.id} value={point.id}>{point.designation}</option>)}
     </select></label>{' '}
+    <label><input type="checkbox" checked={missingOnly} onChange={event => setMissingOnly(event.target.checked)} /> Лише точки без граничних показань</label>{' '}
     <button type="button" onClick={download}>Завантажити звірку води CSV</button>
+    {visible.length === 0 && <p role="status">За вибраними умовами точок немає.</p>}
     <table>
       <caption>Обсяги за точками, м³</caption>
       <thead><tr><th>Точка</th><th>Батьківська точка</th><th>Обсяг</th><th>Прямі гілки</th><th>Різниця</th><th>Відсутні показання</th></tr></thead>

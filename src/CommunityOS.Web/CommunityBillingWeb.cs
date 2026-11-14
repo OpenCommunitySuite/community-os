@@ -6,6 +6,7 @@ internal static class CommunityBillingWeb
     public static void Map(RouteGroupBuilder routes, RegisterAccessStore access, PostgresBillingStore store)
     {
         var billing = routes.MapGroup("/billing/{community:guid}");
+        CommunityBudgetWeb.Map(billing, access, store);
         CommunityBillingRecalculationWeb.Map(billing, access, store);
         CommunityOneOffWeb.Map(billing, access, store);
         CommunityPaymentWeb.Map(billing, access, store);

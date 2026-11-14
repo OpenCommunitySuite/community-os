@@ -14,10 +14,26 @@ export function WaterTopology({ points, canSetup, read, post }: {
   const [parents, setParents] = useState<Record<string, string>>({});
   const [result, setResult] = useState<Topology | null>();
   const [error, setError] = useState('');
+  const [reassigned, setReassigned] = useState(0);
   const [busy, setBusy] = useState(false);
   const common = points.filter(point => !point.plotId);
   const names = new Map(points.map(point => [point.id, point.designation]));
   const publishedRoot = result?.points.find(point => point.parentId === null);
+
+  function changeParent(pointId: string, parentId: string) {
+    const next = { ...parents, [pointId]: parentId };
+    let moved = 0;
+    if (!parentId) {
+      for (const [childId, parent] of Object.entries(parents)) {
+        if (parent === pointId) {
+          next[childId] = root;
+          moved++;
+        }
+      }
+    }
+    setParents(next);
+    setReassigned(moved);
+  }
 
   async function run(publish: boolean) {
     setBusy(true);
@@ -29,6 +45,7 @@ export function WaterTopology({ points, canSetup, read, post }: {
           if (pointId !== root && parentId) placements.push({ pointId, parentId });
         await post('/topology', { startsOn, points: placements });
         setDate(startsOn);
+        setReassigned(0);
       }
       setResult(await read('/topology?date=' + encodeURIComponent(publish ? startsOn : date)));
     } catch (failure) {
@@ -59,18 +76,20 @@ export function WaterTopology({ points, canSetup, read, post }: {
       <label>Загальна точка <select value={root} onChange={event => {
         setRoot(event.target.value);
         setParents({});
+        setReassigned(0);
       }}>
         <option value="">Оберіть загальну точку</option>
         {common.map(point => <option key={point.id} value={point.id}>{point.designation}</option>)}
       </select></label>
       {root && points.filter(point => point.id !== root).map(point => <div key={point.id}>
         <label>Батьківська точка для {point.designation} <select value={parents[point.id] ?? ''}
-          onChange={event => setParents({ ...parents, [point.id]: event.target.value })}>
+          onChange={event => changeParent(point.id, event.target.value)}>
           <option value="">Поза цією версією</option>
           {common.filter(candidate => candidate.id === root || (point.plotId && parents[candidate.id] === root))
             .map(candidate => <option key={candidate.id} value={candidate.id}>{candidate.designation}</option>)}
         </select></label>
       </div>)}
+      {reassigned > 0 && <p role="status">Підключено безпосередньо до загальної точки. Ділянок перенесено: {reassigned}.</p>}
       <button type="button" disabled={!startsOn || !root} onClick={() => void run(true)}>Опублікувати дерево</button>
     </fieldset>}
     {error && <p role="alert">{error}</p>}
@@ -81,6 +100,7 @@ export function WaterTopology({ points, canSetup, read, post }: {
         setParents(Object.fromEntries(result.points.flatMap(point => point.parentId ? [[point.pointId, point.parentId]] : [])));
         setStartsOn('');
         setError('');
+        setReassigned(0);
       }}>Скопіювати зв’язки в нову версію</button>}
     </section>}
   </details>;

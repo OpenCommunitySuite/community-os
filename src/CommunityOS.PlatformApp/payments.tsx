@@ -286,9 +286,14 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
       {payment.allocations.length > 0 && <ul aria-label="Історія розподілів">
         {payment.allocations.map(entry => <li key={entry.id}>
           {entry.reason} · Автор {entry.author} · {when(entry.recordedAt)}
-          <ul>{entry.lines.map(line => <li key={line.obligationId}>
-            {desk?.obligations.find(item => item.id === line.obligationId)?.account ?? line.obligationId} · {money.format(line.amount)}
-          </li>)}</ul>
+          <ul>{entry.lines.map(line => {
+            const target = desk?.obligations.find(item => item.id === line.obligationId);
+            return <li key={line.obligationId}>
+              {target ? <button type="button" onClick={() => showStatement(target.account)}
+                aria-label={`Відкрити виписку за рахунком ${target.account}`}>{target.account}</button> : line.obligationId}
+              {' · '}{money.format(line.amount)}
+            </li>;
+          })}</ul>
         </li>)}
       </ul>}
       {obligations.length > 0 && <form onChange={() => setDraft(undefined)} onSubmit={event => {

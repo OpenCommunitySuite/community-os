@@ -19,10 +19,13 @@ const messages: Record<string, string> = {
   InvalidTree: 'Перевірте зв’язки дерева та дати встановлення лічильників.',
 };
 
-async function checked(response: Response) {
+async function checked(response: Response, topologyPublication = false) {
   if (response.ok) return response;
   if (response.status === 403) throw new Error('Дозвіл на цю дію відсутній.');
   const data = await response.json().catch(() => null);
+  if (topologyPublication && data?.outcome === 'DateConflict') {
+    throw new Error('Виберіть дату, пізнішу за дату набрання чинності останньою опублікованою версією дерева.');
+  }
   throw new Error(messages[data?.outcome] ?? 'Перевірте дані та повторіть спробу.');
 }
 
@@ -65,7 +68,7 @@ export function Water({ community, canSetup, canRecognize }: {
   async function post(path: string, data: object) {
     const { token } = await (await checked(await fetch('/platform/csrf'))).json();
     return (await checked(await fetch(endpoint + path, { method: 'POST', body: JSON.stringify(data),
-      headers: { 'Content-Type': 'application/json', 'X-Platform-CSRF': token } }))).json();
+      headers: { 'Content-Type': 'application/json', 'X-Platform-CSRF': token } }), path === '/topology')).json();
   }
 
   useEffect(() => { void run(loadPoints); }, [endpoint]);

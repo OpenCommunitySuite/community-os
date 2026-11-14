@@ -825,6 +825,28 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
             current => Assert.Equal(waterReplaced.InstallationId, current.Id),
             past => Assert.Equal(waterReplacement.EffectiveOn, past.EndsBefore));
 
+        var newWaterInstallation = waterReplaced.InstallationId!.Value;
+        var opening = waterReplacement.EffectiveOn;
+        var csv = $"""
+            installation_id,measured_on,value_m3
+            {newWaterInstallation},{opening:yyyy-MM-dd},2
+            {newWaterInstallation},{opening.AddDays(2):yyyy-MM-dd},6
+            {newWaterInstallation},{opening.AddDays(1):yyyy-MM-dd},4
+            {waterMeter},{opening:yyyy-MM-dd},13
+            """;
+        var waterRows = ElectricityReadingImport.Parse(new StringReader(csv), water: true);
+        var expected = new[] { ReadingOutcome.DateConflict, ReadingOutcome.Recognized,
+            ReadingOutcome.Recognized, ReadingOutcome.OutsideInstallation };
+        for (var index = 0; index < waterRows.Count; index++)
+        {
+            var row = Assert.IsType<ElectricityImportRow>(waterRows[index].Reading);
+            var result = await water.RecognizeAsync(community, row.InstallationId, row.MeasuredOn, row.Value,
+                today, Actor(), token, imported: true);
+            Assert.Equal(expected[index], result.Outcome);
+        }
+        Assert.Equal(new[] { 1m, 4m, 6m },
+            (await water.SeriesAsync(community, newWaterInstallation, token))!.Readings.Select(reading => reading.Value));
+
         var leafInstallation = installed.Single(point => point.Id == leaf).InstallationId;
         var leafReplacement = waterReplacement with
         {

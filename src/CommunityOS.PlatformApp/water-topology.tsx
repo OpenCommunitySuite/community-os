@@ -4,6 +4,28 @@ type Point = { id: string; designation: string; plotId: string | null };
 type Placement = { pointId: string; parentId: string | null };
 type Topology = { startsOn: string; points: Placement[] };
 
+function TopologyChanges({ original, current, names }: {
+  original: Topology; current: Placement[]; names: ReadonlyMap<string, string>;
+}) {
+  const before = new Map(original.points.map(point => [point.pointId, point.parentId]));
+  const after = new Map(current.map(point => [point.pointId, point.parentId]));
+  const changes = [...new Set([...before.keys(), ...after.keys()])]
+    .filter(id => before.get(id) !== after.get(id));
+
+  function placementLabel(parent: string | null | undefined) {
+    if (parent === undefined) return 'поза деревом';
+    if (parent === null) return 'загальна точка';
+    return names.get(parent) ?? parent;
+  }
+
+  return <>
+    <p>Зміни порівняно з версією від <time dateTime={original.startsOn}>{original.startsOn}</time></p>
+    {changes.length === 0 ? <p>Зв’язки не змінилися.</p> : <ul>{changes.map(id => <li key={id}>
+      {names.get(id) ?? id}{' · '}{placementLabel(before.get(id))}{' → '}{placementLabel(after.get(id))}
+    </li>)}</ul>}
+  </>;
+}
+
 export function WaterTopology({ points, canSetup, read, post }: {
   points: Point[]; canSetup: boolean; read: <T>(path: string) => Promise<T>;
   post: (path: string, data: object) => Promise<unknown>;
@@ -15,6 +37,7 @@ export function WaterTopology({ points, canSetup, read, post }: {
   const [parents, setParents] = useState<Record<string, string>>({});
   const [result, setResult] = useState<Topology | null>();
   const [source, setSource] = useState<Topology>();
+  const [comparison, setComparison] = useState<Topology | null>(null);
   const [error, setError] = useState('');
   const [reassigned, setReassigned] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -24,15 +47,7 @@ export function WaterTopology({ points, canSetup, read, post }: {
   const draft = new Map<string, string | null>(
     Object.entries(parents).filter(([id, parent]) => id !== root && parent));
   if (root) draft.set(root, null);
-  const original = new Map(source?.points.map(point => [point.pointId, point.parentId]));
-  const changes = [...new Set([...original.keys(), ...draft.keys()])]
-    .filter(id => original.get(id) !== draft.get(id));
-
-  function placementLabel(parent: string | null | undefined) {
-    if (parent === undefined) return 'поза деревом';
-    if (parent === null) return 'загальна точка';
-    return names.get(parent) ?? parent;
-  }
+  const placements = [...draft].map(([pointId, parentId]) => ({ pointId, parentId }));
 
   function changeParent(pointId: string, parentId: string) {
     const next = { ...parents, [pointId]: parentId };
@@ -66,15 +81,29 @@ export function WaterTopology({ points, canSetup, read, post }: {
     setError('');
     try {
       if (publish) {
-        const placements = [...draft].map(([pointId, parentId]) => ({ pointId, parentId }));
         await post('/topology', { startsOn, points: placements });
         setDate(startsOn);
         setReassigned(0);
         setDates(undefined);
       }
       setResult(await read<Topology | null>('/topology?date=' + encodeURIComponent(publish ? startsOn : selectedDate)));
+      setComparison(null);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Дерево недоступне.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function compare(day: string) {
+    setComparison(null);
+    setError('');
+    if (!day) return;
+    setBusy(true);
+    try {
+      setComparison(await read<Topology | null>('/topology?date=' + encodeURIComponent(day)));
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Версія для порівняння недоступна.');
     } finally {
       setBusy(false);
     }
@@ -128,16 +157,21 @@ export function WaterTopology({ points, canSetup, read, post }: {
       </div>)}
       {reassigned > 0 && <p role="status">Підключено безпосередньо до загальної точки. Ділянок перенесено: {reassigned}.</p>}
       {source && <section aria-label="Зміни у новій версії">
-        <p>Зміни порівняно з версією від <time dateTime={source.startsOn}>{source.startsOn}</time></p>
-        {changes.length === 0 ? <p>Зв’язки не змінилися.</p> : <ul>{changes.map(id => <li key={id}>
-          {names.get(id) ?? id}{' · '}{placementLabel(original.get(id))}{' → '}{placementLabel(draft.get(id))}
-        </li>)}</ul>}
+        <TopologyChanges original={source} current={placements} names={names} />
       </section>}
       <button type="button" disabled={!startsOn || !root} onClick={() => void run(true)}>Опублікувати дерево</button>
     </fieldset>}
     {error && <p role="alert">{error}</p>}
     {result === null && <p>На цю дату дерево не опубліковано.</p>}
     {result && <section aria-label="Опубліковане дерево води"><p>Діє з {result.startsOn}</p>{branch(null)}
+      {dates?.some(day => day !== result.startsOn) && <label>Порівняти з версією <select disabled={busy}
+        value={comparison?.startsOn ?? ''} onChange={event => void compare(event.target.value)}>
+        <option value="">Оберіть дату версії</option>
+        {dates.filter(day => day !== result.startsOn).map(day => <option key={day} value={day}>{day}</option>)}
+      </select></label>}
+      {comparison && <section aria-label="Відмінності опублікованих версій">
+        <TopologyChanges original={comparison} current={result.points} names={names} />
+      </section>}
       {canSetup && publishedRoot && <button type="button" disabled={busy} onClick={() => {
         setSource(result);
         setRoot(publishedRoot.pointId);

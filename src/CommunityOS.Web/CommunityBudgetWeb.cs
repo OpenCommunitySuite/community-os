@@ -5,6 +5,26 @@ internal static class CommunityBudgetWeb
 {
     public static void Map(RouteGroupBuilder billing, RegisterAccessStore access, PostgresBillingStore store)
     {
+        billing.MapGet("/expenses", (Guid community, HttpContext http, CancellationToken token) =>
+            access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
+                async _ => Results.Ok(await store.ExpensesAsync(community, token)), Results.StatusCode(403), token));
+        billing.MapPost("/expenses", (Guid community, ExpenseInput input, HttpContext http, CancellationToken token) =>
+        {
+            if (input.RequestId == Guid.Empty || input.IncurredOn == default ||
+                !Valid(input.Purpose, 200) || !Valid(input.Evidence, 500) ||
+                input.Amount is <= 0 or > 999_999_999m || decimal.Round(input.Amount, 2) != input.Amount)
+                return Task.FromResult<IResult>(Results.BadRequest());
+
+            var normalized = input with { Purpose = input.Purpose.Trim(), Evidence = input.Evidence.Trim(), Amount = decimal.Round(input.Amount * 100, 0) / 100m };
+            var digest = PostgresBillingStore.ExpenseDigest(normalized);
+            return access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.RecognizeExpense,
+                async actor =>
+                {
+                    var outcome = await store.RecognizeExpenseAsync(community, normalized, digest, CommunityElectricityWeb.Actor(actor), token);
+                    return outcome is "Recognized" or "Replayed" ? Results.Ok(new { Outcome = outcome }) : Results.Conflict(new { Outcome = outcome });
+                }, Results.StatusCode(403), token, oneOff: new(normalized.RequestId, digest));
+        });
+
         billing.MapGet("/budgets", (Guid community, HttpContext http, CancellationToken token) =>
             access.WithAccessAsync<IResult>(http.Request.Cookies[PlatformWeb.Cookie], community, RegisterPermission.ReadBilling,
                 async _ => Results.Ok(await store.BudgetsAsync(community, token)), Results.StatusCode(403), token));

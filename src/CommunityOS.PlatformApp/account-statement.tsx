@@ -8,9 +8,10 @@ export const debtKinds: Record<string, string> = {
   electricity: 'Електроенергія', 'member-fee': 'Членський внесок', 'one-off': 'Разове нарахування',
 };
 
-export function AccountStatement({ community, today, debts, payerNames, account, setAccount, detailsRef }: {
+export function AccountStatement({ community, today, debts, payerNames, account, setAccount, detailsRef, openDebts }: {
   community: string; today: string; debts: Debt[]; payerNames: Map<string, string>;
   account: string; setAccount: (account: string) => void; detailsRef: Ref<HTMLDetailsElement>;
+  openDebts: (account: string) => void;
 }) {
   const accounts = [...new Set([...debts.map(row => row.account), ...(account ? [account] : [])])]
     .sort((a, b) => a.localeCompare(b, 'uk-UA'));
@@ -42,6 +43,7 @@ export function AccountStatement({ community, today, debts, payerNames, account,
     </select></label>
     {accounts.length === 0 && <p>Непогашених зобов’язань немає.</p>}
     {statement}
+    {selected && <button type="button" onClick={() => openDebts(account)}>Відкрити заборгованість у реєстрі</button>}
     {selected && <button type="button" onClick={() => window.print()}>Друкувати виписку</button>}
     {selected && createPortal(<article id="account-statement-print">{statement}</article>, document.body)}
   </details>;

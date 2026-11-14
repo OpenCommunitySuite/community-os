@@ -533,7 +533,8 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
                      "009_electricity_readings.sql", "010_electricity_replacement.sql", "011_electricity_register_channels.sql",
                      "012_common_electricity_points.sql", "013_meter_installation_details.sql",
                      "014_electricity_metering_trees.sql", "015_electricity_reading_import_source.sql", "016_manual_water.sql",
-                     "029_water_topology.sql", "030_water_installation_history.sql", "031_water_reading_import_source.sql" })
+                     "029_water_topology.sql", "030_water_installation_history.sql", "031_water_reading_import_source.sql",
+                     "017_regular_billing.sql", "032_water_tariff.sql" })
         {
             var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
             await using var migration = source.CreateCommand(sql);
@@ -806,6 +807,42 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         var balanced = await water.BalanceAsync(community, waterBalanceStart, end, token);
         Assert.Contains(new WaterBalanceBranch(waterRoot, 1m, 0.5m), balanced.Branches);
         Assert.Contains(new WaterBalanceBranch(street, 0.75m, 0.25m), balanced.Branches);
+        var billing = new PostgresBillingStore(source);
+        var waterAccount = Assert.Single(await billing.WaterBillingAccountsAsync(community, token));
+        Assert.Empty(await billing.WaterBillingAccountsAsync(foreign, token));
+        Assert.Null(await billing.PreviewWaterAsync(foreign, waterAccount.Id, waterBalanceStart, end, token));
+        var withoutTariff = Assert.IsType<WaterChargePreview>(
+            await billing.PreviewWaterAsync(community, waterAccount.Id, waterBalanceStart, end, token));
+        Assert.Equal("MissingTariff", withoutTariff.Status);
+        Assert.Equal(0.75m, withoutTariff.Volume);
+        await using (var tariff = source.CreateCommand("""
+            INSERT INTO community_billing.water_tariff (community_id,id,applicable_from,basis,rate_uah)
+            VALUES (@community,@id,@date,'Synthetic water tariff',20);
+            """))
+        {
+            tariff.Parameters.AddWithValue("community", community);
+            tariff.Parameters.AddWithValue("id", Guid.NewGuid());
+            tariff.Parameters.AddWithValue("date", starts);
+            await tariff.ExecuteNonQueryAsync(token);
+        }
+        var quoted = Assert.IsType<WaterChargePreview>(
+            await billing.PreviewWaterAsync(community, waterAccount.Id, waterBalanceStart, end, token));
+        Assert.Equal("Ready", quoted.Status);
+        Assert.Equal(15m, quoted.AmountUah);
+        Assert.NotNull(quoted.OpeningReadingId);
+        Assert.NotNull(quoted.ClosingReadingId);
+        Assert.NotNull(quoted.TariffId);
+        Assert.Equal("MissingBoundary",
+            (await billing.PreviewWaterAsync(community, waterAccount.Id, starts, end, token))!.Status);
+        var leafForPreview = installed.Single(point => point.Id == leaf).InstallationId;
+        var zeroStart = starts;
+        Assert.Equal(ReadingOutcome.Recognized,
+            (await water.RecognizeAsync(community, leafForPreview, zeroStart, 0m, today, Actor(), token)).Outcome);
+        var zeroQuote = Assert.IsType<WaterChargePreview>(
+            await billing.PreviewWaterAsync(community, waterAccount.Id, zeroStart, waterBalanceStart, token));
+        Assert.Equal("Ready", zeroQuote.Status);
+        Assert.Equal(0m, zeroQuote.Volume);
+        Assert.Equal(0m, zeroQuote.AmountUah);
         var waterReplacement = new WaterReplacement(Guid.NewGuid(), waterMeter, end.AddDays(1), "Replacement water meter", "Test");
         var waterReplaced = await water.ReplaceAsync(community, waterReplacement, today, Actor(), token);
         Assert.Equal(ElectricityReplacementOutcome.Replaced, waterReplaced.Outcome);

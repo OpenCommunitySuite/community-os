@@ -45,6 +45,20 @@ const assert = require('node:assert/strict');
     await page.keyboard.press('Escape');
     await dialog.waitFor({ state: 'hidden' });
     assert.equal(await opener.evaluate(element => element === document.activeElement), true);
+    const readingSummary = page.getByText('Довідка: Ручне визнання показань', { exact: true });
+    await readingSummary.click();
+    const readingHelp = readingSummary.locator('..');
+    const readingText = await readingHelp.locator('p, li').allTextContents();
+    assert.ok(readingText.some(text => text.includes('T1/T2')));
+    const readingOpener = readingHelp.getByRole('button', { name: 'Посібник: ручні показання', exact: true });
+    const readingDialog = page.getByRole('dialog', { name: 'Ручне визнання показань електроенергії', exact: true });
+    await readingOpener.click();
+    await readingDialog.waitFor();
+    assert.equal(await readingDialog.getAttribute('lang'), 'uk');
+    assert.deepEqual(await readingDialog.locator('p, li').allTextContents(), readingText);
+    await page.keyboard.press('Escape');
+    await readingDialog.waitFor({ state: 'hidden' });
+    assert.equal(await readingOpener.evaluate(element => element === document.activeElement), true);
     const area = page.getByRole('region', { name: 'Облік електроенергії', exact: true });
     const installationsReply = page.waitForResponse(response => response.url().endsWith('/plots/' + installed.id + '/installations'));
     await area.getByLabel(/^Точка або ділянка для обліку/).selectOption(installed.id);
@@ -62,9 +76,38 @@ const assert = require('node:assert/strict');
         ['Серійний номер пломби', item.details.sealSerialNumber]]) {
         assert.equal(await details.getByText(label, { exact: true }).locator('xpath=following-sibling::dd[1]').innerText(), value ?? 'Не вказано');
       }
+      const seriesReply = await context.request.get(origin + '/community/electricity/' + process.env.STAND_COMMUNITY
+        + '/installations/' + item.id + '/readings');
+      assert.equal(seriesReply.status(), 200);
+      const series = await seriesReply.json();
+      await area.getByRole('heading', { name: 'Визнані показання', exact: true }).waitFor();
+      if (series.readings.length) {
+        const table = area.getByRole('heading', { name: 'Визнані показання', exact: true })
+          .locator('xpath=following-sibling::table[1]');
+        assert.equal(await table.locator('tbody tr').count(), series.readings.length);
+        for (const [index, reading] of series.readings.entries()) {
+          const cells = await table.locator('tbody tr').nth(index).locator('td').allTextContents();
+          assert.equal(cells[0], reading.date);
+          assert.equal(cells[1], { total: 'Загальний', day: 'День', night: 'Ніч' }[reading.channel]);
+          assert.equal(Number(cells[2].replace(/[\s\u00a0]/g, '').replace(',', '.')), Number(reading.valueExact));
+        }
+      } else await area.getByText('Показань ще немає.', { exact: true }).waitFor();
+      if (process.env.STAND_EXPECT_READ_ONLY === '1') {
+        assert.equal(await area.getByRole('button', { name: 'Визнати показання', exact: true }).count(), 0);
+      }
       const displayed = await details.getByText('Коефіцієнт показань', { exact: true }).locator('xpath=following-sibling::dd[1]').innerText();
       assert.equal(Number(displayed.replace(/[\s\u00a0]/g, '').replace(',', '.')), Number(item.details.multiplierExact));
     }
+    await readingOpener.click();
+    await readingDialog.waitFor();
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await readingDialog.evaluate(element => element.scrollWidth <= element.clientWidth), true);
+    const readingBox = await readingDialog.boundingBox();
+    assert.ok(readingBox && readingBox.width <= 390 && readingBox.height <= 844);
+    await page.screenshot({ path: process.env.STAND_HELP_SCREENSHOT + '.readings.png' });
+    await readingDialog.getByRole('button', { name: 'Закрити посібник показань', exact: true }).click();
+    await readingDialog.waitFor({ state: 'hidden' });
+    assert.equal(await readingOpener.evaluate(element => element === document.activeElement), true);
     await opener.click();
     await dialog.waitFor();
     await page.setViewportSize({ width: 390, height: 844 });
@@ -81,9 +124,11 @@ const assert = require('node:assert/strict');
     await page.keyboard.press('Escape');
     await page.locator('select').first().selectOption('');
     assert.equal(await summary.count(), 0);
+    assert.equal(await readingSummary.count(), 0);
+    assert.equal(await readingDialog.count(), 0);
     assert.equal(await dialog.count(), 0, 'Guide unmounts with the community workspace');
     assert.equal(writes, 0, 'No mutation attempts');
     assert.deepEqual(errors, []);
-    console.log('PASS: electricity installation shared help, ' + history.length + ' existing installations and their details, Escape/focus, 390px, community reset, no writes');
+    console.log('PASS: electricity installation shared help, ' + history.length + ' existing installations, details and recognized readings, shared reading guide, Escape/focus, 390px, community reset, no writes');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error.message); process.exitCode = 1; });

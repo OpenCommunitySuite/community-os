@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { money } from './billing';
 import { debtKinds } from './account-statement';
 import { csvAmount, csvText, downloadCsv } from './report-csv';
+import { FinanceContextHelp } from './finance-help';
 
 type Line = { kind: string; charged: number; settled: number; outstanding: number; excess: number };
 type Report = { totals: Line[]; details: (Line & { obligationId: string; account: string; currentAccount: string })[] };
@@ -64,6 +65,7 @@ export function PeriodReconciliation({ endpoint, from, until, openStatement }: {
 
   return <details>
     <summary>Звірка розрахункового періоду</summary>
+    <FinanceContextHelp topic="reconciliation" />
     <button type="button" disabled={busy} onClick={() => void load()}>Завантажити поточну звірку</button>
     {failed && <p role="alert">Не вдалося завантажити звірку.</p>}
     {statementFailed && <p role="alert">Не вдалося відкрити виписку. Перевірте доступ і повторіть спробу.</p>}

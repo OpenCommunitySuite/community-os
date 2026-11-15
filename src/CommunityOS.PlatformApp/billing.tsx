@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { Recalculation } from './billing-recalculation';
 import { PeriodReconciliation } from './period-reconciliation';
+import { FinanceContextHelp } from './finance-help';
 
 type Period = { from: string; until: string; calculatedOn: string; dueOn: string };
 export type Register = { channel: string; startValue: number; endValue: number; consumption: number; rate: number; amount: number };
@@ -89,8 +90,10 @@ export function Billing({ community, canPost, canRecalculate, openStatement }: {
 
   return <section aria-labelledby="billing-heading">
     <h2 id="billing-heading">Розрахунковий період</h2>
+    <FinanceContextHelp topic="billing" />
     <details>
       <summary>Проведені періоди</summary>
+      <FinanceContextHelp topic="periods" />
       <button type="button" disabled={busy} onClick={() => {
         setPeriods(undefined);
         void run(async () => setPeriods(await checked(await fetch(endpoint + '/periods', { cache: 'no-store' }))));

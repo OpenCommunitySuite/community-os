@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { money } from './billing';
+import { FinanceContextHelp } from './finance-help';
 
 type Row = { line: number; externalId: string; date: string | null; direction: string; amount: number | null; currency: string };
 type Preview = { digest: string; outcome: string; rows: { row: Row; status: string }[] };
@@ -59,6 +60,7 @@ export function Bank({ community, canImport, canRecognize }: { community: string
 
   return <section aria-labelledby="bank-heading">
     <h2 id="bank-heading">Банківська виписка</h2>
+    <FinanceContextHelp topic="bankImport" />
     <button disabled={pending} onClick={() => void run(refresh)}>Завантажити банківські рахунки й операції</button>
     {desk && <>
       <label>Банківський рахунок <select value={account} disabled={pending} onChange={event => {
@@ -88,6 +90,7 @@ export function Bank({ community, canImport, canRecognize }: { community: string
         await refresh();
         setMessage('Виписку імпортовано.');
       })}>Підтвердити імпорт виписки</button>}
+      <FinanceContextHelp topic="bankRecognition" />
       {desk.transactions.filter(item => item.bankAccountId === account).map(item => <details key={item.id}>
         <summary>{item.externalId} · {item.date} · {labels[item.direction]} · {money.format(item.amount ?? 0)}</summary>
         <p>Операція {item.id} · Джерело {item.source} · Рядок {item.line} · <code>{item.raw}</code></p>

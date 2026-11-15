@@ -62,6 +62,12 @@ const assert = require('node:assert/strict');
     await readHelp('memberAdvance', 'Аванс на членські внески');
     await page.getByText('Залишки розрахунків', { exact: true }).click();
     await readHelp('overpayment', 'Визнання переплати');
+    await readHelp('bankImport', 'Імпорт банківської виписки');
+    await page.getByRole('button', { name: 'Завантажити банківські рахунки й операції', exact: true }).click();
+    await readHelp('bankRecognition', 'Визнання банківського платежу');
+    const bank = page.getByRole('region', { name: 'Банківська виписка', exact: true });
+    assert.equal(await bank.getByRole('button', { name: 'Переглянути виписку', exact: true }).isDisabled(), true,
+      'Statement preview requires account and file');
     await page.getByText('Кошториси', { exact: true }).click();
     const budgetHelp = page.getByText('Довідка: Кошториси: план і факт', { exact: true });
     await budgetHelp.click();
@@ -83,6 +89,7 @@ const assert = require('node:assert/strict');
       'Ручна реєстрація платежу', 'Прийом готівки', 'Первинний розподіл платежу',
       'Виправлення суми платежу', 'Перерозподіл платежу',
       'Визнання переплати', 'Аванс на членські внески',
+      'Імпорт банківської виписки', 'Визнання банківського платежу',
       'Кошториси: план і факт', 'Визнання витрати', 'Розподіл витрати за статтями']) {
       await dialog.getByRole('link', { name: title, exact: true }).click();
       await dialog.getByRole('heading', { name: title, exact: true }).waitFor();
@@ -102,6 +109,9 @@ const assert = require('node:assert/strict');
     await page.getByText('Довідка: Розподіл витрати за статтями', { exact: true }).first().click();
     await guideButton.first().click();
     await page.setViewportSize({ width: 390, height: 844 });
+    await dialog.getByRole('link', { name: 'Імпорт банківської виписки', exact: true }).click();
+    assert.equal(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth), true,
+      'CSV header fits without horizontal overflow');
     const box = await dialog.boundingBox();
     assert.ok(box && box.width <= 390 && box.height <= 844, 'Guide fits narrow viewport');
     await page.screenshot({ path: process.env.STAND_HELP_SCREENSHOT });
@@ -110,6 +120,6 @@ const assert = require('node:assert/strict');
     await page.locator('select').first().selectOption('');
     assert.equal(await guideButton.count(), 0, 'Guide closes with community workspace');
     assert.deepEqual(errors, []);
-    console.log('PASS: 15 context topics, shared guide, period history and date error, current reconciliation, one-off accounts/history, recognized payment/remainder, navigation, Escape/focus, close, narrow viewport, workspace isolation, no writes');
+    console.log('PASS: 17 context topics, shared guide, period history and date error, current reconciliation, one-off accounts/history, recognized payment/remainder, bank workspace and disabled preview, navigation, Escape/focus, close, narrow viewport, workspace isolation, no writes');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error.message); process.exitCode = 1; });

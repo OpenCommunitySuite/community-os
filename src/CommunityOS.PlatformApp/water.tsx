@@ -146,6 +146,7 @@ export function Water({ community, canSetup, canRecognize, canReplace, canVerify
         {item.meterDesignation} · {item.startsOn}{item.endsBefore ? ' — до ' + item.endsBefore : ''}
       </option>)}
     </select></label>}
+    {point && readingInstallation && <p>Ідентифікатор установки води · <code>{readingInstallation}</code></p>}
     {installations.find(item => item.id === readingInstallation)?.reason &&
       <p>Причина заміни · {installations.find(item => item.id === readingInstallation)?.reason}</p>}
     {point && canReplace && <details key={selected}>

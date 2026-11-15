@@ -25,7 +25,7 @@ def main():
     parser.add_argument('--expect-read-only', action='store_true')
     parser.add_argument('--permission-profiles', action='store_true',
                         help='Rehearse help with browser-only permission flag overrides; never change grants')
-    parser.add_argument('--scenario', choices=['finance', 'electricity-installation', 'water-manual', 'water-verification'], default='finance')
+    parser.add_argument('--scenario', choices=['finance', 'electricity-installation', 'water-manual', 'water-verification', 'water-topology'], default='finance')
     parser.add_argument('--topology-editor-ui', action='store_true',
                         help='Override only the topology editor browser flag; never change grants')
     parser.add_argument('--water-replacement-ui', action='store_true',
@@ -84,6 +84,7 @@ def main():
                     'electricity-installation': 'check_electricity_installation_help.cjs',
                     'water-manual': 'check_water_manual_help.cjs',
                     'water-verification': 'check_water_verification_help.cjs',
+                    'water-topology': 'check_water_topology_help.cjs',
                 }[args.scenario])
                 subprocess.run([args.node, str(script)], check=True,
                                env=dict(os.environ, STAND_PROBE_COOKIE=secret.hex(),

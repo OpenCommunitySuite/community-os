@@ -16,11 +16,12 @@ const readline = require('node:readline');
     const context = await browser.newContext({ ignoreHTTPSErrors: true, serviceWorkers: 'block' });
     await context.addCookies([{ name: '__Host-communityos-platform', value: process.env.STAND_PROBE_COOKIE,
       url: origin, secure: true, httpOnly: true }]);
+    const writes = new Set([previewPath, applyPath]);
     await context.route('**/*', async route => {
       const request = route.request();
       const url = new URL(request.url());
       if (url.origin !== origin || (request.method() !== 'GET' &&
-          !(request.method() === 'POST' && [previewPath, applyPath].includes(url.pathname))))
+          !(request.method() === 'POST' && writes.has(url.pathname))))
         throw new Error('Unexpected request outside isolated CSV probe');
       await route.continue();
     });
@@ -37,21 +38,46 @@ const readline = require('node:readline');
     const installation = plot.installation;
     assert.equal(installation.details.multiplierExact, '40');
     const seriesPath = `${base}/installations/${installation.id}/readings`;
+    const historical = process.env.STAND_ELECTRICITY_IMPORT_HISTORY === 'true';
+    let next;
+    if (historical) {
+      const series = page.waitForResponse(response => response.url().endsWith(seriesPath));
+      await page.locator('label').filter({ hasText: /^Точка або ділянка для обліку/ }).locator('select').selectOption(plot.id);
+      assert.equal((await series).status(), 200);
+      const replacement = page.getByRole('group', { name: 'Замінити лічильник', exact: true });
+      for (const [name, value] of Object.entries({ designation: 'Synthetic CSV replacement', effectiveOn: '2026-01-04',
+        reason: 'Synthetic CSV history acceptance', model: 'Test model', serialNumber: 'CSV-NEW-001',
+        location: 'Synthetic plot', mountedOn: '2026-01-04', sealSerialNumber: 'CSV-SEAL-001', multiplier: '1' }))
+        await replacement.locator(`input[name="${name}"]`).fill(value);
+      const path = `${base}/installations/${installation.id}/replacement`;
+      writes.add(path);
+      const reply = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith(path));
+      await replacement.getByRole('button', { name: 'Зареєструвати заміну', exact: true }).click();
+      const response = await reply;
+      assert.equal(response.status(), 200);
+      const body = await response.json();
+      assert.equal(body.outcome, 'Replaced');
+      next = body.installationId;
+      assert.notEqual(next, installation.id);
+      await page.getByText('Заміну лічильника зареєстровано.', { exact: true }).waitFor();
+    }
     const csv = 'installation_id,measured_on,channel,value_kwh\n' + [
       '2026-01-01,total,100', '2026-01-03,total,103', '2026-01-02,total,104',
       '2026-01-02,total,101', '2026-01-01,total,100', '2026-01-01,total,102',
       'not-a-date,total,105', '2026-01-02,day,50',
-    ].map(row => installation.id + ',' + row).join('\n') + '\n';
+    ].map(row => installation.id + ',' + row).concat(historical ? [
+      `${installation.id},2026-01-04,total,104`, `${next},2026-01-04,total,1`, `${next},2026-01-05,total,4`,
+    ] : []).join('\n') + '\n';
     const digest = createHash('sha256').update(csv).digest('hex').toUpperCase();
     const area = page.locator('details').filter({ has: page.locator(':scope > summary', { hasText: /^Імпорт показань CSV$/ }) });
     await area.locator(':scope > summary').click();
     await area.locator('input[type="file"]').setInputFiles({ name: 'synthetic-readings.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
-    async function read() {
+    async function read(path = seriesPath) {
       return page.evaluate(async path => {
         const response = await fetch(path);
         if (!response.ok) throw new Error('Synthetic reading series unavailable');
         return response.json();
-      }, seriesPath);
+      }, path);
     }
     async function click(name, path) {
       const reply = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith(path));
@@ -65,7 +91,8 @@ const readline = require('node:readline');
     const preview = await click('Переглянути CSV', previewPath);
     assert.equal(preview.digest, digest);
     assert.deepEqual(preview.rows.map(row => row.outcome),
-      ['Ready', 'Ready', 'Ready', 'Ready', 'Ready', 'Ready', 'InvalidDate', 'UnsupportedChannel']);
+      ['Ready', 'Ready', 'Ready', 'Ready', 'Ready', 'Ready', 'InvalidDate', 'UnsupportedChannel']
+        .concat(historical ? ['OutsideInstallation', 'Ready', 'Ready'] : []));
     assert.deepEqual(await read(), empty, 'Preview must not recognize readings');
     async function rawApply(body, csrf) {
       return page.evaluate(async ({ path, body, digest, csrf }) => {
@@ -82,7 +109,8 @@ const readline = require('node:readline');
     assert.deepEqual(await read(), empty);
     const applied = await click('Підтвердити й застосувати CSV', applyPath);
     assert.deepEqual(applied.rows.map(row => row.outcome),
-      ['Recognized', 'Recognized', 'Decreasing', 'Recognized', 'AlreadyRecorded', 'DateConflict', 'InvalidDate', 'UnsupportedChannel']);
+      ['Recognized', 'Recognized', 'Decreasing', 'Recognized', 'AlreadyRecorded', 'DateConflict', 'InvalidDate', 'UnsupportedChannel']
+        .concat(historical ? ['OutsideInstallation', 'Recognized', 'Recognized'] : []));
     assert.equal(applied.rows[0].readingId, applied.rows[4].readingId);
     const final = await read();
     assert.deepEqual(final.readings.map(row => [row.date, row.valueExact, row.source]),
@@ -92,20 +120,57 @@ const readline = require('node:readline');
       assert.equal(final.intervals[index].fromReadingId, final.readings[index].id);
       assert.equal(final.intervals[index].toReadingId, final.readings[index + 1].id);
     }
+    const nextPath = `${base}/installations/${next}/readings`;
+    const nextFinal = historical ? await read(nextPath) : null;
+    if (historical) {
+      assert.deepEqual(nextFinal.readings.map(row => [row.date, row.valueExact, row.source]),
+        [['2026-01-04', '1', 'csv-import'], ['2026-01-05', '4', 'csv-import']]);
+      assert.deepEqual(nextFinal.intervals.map(row => [row.rawDeltaExact, row.valueExact]), [['3', '3']]);
+      assert.equal(nextFinal.intervals[0].fromReadingId, nextFinal.readings[0].id);
+      assert.equal(nextFinal.intervals[0].toReadingId, nextFinal.readings[1].id);
+      const history = await read(`${base}/plots/${plot.id}/installations`);
+      assert.deepEqual(history.map(row => [row.id, row.startsOn, row.endsBefore, row.details.multiplierExact]),
+        [[next, '2026-01-04', null, '1'], [installation.id, '2026-01-01', '2026-01-04', '40']]);
+      assert.ok(history.every(row => row.pointId === installation.pointId));
+    }
     const repeated = await click('Підтвердити й застосувати CSV', applyPath);
     assert.deepEqual(repeated.rows.map(row => row.outcome),
-      ['AlreadyRecorded', 'AlreadyRecorded', 'DateConflict', 'AlreadyRecorded', 'AlreadyRecorded', 'DateConflict', 'InvalidDate', 'UnsupportedChannel']);
+      ['AlreadyRecorded', 'AlreadyRecorded', 'DateConflict', 'AlreadyRecorded', 'AlreadyRecorded', 'DateConflict', 'InvalidDate', 'UnsupportedChannel']
+        .concat(historical ? ['OutsideInstallation', 'AlreadyRecorded', 'AlreadyRecorded'] : []));
     assert.deepEqual(await read(), final, 'Replay must preserve IDs and original attribution');
+    if (historical) assert.deepEqual(await read(nextPath), nextFinal);
     const labels = { AlreadyRecorded: 'Уже записано', DateConflict: 'Інше значення за цю дату',
-      InvalidDate: 'Некоректна дата', UnsupportedChannel: 'Непідтримуваний регістр' };
+      InvalidDate: 'Некоректна дата', UnsupportedChannel: 'Непідтримуваний регістр', OutsideInstallation: 'Дата поза періодом установки' };
     const table = area.getByRole('table', { name: 'Результат застосування CSV', exact: true });
     await table.waitFor();
     const rows = table.locator('tbody tr');
-    assert.equal(await rows.count(), 8);
-    for (let index = 0; index < 8; index++) {
+    assert.equal(await rows.count(), repeated.rows.length);
+    for (let index = 0; index < repeated.rows.length; index++) {
       const cells = rows.nth(index).locator('td');
       assert.equal(await cells.nth(0).textContent(), String(index + 2));
       assert.equal(await cells.last().textContent(), labels[repeated.rows[index].outcome]);
+    }
+    if (historical) {
+      const picker = page.locator('label').filter({ hasText: /^Історія установок/ }).locator('select');
+      for (const [id, expected] of [[installation.id, final], [next, nextFinal]]) {
+        const reply = page.waitForResponse(response => response.url().endsWith(`${base}/installations/${id}/readings`));
+        await picker.selectOption(id);
+        assert.equal((await reply).status(), 200);
+        const readingRows = page.getByRole('table').filter({ has: page.getByRole('columnheader', { name: 'Дата вимірювання', exact: true }) }).locator('tbody tr');
+        const intervalRows = page.getByRole('table').filter({ has: page.getByRole('columnheader', { name: 'Різниця показань', exact: true }) }).locator('tbody tr');
+        assert.equal(await readingRows.count(), expected.readings.length);
+        assert.equal(await intervalRows.count(), expected.intervals.length);
+        for (let index = 0; index < expected.readings.length; index++) {
+          const cells = readingRows.nth(index).locator('td');
+          assert.equal(await cells.nth(0).textContent(), expected.readings[index].date);
+          assert.equal(await cells.nth(2).textContent(), expected.readings[index].valueExact);
+        }
+        for (let index = 0; index < expected.intervals.length; index++) {
+          const cells = intervalRows.nth(index).locator('td');
+          assert.equal(await cells.nth(3).textContent(), expected.intervals[index].rawDeltaExact);
+          assert.equal(await cells.nth(4).textContent(), expected.intervals[index].valueExact);
+        }
+      }
     }
     await page.screenshot({ path: process.env.STAND_HELP_SCREENSHOT + '.applied.png', fullPage: true });
     const input = readline.createInterface({ input: process.stdin });
@@ -129,8 +194,10 @@ const readline = require('node:readline');
     await click('Переглянути CSV', previewPath);
     assert.equal(await area.getByRole('button', { name: 'Підтвердити й застосувати CSV', exact: true }).count(), 0);
     assert.deepEqual(await read(), final);
+    if (historical) assert.deepEqual(await read(nextPath), nextFinal);
     await page.screenshot({ path: process.env.STAND_HELP_SCREENSHOT, fullPage: true });
     assert.deepEqual(errors, []);
     console.log('PASS: CSV preview, per-row apply, replay revalidation, digest, CSRF and revoked stale apply');
+    if (historical) console.log('PASS: historical electricity CSV respects replacement boundary and separate multipliers 40/1');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

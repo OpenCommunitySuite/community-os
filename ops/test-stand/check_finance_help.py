@@ -23,6 +23,8 @@ def main():
     parser.add_argument('--node', required=True)
     parser.add_argument('--screenshot', type=Path, required=True)
     parser.add_argument('--expect-read-only', action='store_true')
+    parser.add_argument('--permission-profiles', action='store_true',
+                        help='Rehearse help with browser-only permission flag overrides; never change grants')
     args = parser.parse_args()
     if not re.fullmatch(r'communityos-test-stand:[a-zA-Z0-9_.-]+', args.image):
         parser.error('Use a communityos-test-stand image')
@@ -51,6 +53,7 @@ def main():
     })
     secret = secrets.token_bytes(32)
     digest = hashlib.sha256(secret).hexdigest()
+    session_minutes = 15 if args.permission_profiles else 5
     postgres = 'communityos-test-stand-postgres'
     try:
         archive = docker.call('GET', f'/containers/{args.template_container}/archive?path=/run/stand/https.pfx')
@@ -59,7 +62,7 @@ def main():
         docker.call('POST', f'/containers/{name}/start')
         stand.psql(docker, postgres, database,
                    f"INSERT INTO platform_provisioning.platform_session SELECT decode('{digest}','hex'), "
-                   f"id, now()+interval '5 min', null FROM platform_provisioning.platform_account WHERE login='{args.login}';",
+                   f"id, now()+interval '{session_minutes} min', null FROM platform_provisioning.platform_account WHERE login='{args.login}';",
                    private=True)
         stand.PREFIX = prefix
         with stand.PrivateRelay(5543, docker) as relay:
@@ -68,7 +71,8 @@ def main():
                 subprocess.run([args.node, str(Path(__file__).with_suffix('.cjs'))], check=True,
                                env=dict(os.environ, STAND_PROBE_COOKIE=secret.hex(),
                                         STAND_COMMUNITY=args.community, STAND_HELP_SCREENSHOT=str(args.screenshot),
-                                        STAND_EXPECT_READ_ONLY='1' if args.expect_read_only else '0'))
+                                        STAND_EXPECT_READ_ONLY='1' if args.expect_read_only else '0',
+                                        STAND_HELP_PERMISSION_PROFILES='1' if args.permission_profiles else '0'))
             finally:
                 relay.shutdown()
     finally:

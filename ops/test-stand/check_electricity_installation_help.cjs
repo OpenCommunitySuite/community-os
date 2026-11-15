@@ -49,6 +49,8 @@ const assert = require('node:assert/strict');
     const help = summary.locator('..');
     const content = await help.locator('p, li').allTextContents();
     assert.ok(content.some(text => text.includes('120 кВт·год')));
+    assert.ok(content.some(text => text.includes('Межа вимірювання') && text.includes('Загальні точки')));
+    assert.ok(content.some(text => text.includes('окремих сценаріїв') && text.includes('небаланс')));
     const opener = help.getByRole('button', { name: 'Посібник: прилад та установка', exact: true });
     await opener.click();
     const dialog = page.getByRole('dialog', { name: 'Прилад та установка електроенергії', exact: true });
@@ -138,6 +140,67 @@ const assert = require('node:assert/strict');
       const displayed = await details.getByText('Коефіцієнт показань', { exact: true }).locator('xpath=following-sibling::dd[1]').innerText();
       assert.equal(Number(displayed.replace(/[\s\u00a0]/g, '').replace(',', '.')), Number(item.details.multiplierExact));
     }
+    // Read an existing common point and return to an individual plot; never register new data.
+    const electricityPath = '/community/electricity/' + process.env.STAND_COMMUNITY;
+    async function readJson(path) {
+      const response = await context.request.get(origin + electricityPath + path);
+      assert.equal(response.status(), 200);
+      return response.json();
+    }
+    const commonPoints = await readJson('/common-points');
+    let commonSample;
+    for (const point of commonPoints) {
+      const items = await readJson('/common-points/' + point.id + '/installations');
+      const active = items.find(item => !item.endsBefore);
+      if (!active) continue;
+      const data = await readJson('/installations/' + active.id + '/readings');
+      if (data.intervals.length) { commonSample = { point, active, items, data }; break; }
+    }
+    assert.ok(commonSample, 'Use an existing synthetic common point with recognized readings and an interval');
+    const pointPicker = area.getByLabel(/^Точка або ділянка для обліку/);
+    const commonOption = pointPicker.locator('optgroup[label="Загальні точки"] option')
+      .filter({ hasText: commonSample.point.designation });
+    assert.equal(await commonOption.getAttribute('value'), 'common:' + commonSample.point.id);
+    const channelLabel = { total: 'Загальний', day: 'День', night: 'Ніч' };
+    const number = value => Number(value.replace(/[\s\u00a0]/g, '').replace(',', '.'));
+    async function verifySelection(target, item, expected) {
+      const reply = page.waitForResponse(response => new URL(response.url()).pathname === electricityPath + '/installations/' + item.id + '/readings');
+      await pointPicker.selectOption(target);
+      assert.equal((await reply).status(), 200);
+      await area.getByText(item.id, { exact: true }).waitFor();
+      const heading = area.getByRole('heading', { name: 'Визнані показання', exact: true });
+      await heading.waitFor();
+      const table = heading.locator('xpath=following-sibling::table[1]');
+      assert.equal(await table.locator('tbody tr').count(), expected.readings.length);
+      for (const [index, reading] of expected.readings.entries()) {
+        const cells = await table.locator('tbody tr').nth(index).locator('td').allTextContents();
+        assert.deepEqual(cells.slice(0, 2), [reading.date, channelLabel[reading.channel]]);
+        assert.equal(number(cells[2]), Number(reading.valueExact));
+      }
+      const intervalHeading = area.getByRole('heading', { name: 'Розрахункова оцінка споживання', exact: true });
+      if (expected.intervals.length) {
+        const intervals = intervalHeading.locator('xpath=following-sibling::table[1]');
+        assert.equal(await intervals.locator('tbody tr').count(), expected.intervals.length);
+        for (const [index, interval] of expected.intervals.entries()) {
+          const cells = await intervals.locator('tbody tr').nth(index).locator('td').allTextContents();
+          assert.deepEqual(cells.slice(0, 3), [interval.from, interval.to, channelLabel[interval.channel]]);
+          assert.equal(number(cells[3]), Number(interval.rawDeltaExact));
+          assert.equal(number(cells[4]), Number(interval.valueExact));
+        }
+      } else await area.getByText('Потрібні два визнані показання.', { exact: true }).waitFor();
+      assert.equal(await area.getByRole('button', { name: 'Визнати показання', exact: true }).count(),
+        communities.find(item => item.id === process.env.STAND_COMMUNITY).canRecognizeElectricity ? 1 : 0);
+    }
+    await verifySelection('common:' + commonSample.point.id, commonSample.active, commonSample.data);
+    await area.getByText('Межа вимірювання · ' + commonSample.point.boundary, { exact: true }).waitFor();
+    assert.deepEqual(await picker.locator('option').evaluateAll(items => items.map(item => item.value)), commonSample.items.map(item => item.id));
+    const individual = history.find(item => !item.endsBefore);
+    assert.ok(individual);
+    assert.notEqual(individual.pointId, commonSample.active.pointId);
+    const individualData = await readJson('/installations/' + individual.id + '/readings');
+    assert.ok(individualData.readings.length, 'Use an individual plot with existing readings');
+    await verifySelection(installed.id, individual, individualData);
+    assert.equal(await area.getByText(/^Межа вимірювання ·/).count(), 0);
     const topologyArea = area.getByText('Дерева точок обліку', { exact: true }).locator('..');
     await topologyArea.locator('summary').first().click();
     const topologySummary = topologyArea.getByText('Довідка: Дерева точок обліку', { exact: true });
@@ -320,6 +383,6 @@ const assert = require('node:assert/strict');
     assert.equal(writes, 0, 'No mutation attempts');
     console.log('Topology publication UI: ' + (canPublish ? 'local copy checked' : 'editor absent'));
     assert.deepEqual(errors, []);
-    console.log('PASS: electricity installation shared help, ' + history.length + ' existing installations, details and recognized readings, shared reading/import/replacement guides, replacement history and permission, dated topology paths, duplicate and invalid CSV preview, header/size rejection, Escape/focus, 390px, community reset, no writes');
+    console.log('PASS: electricity installation shared help, ' + history.length + ' existing installations, common point boundary/history/readings/intervals and return to individual plot, actual permissions, shared reading/import/replacement guides, dated topology paths, duplicate and invalid CSV preview, header/size rejection, Escape/focus, 390px, community reset, no writes');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error.message); process.exitCode = 1; });

@@ -25,7 +25,10 @@ def main():
     parser.add_argument('--expect-read-only', action='store_true')
     parser.add_argument('--permission-profiles', action='store_true',
                         help='Rehearse help with browser-only permission flag overrides; never change grants')
+    parser.add_argument('--scenario', choices=['finance', 'electricity-installation'], default='finance')
     args = parser.parse_args()
+    if args.scenario != 'finance' and args.permission_profiles:
+        parser.error('--permission-profiles only applies to the finance scenario')
     if not re.fullmatch(r'communityos-test-stand:[a-zA-Z0-9_.-]+', args.image):
         parser.error('Use a communityos-test-stand image')
     if not args.template_container.startswith('communityos-test-stand-'):
@@ -68,7 +71,8 @@ def main():
         with stand.PrivateRelay(5543, docker) as relay:
             threading.Thread(target=relay.serve_forever, daemon=True).start()
             try:
-                subprocess.run([args.node, str(Path(__file__).with_suffix('.cjs'))], check=True,
+                script = Path(__file__).with_name('check_electricity_installation_help.cjs') if args.scenario == 'electricity-installation' else Path(__file__).with_suffix('.cjs')
+                subprocess.run([args.node, str(script)], check=True,
                                env=dict(os.environ, STAND_PROBE_COOKIE=secret.hex(),
                                         STAND_COMMUNITY=args.community, STAND_HELP_SCREENSHOT=str(args.screenshot),
                                         STAND_EXPECT_READ_ONLY='1' if args.expect_read_only else '0',

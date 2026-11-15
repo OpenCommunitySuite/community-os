@@ -15,7 +15,15 @@ const assert = require('node:assert/strict');
       if (route.request().method() === 'POST' && url.origin === origin && url.pathname === previewPath) {
         previews++; await route.continue();
       } else if (route.request().method() !== 'GET') { writes++; await route.abort('blockedbyclient'); }
-      else await route.continue();
+      else if (process.env.STAND_TOPOLOGY_EDITOR_UI === '1' && url.pathname === '/community/register/communities') {
+        const response = await route.fetch();
+        assert.equal(response.status(), 200);
+        const communities = await response.json();
+        const selected = communities.find(item => item.id === process.env.STAND_COMMUNITY);
+        assert.ok(selected?.canReadElectricity);
+        selected.canPublishElectricityTopology = true;
+        await route.fulfill({ response, json: communities });
+      } else await route.continue();
     });
     await context.addCookies([{ name: '__Host-communityos-platform', value: process.env.STAND_PROBE_COOKIE,
       url: origin, secure: true, httpOnly: true }]);
@@ -190,6 +198,7 @@ const assert = require('node:assert/strict');
       latestTopology = topology;
     }
     const canPublish = communities.find(item => item.id === process.env.STAND_COMMUNITY).canPublishElectricityTopology;
+    if (process.env.STAND_TOPOLOGY_EDITOR_UI === '1') assert.equal(canPublish, true, 'Browser editor override reached the UI');
     assert.equal(await topologyArea.getByText('Нова редакція дерев', { exact: true }).count(), canPublish ? 1 : 0);
     assert.equal(await topologyArea.getByRole('button', { name: 'Скопіювати до нової редакції', exact: true }).count(), canPublish ? 1 : 0);
     if (canPublish) {

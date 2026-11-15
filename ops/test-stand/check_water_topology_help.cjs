@@ -59,6 +59,7 @@ const assert = require('node:assert/strict');
       assert.equal(await opener.evaluate(element => element === document.activeElement), true);
       const editor = area.getByRole('group', { name: 'Нова версія дерева води', exact: true });
       assert.equal(await editor.count(), community.canSetupWater ? 1 : 0);
+      const parentPicker = name => editor.locator('label').filter({ hasText: 'Батьківська точка для ' + name }).locator('select');
 
       const historyButton = area.getByRole('button', { name: 'Показати історію версій', exact: true });
       async function loadDates() {
@@ -71,7 +72,7 @@ const assert = require('node:assert/strict');
       const dates = await loadDates();
       assert.ok(dates.length >= 2, 'Use existing synthetic water topology history');
       assert.deepEqual(dates, [...dates].sort().reverse());
-      const versions = area.getByLabel('Опубліковані версії', { exact: true });
+      const versions = area.getByLabel(/^Опубліковані версії/);
       await versions.waitFor();
       assert.deepEqual(await versions.locator('option:not([disabled])').evaluateAll(items => items.map(item => item.value)), dates);
       const published = area.getByRole('region', { name: 'Опубліковане дерево води', exact: true });
@@ -95,7 +96,7 @@ const assert = require('node:assert/strict');
       const oldest = await selectVersion(dates.at(-1));
       const current = await selectVersion(dates[0]);
       const compareReply = page.waitForResponse(response => new URL(response.url()).pathname === endpoint + '/topology');
-      await published.getByLabel('Порівняти з версією', { exact: true }).selectOption(oldest.startsOn);
+      await published.getByLabel(/^Порівняти з версією/).selectOption(oldest.startsOn);
       assert.equal((await compareReply).status(), 200);
       const comparison = published.getByRole('region', { name: 'Відмінності опублікованих версій', exact: true });
       await comparison.waitFor();
@@ -113,24 +114,24 @@ const assert = require('node:assert/strict');
         await published.getByRole('button', { name: 'Скопіювати зв’язки в нову версію', exact: true }).click();
         assert.equal(await editor.getByLabel('Дата набрання чинності', { exact: true }).inputValue(), '');
         const root = current.points.find(point => point.parentId === null).pointId;
-        assert.equal(await editor.getByLabel('Загальна точка', { exact: true }).inputValue(), root);
+        assert.equal(await editor.getByLabel(/^Загальна точка/).inputValue(), root);
         for (const point of current.points.filter(point => point.parentId)) {
-          assert.equal(await editor.getByLabel('Батьківська точка для ' + names.get(point.pointId), { exact: true }).inputValue(), point.parentId);
+          assert.equal(await parentPicker(names.get(point.pointId)).inputValue(), point.parentId);
         }
         const changes = editor.getByRole('region', { name: 'Зміни у новій версії', exact: true });
         await changes.getByText('Зв’язки не змінилися.', { exact: true }).waitFor();
         const street = current.points.find(point => point.parentId === root && current.points.some(child => child.parentId === point.pointId));
         assert.ok(street, 'Use existing street with a child plot');
         const children = current.points.filter(point => point.parentId === street.pointId);
-        await editor.getByLabel('Батьківська точка для ' + names.get(street.pointId), { exact: true }).selectOption('');
+        await parentPicker(names.get(street.pointId)).selectOption('');
         await editor.getByRole('status').getByText('Підключено безпосередньо до загальної точки. Ділянок перенесено: ' + children.length + '.', { exact: true }).waitFor();
         for (const child of children) {
-          assert.equal(await editor.getByLabel('Батьківська точка для ' + names.get(child.pointId), { exact: true }).inputValue(), root);
+          assert.equal(await parentPicker(names.get(child.pointId)).inputValue(), root);
           await changes.getByText(`${names.get(child.pointId)} · ${names.get(street.pointId)} → ${names.get(root)}`, { exact: true }).waitFor();
         }
-        await editor.getByLabel('Загальна точка', { exact: true }).selectOption(street.pointId);
+        await editor.getByLabel(/^Загальна точка/).selectOption(street.pointId);
         for (const point of points.filter(point => point.id !== street.pointId)) {
-          assert.equal(await editor.getByLabel('Батьківська точка для ' + point.designation, { exact: true }).inputValue(), '');
+          assert.equal(await parentPicker(point.designation).inputValue(), '');
         }
       }
       const beforeFirst = new Date(oldest.startsOn + 'T00:00:00Z');

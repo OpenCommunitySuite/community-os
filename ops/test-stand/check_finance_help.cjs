@@ -40,6 +40,14 @@ const assert = require('node:assert/strict');
     await readHelp('reconciliation', 'Поточна звірка періоду');
     await page.getByRole('button', { name: 'Завантажити поточну звірку', exact: true }).click();
     await page.getByRole('table', { name: 'Поточні залишки зобов’язань періоду', exact: true }).waitFor();
+    await readHelp('recalculation', 'Перерахунок електроенергії');
+    await readHelp('oneOff', 'Разове цільове нарахування');
+    const oneOff = page.getByRole('region', { name: 'Разове цільове нарахування', exact: true });
+    await oneOff.getByRole('button', { name: 'Завантажити рахунки', exact: true }).click();
+    await oneOff.getByLabel('Сума на рахунок, грн', { exact: true }).waitFor();
+    const historyResponse = page.waitForResponse(response => response.url().endsWith('/one-off/history'));
+    await oneOff.getByRole('button', { name: 'Історія разових нарахувань', exact: true }).click();
+    assert.equal((await historyResponse).status(), 200, 'One-off history is available to reader');
     await page.getByText('Кошториси', { exact: true }).click();
     const budgetHelp = page.getByText('Довідка: Кошториси: план і факт', { exact: true });
     await budgetHelp.click();
@@ -57,6 +65,7 @@ const assert = require('node:assert/strict');
       assert.deepEqual(await dialog.locator('#finance-guide-' + topic).locator('p').allTextContents(), paragraphs);
     }
     for (const title of ['Розрахунок і проведення періоду', 'Пошук проведених періодів', 'Поточна звірка періоду',
+      'Перерахунок електроенергії', 'Разове цільове нарахування',
       'Кошториси: план і факт', 'Визнання витрати', 'Розподіл витрати за статтями']) {
       await dialog.getByRole('link', { name: title, exact: true }).click();
       await dialog.getByRole('heading', { name: title, exact: true }).waitFor();
@@ -84,6 +93,6 @@ const assert = require('node:assert/strict');
     await page.locator('select').first().selectOption('');
     assert.equal(await guideButton.count(), 0, 'Guide closes with community workspace');
     assert.deepEqual(errors, []);
-    console.log('PASS: 6 context topics, shared guide, period history and date error, current reconciliation, navigation, Escape/focus, close, narrow viewport, workspace isolation, no writes');
+    console.log('PASS: 8 context topics, shared guide, period history and date error, current reconciliation, one-off accounts/history, navigation, Escape/focus, close, narrow viewport, workspace isolation, no writes');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error.message); process.exitCode = 1; });

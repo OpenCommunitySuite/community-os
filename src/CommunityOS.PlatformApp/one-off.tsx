@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { money } from './billing';
+import { FinanceContextHelp } from './finance-help';
 
 type Account = { id: string; number: string; debtor: string | null; status: string };
 type Input = { requestId: string; accounts: string[]; amount: number; purpose: string; reason: string; dueOn: string };
@@ -59,6 +60,7 @@ export function OneOff({ community, canPost }: { community: string; canPost: boo
 
   return <section aria-labelledby="one-off-heading">
     <h2 id="one-off-heading">Разове цільове нарахування</h2>
+    <FinanceContextHelp topic="oneOff" />
     <button disabled={busy} onClick={() => void run(async () => setAccounts(await request('/accounts')))}>Завантажити рахунки</button>{' '}
     <button disabled={busy} onClick={() => void run(async () => setHistory(await request('/history')))}>Історія разових нарахувань</button>
     {accounts && <form onChange={() => setPlan(undefined)} onSubmit={event => {

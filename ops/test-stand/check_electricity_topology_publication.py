@@ -23,11 +23,12 @@ def main():
     parser.add_argument('--login', required=True)
     parser.add_argument('--node', required=True)
     parser.add_argument('--screenshot', type=Path, required=True)
-    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-topology', 'water-balance', 'water-verification', 'water-verification-history'], default='topology')
+    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-topology', 'water-balance', 'water-verification', 'water-verification-history'], default='topology')
     args = parser.parse_args()
     dual = args.scenario == 'dual-readings'
     replacement = args.scenario == 'replacement'
-    csv_import = args.scenario == 'csv-import'
+    electricity_import_history = args.scenario == 'csv-import-history'
+    csv_import = args.scenario in ('csv-import', 'csv-import-history')
     water_replacement = args.scenario == 'water-replacement'
     import_history = args.scenario == 'water-import-history'
     water_import = args.scenario in ('water-import', 'water-import-history')
@@ -153,6 +154,8 @@ def main():
             sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         if replacement:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET can_replace_electricity=true, electricity_recognition_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
+        if electricity_import_history:
+            sql(platform, f"UPDATE platform_provisioning.register_operator SET can_replace_electricity=true, electricity_replacement_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         if water_replacement:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET water_recognition_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         if verification_history or import_history:
@@ -187,7 +190,8 @@ def main():
                 child = subprocess.Popen([args.node, str(script)],
                     env=dict(os.environ, STAND_PROBE_COOKIE=secret.hex(), STAND_COMMUNITY=community,
                              STAND_HELP_SCREENSHOT=str(args.screenshot), STAND_VERIFICATION_HISTORY=str(verification_history).lower(),
-                             STAND_IMPORT_HISTORY=str(import_history).lower()),
+                             STAND_IMPORT_HISTORY=str(import_history).lower(),
+                             STAND_ELECTRICITY_IMPORT_HISTORY=str(electricity_import_history).lower()),
                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, encoding='utf-8')
                 messages = queue.Queue()
                 def output():
@@ -308,12 +312,14 @@ def main():
                 expected_readings = 5
             if csv_import:
                 expected_admissions = '14'
+            if electricity_import_history:
+                expected_readings, expected_admissions = 5, '20'
             if len(rows) != expected_readings or admissions != expected_admissions:
                 raise RuntimeError('Unexpected reading/admission count after denial')
             for row in rows:
                 admission, installation, date, channel = row.split('|')
                 admission, installation = str(uuid.UUID(admission)), str(uuid.UUID(installation))
-                dates = ('2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04', '2026-01-05') if replacement else ('2026-01-01', '2026-01-02', '2026-01-03')
+                dates = ('2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04', '2026-01-05') if replacement or electricity_import_history else ('2026-01-01', '2026-01-02', '2026-01-03')
                 if date not in dates or channel not in (('day', 'night') if dual else ('total',)):
                     raise RuntimeError('Unexpected recognized reading target')
                 linked = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE id='{admission}' AND community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND action='recognize' AND target_id='{installation}' AND effective_on='{date}' AND channel='{channel}' AND basis='{basis}';")
@@ -322,18 +328,18 @@ def main():
             print(f'PASS: {expected_readings} readings linked to Platform admissions, {expected_admissions} attempts, no admission after revocation')
             if csv_import:
                 imported = sql(register, f"SELECT count(*) FROM community_electricity.reading WHERE community_id='{community}' AND source='csv-import';")
-                if imported != '3':
+                if imported != str(expected_readings):
                     raise RuntimeError('Imported readings must preserve CSV provenance')
-            if replacement:
+            if replacement or electricity_import_history:
                 changes = sql(register, f"SELECT admission_id,old_installation_id,request_id FROM community_electricity.replacement WHERE community_id='{community}' AND effective_on='2026-01-04';").splitlines()
                 count = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE community_id='{community}' AND action='replace';")
-                if len(changes) != 1 or count != '4':
+                if len(changes) != 1 or count != ('1' if electricity_import_history else '4'):
                     raise RuntimeError('Unexpected replacement/admission count')
                 admission, old, request = (str(uuid.UUID(value)) for value in changes[0].split('|'))
                 linked = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE id='{admission}' AND community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND action='replace' AND target_id='{old}' AND request_id='{request}' AND effective_on='2026-01-04' AND basis='{basis}';")
                 if linked != '1':
                     raise RuntimeError('Replacement does not reference its Platform admission')
-                print('PASS: one replacement linked to Platform admission, four attempts, no replacement after revocation')
+                print('PASS: one replacement linked to Platform admission' if electricity_import_history else 'PASS: one replacement linked to Platform admission, four attempts, no replacement after revocation')
             return
         revisions = sql(register, f"SELECT count(*) FROM community_electricity.topology_revision WHERE community_id='{community}';")
         admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE community_id='{community}' AND action='publish-topology';")
@@ -351,6 +357,8 @@ def main():
         finally:
             try:
                 extra = ', electricity_recognition_basis=NULL' if replacement else ''
+                if electricity_import_history:
+                    extra = ', can_replace_electricity=false, electricity_replacement_basis=NULL'
                 if water_replacement:
                     extra = ', water_recognition_basis=NULL'
                 if verification_history or import_history:

@@ -177,13 +177,13 @@ function Register() {
         canRegister={community.canRegisterBudget} />
       <Expenses key={'expenses:' + community.id} community={community.id}
         canRecognize={community.canRecognizeExpense} canAllocate={community.canAllocateExpense} />
+      <WaterChargePreview key={'water-charge:' + community.id} endpoint={'/community/billing/' + community.id} />
+      <Payments ref={paymentWorkspace} key={'payments:' + community.id} community={community.id}
+        communityName={community.name}
+        canRecord={community.canRecordPayment} canAllocate={community.canAllocatePayment} canAcceptCash={community.canAcceptCash}
+        canReallocate={community.canReallocatePayment} canCorrect={community.canCorrectPayment}
+        canRecognizeOverpayment={community.canRecognizeOverpayment} canManageAdvance={community.canManageAdvance} />
     </FinanceHelp>}
-    {community?.canReadBilling && <WaterChargePreview key={'water-charge:' + community.id} endpoint={'/community/billing/' + community.id} />}
-    {community?.canReadBilling && <Payments ref={paymentWorkspace} key={'payments:' + community.id} community={community.id}
-      communityName={community.name}
-      canRecord={community.canRecordPayment} canAllocate={community.canAllocatePayment} canAcceptCash={community.canAcceptCash}
-      canReallocate={community.canReallocatePayment} canCorrect={community.canCorrectPayment}
-      canRecognizeOverpayment={community.canRecognizeOverpayment} canManageAdvance={community.canManageAdvance} />}
     {community?.canReadBilling && <Bank key={'bank:' + community.id} community={community.id}
       canImport={community.canImportBank} canRecognize={community.canRecognizeBank} />}
   </>;

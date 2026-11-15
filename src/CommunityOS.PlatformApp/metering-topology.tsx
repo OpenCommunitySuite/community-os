@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ElectricityTopologyHelp } from './electricity-topology-help';
 
 type Point = { id: string; designation: string };
 type Placement = { pointId: string; depth: number; parentPointId: string | null; substationId: string | null };
@@ -52,6 +53,7 @@ export function MeteringTopology({ canPublish, commonPoints, individualPoints, r
 
   return <details>
     <summary>Дерева точок обліку</summary>
+    <ElectricityTopologyHelp />
     <form onSubmit={event => {
       event.preventDefault();
       const date = String(new FormData(event.currentTarget).get('date'));

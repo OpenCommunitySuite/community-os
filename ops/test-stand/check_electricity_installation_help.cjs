@@ -15,7 +15,15 @@ const assert = require('node:assert/strict');
       if (route.request().method() === 'POST' && url.origin === origin && url.pathname === previewPath) {
         previews++; await route.continue();
       } else if (route.request().method() !== 'GET') { writes++; await route.abort('blockedbyclient'); }
-      else await route.continue();
+      else if (process.env.STAND_TOPOLOGY_EDITOR_UI === '1' && url.pathname === '/community/register/communities') {
+        const response = await route.fetch();
+        assert.equal(response.status(), 200);
+        const communities = await response.json();
+        const selected = communities.find(item => item.id === process.env.STAND_COMMUNITY);
+        assert.ok(selected?.canReadElectricity);
+        selected.canPublishElectricityTopology = true;
+        await route.fulfill({ response, json: communities });
+      } else await route.continue();
     });
     await context.addCookies([{ name: '__Host-communityos-platform', value: process.env.STAND_PROBE_COOKIE,
       url: origin, secure: true, httpOnly: true }]);
@@ -130,6 +138,85 @@ const assert = require('node:assert/strict');
       const displayed = await details.getByText('Коефіцієнт показань', { exact: true }).locator('xpath=following-sibling::dd[1]').innerText();
       assert.equal(Number(displayed.replace(/[\s\u00a0]/g, '').replace(',', '.')), Number(item.details.multiplierExact));
     }
+    const topologyArea = area.getByText('Дерева точок обліку', { exact: true }).locator('..');
+    await topologyArea.locator('summary').first().click();
+    const topologySummary = topologyArea.getByText('Довідка: Дерева точок обліку', { exact: true });
+    await topologySummary.click();
+    const topologyText = await topologySummary.locator('..').locator('p, li').allTextContents();
+    const topologyOpener = topologyArea.getByRole('button', { name: 'Посібник: дерева точок', exact: true });
+    const topologyDialog = page.getByRole('dialog', { name: 'Дерева точок обліку електроенергії', exact: true });
+    await topologyOpener.click();
+    await topologyDialog.waitFor();
+    assert.equal(await topologyDialog.getAttribute('lang'), 'uk');
+    assert.deepEqual(await topologyDialog.locator('p, li').allTextContents(), topologyText);
+    await page.keyboard.press('Escape');
+    await topologyDialog.waitFor({ state: 'hidden' });
+    assert.equal(await topologyOpener.evaluate(element => element === document.activeElement), true);
+    let latestTopology;
+    for (const date of ['1900-01-01', '2026-03-01', '2026-03-02']) {
+      await topologyArea.getByLabel('Дата вимірювання', { exact: true }).fill(date);
+      const topologyReply = page.waitForResponse(response => new URL(response.url()).pathname.endsWith('/topology')
+        && new URL(response.url()).searchParams.get('date') === date);
+      await topologyArea.getByRole('button', { name: 'Показати дерева', exact: true }).click();
+      const response = await topologyReply;
+      assert.equal(response.status(), 200);
+      const { topology } = await response.json();
+      if (date === '1900-01-01') {
+        assert.equal(topology, null);
+        await topologyArea.getByText('На цю дату дерева не опубліковано.', { exact: true }).waitFor();
+        continue;
+      }
+      assert.equal(topology.startsOn, date);
+      assert.equal(topology.points.length, 9, 'Synthetic revision has nine points');
+      const roots = topology.points.filter(point => point.depth === 0);
+      assert.equal(roots.length, 3);
+      assert.equal(new Set(roots.map(point => point.substationId)).size, 2);
+      await topologyArea.getByText('Редакція діє з ' + date, { exact: true }).waitFor();
+      assert.equal(await topologyArea.locator('section > ul > li').count(), 3);
+      const renderedPaths = await topologyArea.locator('section li').evaluateAll(items => items.map(item => {
+        const names = [];
+        let node = item;
+        while (node?.tagName === 'LI') {
+          names.unshift([...node.childNodes].filter(child => child.nodeType === Node.TEXT_NODE)
+            .map(child => child.textContent).join('').trim());
+          node = node.parentElement?.parentElement;
+        }
+        return names.join(' > ');
+      }));
+      const expectedPaths = topology.points.map(point => {
+        const names = [point.designation];
+        let parent = point.parentPointId;
+        while (parent) {
+          const ancestor = topology.points.find(candidate => candidate.id === parent);
+          assert.ok(ancestor);
+          names.unshift(ancestor.designation);
+          parent = ancestor.parentPointId;
+        }
+        return names.join(' > ');
+      });
+      assert.deepEqual(renderedPaths.sort(), expectedPaths.sort());
+      latestTopology = topology;
+    }
+    const canPublish = communities.find(item => item.id === process.env.STAND_COMMUNITY).canPublishElectricityTopology;
+    if (process.env.STAND_TOPOLOGY_EDITOR_UI === '1') assert.equal(canPublish, true, 'Browser editor override reached the UI');
+    assert.equal(await topologyArea.getByText('Нова редакція дерев', { exact: true }).count(), canPublish ? 1 : 0);
+    assert.equal(await topologyArea.getByRole('button', { name: 'Скопіювати до нової редакції', exact: true }).count(), canPublish ? 1 : 0);
+    if (canPublish) {
+      await topologyArea.getByRole('button', { name: 'Скопіювати до нової редакції', exact: true }).click();
+      const editor = topologyArea.getByText('Нова редакція дерев', { exact: true }).locator('..');
+      await editor.locator('summary').first().click();
+      assert.equal(await editor.getByRole('combobox').evaluateAll(items => items.filter(item => item.value).length), latestTopology.points.length);
+    }
+    await topologyOpener.click();
+    await topologyDialog.waitFor();
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await topologyDialog.evaluate(element => element.scrollWidth <= element.clientWidth), true);
+    const topologyBox = await topologyDialog.boundingBox();
+    assert.ok(topologyBox && topologyBox.width <= 390 && topologyBox.height <= 844);
+    await page.screenshot({ path: process.env.STAND_HELP_SCREENSHOT + '.topology.png' });
+    await topologyDialog.getByRole('button', { name: 'Закрити посібник дерев', exact: true }).click();
+    await topologyDialog.waitFor({ state: 'hidden' });
+    assert.equal(await topologyOpener.evaluate(element => element === document.activeElement), true);
     assert.ok(importSample, 'Existing recognized reading is required for the duplicate preview');
     const importArea = area.getByText('Імпорт показань CSV', { exact: true }).locator('..');
     await importArea.locator('summary').first().click();
@@ -223,13 +310,16 @@ const assert = require('node:assert/strict');
     assert.equal(await summary.count(), 0);
     assert.equal(await importSummary.count(), 0);
     assert.equal(await importDialog.count(), 0);
+    assert.equal(await topologySummary.count(), 0);
+    assert.equal(await topologyDialog.count(), 0);
     assert.equal(await replacementSummary.count(), 0);
     assert.equal(await replacementDialog.count(), 0);
     assert.equal(await readingSummary.count(), 0);
     assert.equal(await readingDialog.count(), 0);
     assert.equal(await dialog.count(), 0, 'Guide unmounts with the community workspace');
     assert.equal(writes, 0, 'No mutation attempts');
+    console.log('Topology publication UI: ' + (canPublish ? 'local copy checked' : 'editor absent'));
     assert.deepEqual(errors, []);
-    console.log('PASS: electricity installation shared help, ' + history.length + ' existing installations, details and recognized readings, shared reading/import/replacement guides, replacement history and permission, duplicate and invalid CSV preview, header/size rejection, Escape/focus, 390px, community reset, no writes');
+    console.log('PASS: electricity installation shared help, ' + history.length + ' existing installations, details and recognized readings, shared reading/import/replacement guides, replacement history and permission, dated topology paths, duplicate and invalid CSV preview, header/size rejection, Escape/focus, 390px, community reset, no writes');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error.message); process.exitCode = 1; });

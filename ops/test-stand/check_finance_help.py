@@ -26,7 +26,11 @@ def main():
     parser.add_argument('--permission-profiles', action='store_true',
                         help='Rehearse help with browser-only permission flag overrides; never change grants')
     parser.add_argument('--scenario', choices=['finance', 'electricity-installation'], default='finance')
+    parser.add_argument('--topology-editor-ui', action='store_true',
+                        help='Override only the topology editor browser flag; never change grants')
     args = parser.parse_args()
+    if args.topology_editor_ui and args.scenario != 'electricity-installation':
+        parser.error('--topology-editor-ui requires --scenario electricity-installation')
     if args.scenario != 'finance' and args.permission_profiles:
         parser.error('--permission-profiles only applies to the finance scenario')
     if not re.fullmatch(r'communityos-test-stand:[a-zA-Z0-9_.-]+', args.image):
@@ -76,6 +80,7 @@ def main():
                                env=dict(os.environ, STAND_PROBE_COOKIE=secret.hex(),
                                         STAND_COMMUNITY=args.community, STAND_HELP_SCREENSHOT=str(args.screenshot),
                                         STAND_EXPECT_READ_ONLY='1' if args.expect_read_only else '0',
+                                        STAND_TOPOLOGY_EDITOR_UI='1' if args.topology_editor_ui else '0',
                                         STAND_HELP_PERMISSION_PROFILES='1' if args.permission_profiles else '0'))
             finally:
                 relay.shutdown()

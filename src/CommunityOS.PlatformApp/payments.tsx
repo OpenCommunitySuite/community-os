@@ -288,6 +288,8 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
       </option>)}
     </select></label>}
     {payment && <div key={payment.id}>
+      <FinanceContextHelp topic="paymentCorrection" />
+      <FinanceContextHelp topic="reallocation" />
       <p>Початкова сума {money.format(payment.originalAmount)} · Чинна сума {money.format(payment.amount)}</p>
       {canCorrect && !payment.bankTransactionId && !payment.cashAcceptance && payment.allocations.length === 0 && payment.advances.length === 0 &&
         <PaymentCorrection paymentId={payment.id} post={request} refresh={refresh} />}

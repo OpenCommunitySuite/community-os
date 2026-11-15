@@ -211,6 +211,7 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
     </details>}
     {desk && <details>
       <summary>Залишки розрахунків</summary>
+      <FinanceContextHelp topic="settlement" />
       <FinanceContextHelp topic="overpayment" />
       <label>Платник для звірки <select value={balancePayer} onChange={event => setBalancePayer(event.target.value)}>
         <option value="">Оберіть платника</option>

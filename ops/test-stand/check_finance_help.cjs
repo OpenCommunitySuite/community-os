@@ -84,6 +84,31 @@ const assert = require('node:assert/strict');
     await readHelp('memberAdvance', 'Аванс на членські внески');
     await page.getByText('Залишки розрахунків', { exact: true }).click();
     await readHelp('overpayment', 'Визнання переплати');
+    await readHelp('settlement', 'Поточні залишки платника');
+    const balancePayer = page.getByLabel(/^Платник для звірки/);
+    const payerId = await balancePayer.locator('option').nth(1).getAttribute('value');
+    assert.ok(payerId, 'Synthetic payer is required');
+    await balancePayer.selectOption(payerId);
+    await page.getByRole('table', { name: 'Непогашені зобов’язання', exact: true }).waitFor();
+    const waterSummary = page.getByText('Попередній розрахунок за воду', { exact: true });
+    await waterSummary.click();
+    await readHelp('waterPreview', 'Перевірка плати за воду');
+    const water = waterSummary.locator('..');
+    await water.getByRole('button', { name: 'Завантажити рахунки для води', exact: true }).click();
+    const waterAccount = water.getByLabel(/^Рахунок для розрахунку води/);
+    const waterId = await waterAccount.locator('option').nth(1).getAttribute('value');
+    assert.ok(waterId, 'Synthetic water account is required');
+    await waterAccount.selectOption(waterId);
+    await water.getByLabel('Початок періоду води', { exact: true }).fill('2099-01-01');
+    await water.getByLabel('Кінець періоду води', { exact: true }).fill('2099-02-01');
+    const waterResponse = page.waitForResponse(response => new URL(response.url()).pathname.endsWith('/water-preview'));
+    await water.getByRole('button', { name: 'Розрахувати плату за воду', exact: true }).click();
+    const waterReply = await waterResponse;
+    assert.equal(waterReply.status(), 200, 'Water preview is readable');
+    const calculation = await waterReply.json();
+    assert.notEqual(calculation.status, 'Ready', 'Fixture has no readings on 2099 boundaries');
+    assert.equal(calculation.amountUah, null, 'Missing data is not a zero charge');
+    await water.locator('dl[aria-label="Розрахунок за воду"]').waitFor();
     const debtSummary = page.getByText('Реєстр заборгованості', { exact: true });
     await debtSummary.click();
     await readHelp('debts', 'Пошук і звірка заборгованості');
@@ -140,6 +165,7 @@ const assert = require('node:assert/strict');
       'Імпорт банківської виписки', 'Визнання банківського платежу',
       'Виписка та друк за рахунком', 'Пошук і звірка заборгованості',
       'Зведення проведених нарахувань', 'Звіт про визнані надходження',
+      'Поточні залишки платника', 'Перевірка плати за воду',
       'Кошториси: план і факт', 'Визнання витрати', 'Розподіл витрати за статтями']) {
       await dialog.getByRole('link', { name: title, exact: true }).click();
       await dialog.getByRole('heading', { name: title, exact: true }).waitFor();
@@ -170,6 +196,6 @@ const assert = require('node:assert/strict');
     await page.locator('select').first().selectOption('');
     assert.equal(await guideButton.count(), 0, 'Guide closes with community workspace');
     assert.deepEqual(errors, []);
-    console.log('PASS: 21 context topics, shared guide, accrual/receipt summaries, receipt date error and source filter, payment navigation and retained dates, debt/statement navigation, print isolation, Escape/focus, narrow viewport, no writes');
+    console.log('PASS: 23 context topics, shared guide, payer balances, water preview with missing boundaries, summaries and filters, payment/report navigation, print isolation, Escape/focus, narrow viewport, no writes');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error.message); process.exitCode = 1; });

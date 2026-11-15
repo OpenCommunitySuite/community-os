@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { labels, money } from './billing';
+import { FinanceContextHelp } from './finance-help';
 
 type Preview = { status: string; accountNumber: string; installationId: string | null;
   openingReadingId: string | null; closingReadingId: string | null; volume: number | null;
@@ -14,6 +15,7 @@ export function WaterChargePreview({ endpoint }: { endpoint: string }) {
   const [busy, setBusy] = useState(false);
   return <details>
     <summary>Попередній розрахунок за воду</summary>
+    <FinanceContextHelp topic="waterPreview" />
     <button type="button" disabled={busy} onClick={() => {
       setBusy(true);
       setError('');

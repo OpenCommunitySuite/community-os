@@ -23,11 +23,14 @@ def main():
     parser.add_argument('--login', required=True)
     parser.add_argument('--node', required=True)
     parser.add_argument('--screenshot', type=Path, required=True)
-    parser.add_argument('--scenario', choices=['topology', 'manual-readings'], default='topology')
+    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings'], default='topology')
     args = parser.parse_args()
-    manual = args.scenario == 'manual-readings'
+    dual = args.scenario == 'dual-readings'
+    manual = args.scenario != 'topology'
     grant_column = 'electricity_recognition_basis' if manual else 'topology_publication_basis'
     basis = 'Synthetic manual reading acceptance' if manual else 'Synthetic topology acceptance'
+    if dual:
+        basis = 'Synthetic dual reading acceptance'
     if not re.fullmatch(r'communityos-test-stand:[a-zA-Z0-9_.-]+', args.image):
         parser.error('Use a synthetic stand image')
     if not args.template_container.startswith('communityos-test-stand-') or not re.fullmatch(r'[a-zA-Z0-9_-]+', args.login):
@@ -74,7 +77,7 @@ def main():
         commands.extend([
             f"INSERT INTO community_register.plot VALUES ('{community}','{plot}','Plot {index}');",
             f"INSERT INTO community_electricity.accounting_point (community_id,id,plot_id) VALUES ('{community}','{point}','{plot}');",
-            f"INSERT INTO community_electricity.meter (community_id,id,designation) VALUES ('{community}','{meter}','Meter {index}');",
+            f"INSERT INTO community_electricity.meter (community_id,id,designation,register_mode) VALUES ('{community}','{meter}','Meter {index}','{'dual' if dual else 'total'}');",
             f"INSERT INTO community_electricity.installation (community_id,id,point_id,meter_id,starts_on,admission_id,account_id,subject_id,basis,reading_multiplier) VALUES ('{community}',gen_random_uuid(),'{point}','{meter}','2026-01-01',gen_random_uuid(),'{account}','{subject}','Synthetic fixture',{40 if manual else 1});",
         ])
     sql(register, '\n'.join(commands + ['COMMIT;']))
@@ -97,6 +100,8 @@ def main():
             threading.Thread(target=relay.serve_forever, daemon=True).start()
             try:
                 script = Path(__file__).with_name('check_electricity_manual_readings.cjs') if manual else Path(__file__).with_suffix('.cjs')
+                if dual:
+                    script = Path(__file__).with_name('check_electricity_dual_readings.cjs')
                 child = subprocess.Popen([args.node, str(script)],
                     env=dict(os.environ, STAND_PROBE_COOKIE=secret.hex(), STAND_COMMUNITY=community,
                              STAND_HELP_SCREENSHOT=str(args.screenshot)),
@@ -133,17 +138,18 @@ def main():
         if manual:
             rows = sql(register, f"SELECT admission_id,installation_id,measured_on,channel FROM community_electricity.reading WHERE community_id='{community}' ORDER BY measured_on;").splitlines()
             admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE community_id='{community}' AND action='recognize';")
-            if len(rows) != 3 or admissions != '6':
+            expected_readings, expected_admissions = (6, '10') if dual else (3, '6')
+            if len(rows) != expected_readings or admissions != expected_admissions:
                 raise RuntimeError('Unexpected reading/admission count after denial')
             for row in rows:
                 admission, installation, date, channel = row.split('|')
                 admission, installation = str(uuid.UUID(admission)), str(uuid.UUID(installation))
-                if date not in ('2026-01-01', '2026-01-02', '2026-01-03') or channel != 'total':
+                if date not in ('2026-01-01', '2026-01-02', '2026-01-03') or channel not in (('day', 'night') if dual else ('total',)):
                     raise RuntimeError('Unexpected recognized reading target')
-                linked = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE id='{admission}' AND community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND action='recognize' AND target_id='{installation}' AND effective_on='{date}' AND channel='total' AND basis='{basis}';")
+                linked = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE id='{admission}' AND community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND action='recognize' AND target_id='{installation}' AND effective_on='{date}' AND channel='{channel}' AND basis='{basis}';")
                 if linked != '1':
                     raise RuntimeError('Reading does not reference its Platform admission')
-            print('PASS: three readings linked to Platform admissions, six attempts, no admission after revocation')
+            print(f'PASS: {expected_readings} readings linked to Platform admissions, {expected_admissions} attempts, no admission after revocation')
             return
         revisions = sql(register, f"SELECT count(*) FROM community_electricity.topology_revision WHERE community_id='{community}';")
         admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE community_id='{community}' AND action='publish-topology';")

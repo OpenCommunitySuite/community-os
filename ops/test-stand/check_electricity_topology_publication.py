@@ -1,4 +1,4 @@
-"""Publish a synthetic forest through the UI, revoke its isolated grant, verify denial."""
+"""Exercise isolated synthetic electricity writes through the UI and revoke their grant."""
 
 import argparse
 import hashlib
@@ -23,7 +23,11 @@ def main():
     parser.add_argument('--login', required=True)
     parser.add_argument('--node', required=True)
     parser.add_argument('--screenshot', type=Path, required=True)
+    parser.add_argument('--scenario', choices=['topology', 'manual-readings'], default='topology')
     args = parser.parse_args()
+    manual = args.scenario == 'manual-readings'
+    grant_column = 'electricity_recognition_basis' if manual else 'topology_publication_basis'
+    basis = 'Synthetic manual reading acceptance' if manual else 'Synthetic topology acceptance'
     if not re.fullmatch(r'communityos-test-stand:[a-zA-Z0-9_.-]+', args.image):
         parser.error('Use a synthetic stand image')
     if not args.template_container.startswith('communityos-test-stand-') or not re.fullmatch(r'[a-zA-Z0-9_-]+', args.login):
@@ -54,12 +58,12 @@ def main():
         BEGIN;
         INSERT INTO platform_provisioning.community_reservation
           (operation_id,community_id,creator_account_id,request_id,initial_administrator_account_id,display_name)
-          VALUES (gen_random_uuid(),'{community}','{account}',gen_random_uuid(),'{account}','Synthetic topology acceptance');
+          VALUES (gen_random_uuid(),'{community}','{account}',gen_random_uuid(),'{account}','{basis}');
         INSERT INTO platform_provisioning.register_availability
           (community_id,community_active,register_enabled,electricity_enabled) VALUES ('{community}',true,true,true);
         INSERT INTO platform_provisioning.register_operator
-          (community_id,account_id,subject_id,linked,can_read,can_read_electricity,topology_publication_basis)
-          VALUES ('{community}','{account}','{subject}',true,true,true,NULL);
+          (community_id,account_id,subject_id,linked,can_read,can_read_electricity,can_recognize_electricity,{grant_column})
+          VALUES ('{community}','{account}','{subject}',true,true,true,{str(manual).lower()},NULL);
         COMMIT;
     """)
     commands = ['BEGIN;']
@@ -71,7 +75,7 @@ def main():
             f"INSERT INTO community_register.plot VALUES ('{community}','{plot}','Plot {index}');",
             f"INSERT INTO community_electricity.accounting_point (community_id,id,plot_id) VALUES ('{community}','{point}','{plot}');",
             f"INSERT INTO community_electricity.meter (community_id,id,designation) VALUES ('{community}','{meter}','Meter {index}');",
-            f"INSERT INTO community_electricity.installation (community_id,id,point_id,meter_id,starts_on,admission_id,account_id,subject_id,basis) VALUES ('{community}',gen_random_uuid(),'{point}','{meter}','2026-01-01',gen_random_uuid(),'{account}','{subject}','Synthetic fixture');",
+            f"INSERT INTO community_electricity.installation (community_id,id,point_id,meter_id,starts_on,admission_id,account_id,subject_id,basis,reading_multiplier) VALUES ('{community}',gen_random_uuid(),'{point}','{meter}','2026-01-01',gen_random_uuid(),'{account}','{subject}','Synthetic fixture',{40 if manual else 1});",
         ])
     sql(register, '\n'.join(commands + ['COMMIT;']))
     prefix = 'communityos-test-stand-topology-' + secrets.token_hex(4)
@@ -83,7 +87,7 @@ def main():
         'HostConfig': {'NetworkMode': template['HostConfig']['NetworkMode']},
     })
     try:
-        sql(platform, f"UPDATE platform_provisioning.register_operator SET topology_publication_basis='Synthetic topology acceptance' WHERE community_id='{community}' AND account_id='{account}';")
+        sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         archive = docker.call('GET', f'/containers/{args.template_container}/archive?path=/run/stand/https.pfx')
         docker.call('PUT', f'/containers/{name}/archive?path=/run/stand', archive, headers={'Content-Type': 'application/x-tar'})
         docker.call('POST', f'/containers/{name}/start')
@@ -92,7 +96,8 @@ def main():
         with stand.PrivateRelay(5543, docker) as relay:
             threading.Thread(target=relay.serve_forever, daemon=True).start()
             try:
-                child = subprocess.Popen([args.node, str(Path(__file__).with_suffix('.cjs'))],
+                script = Path(__file__).with_name('check_electricity_manual_readings.cjs') if manual else Path(__file__).with_suffix('.cjs')
+                child = subprocess.Popen([args.node, str(script)],
                     env=dict(os.environ, STAND_PROBE_COOKIE=secret.hex(), STAND_COMMUNITY=community,
                              STAND_HELP_SCREENSHOT=str(args.screenshot)),
                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, encoding='utf-8')
@@ -109,7 +114,7 @@ def main():
                         if message is None:
                             break
                         if message == 'REVOKE' and not revoked:
-                            sql(platform, f"UPDATE platform_provisioning.register_operator SET topology_publication_basis=NULL WHERE community_id='{community}' AND account_id='{account}';")
+                            sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}=NULL WHERE community_id='{community}' AND account_id='{account}';")
                             revoked = True
                             child.stdin.write('REVOKED\n')
                             child.stdin.flush()
@@ -118,13 +123,28 @@ def main():
                         else:
                             raise RuntimeError('Unexpected browser probe output')
                     if child.wait(timeout=10) != 0 or not revoked:
-                        raise RuntimeError('Browser publication acceptance failed')
+                        raise RuntimeError('Browser electricity acceptance failed')
                 finally:
                     if child.poll() is None:
                         child.kill()
                         child.wait()
             finally:
                 relay.shutdown()
+        if manual:
+            rows = sql(register, f"SELECT admission_id,installation_id,measured_on,channel FROM community_electricity.reading WHERE community_id='{community}' ORDER BY measured_on;").splitlines()
+            admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE community_id='{community}' AND action='recognize';")
+            if len(rows) != 3 or admissions != '6':
+                raise RuntimeError('Unexpected reading/admission count after denial')
+            for row in rows:
+                admission, installation, date, channel = row.split('|')
+                admission, installation = str(uuid.UUID(admission)), str(uuid.UUID(installation))
+                if date not in ('2026-01-01', '2026-01-02', '2026-01-03') or channel != 'total':
+                    raise RuntimeError('Unexpected recognized reading target')
+                linked = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE id='{admission}' AND community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND action='recognize' AND target_id='{installation}' AND effective_on='{date}' AND channel='total' AND basis='{basis}';")
+                if linked != '1':
+                    raise RuntimeError('Reading does not reference its Platform admission')
+            print('PASS: three readings linked to Platform admissions, six attempts, no admission after revocation')
+            return
         revisions = sql(register, f"SELECT count(*) FROM community_electricity.topology_revision WHERE community_id='{community}';")
         admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE community_id='{community}' AND action='publish-topology';")
         if (revisions, admissions) != ('1', '2'):
@@ -140,7 +160,7 @@ def main():
             sql(platform, f"DELETE FROM platform_provisioning.platform_session WHERE token_digest=decode('{digest}','hex');")
         finally:
             try:
-                sql(platform, f"UPDATE platform_provisioning.register_operator SET topology_publication_basis=NULL WHERE community_id='{community}' AND account_id='{account}';")
+                sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}=NULL WHERE community_id='{community}' AND account_id='{account}';")
             finally:
                 docker.call('POST', f'/containers/{name}/stop?t=5')
                 docker.call('DELETE', f'/containers/{name}?v=true')

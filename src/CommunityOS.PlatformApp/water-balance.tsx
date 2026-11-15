@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { csvText, downloadCsv } from './report-csv';
+import { WaterBalanceHelp } from './water-balance-help';
 
 type Point = { id: string; parentId: string | null; designation: string; volume: number | null; missingStart: boolean; missingEnd: boolean; installationChanged?: boolean };
 type Branch = { id: string; childrenVolume: number | null; difference: number | null };
@@ -55,6 +56,7 @@ export function WaterBalance({ read }: { read: (path: string) => Promise<Balance
   }
   return <details>
     <summary>Звірка обсягів води</summary>
+    <WaterBalanceHelp />
     <form onSubmit={event => {
       event.preventDefault();
       clearCalculation();

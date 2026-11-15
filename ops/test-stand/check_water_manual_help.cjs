@@ -97,7 +97,9 @@ const assert = require('node:assert/strict');
           assert.equal(await area.getByText('Причина заміни · ' + installation.reason, { exact: true }).count(), 1);
         }
         if (community.canReplaceWater) {
-          await replacement.getByText('Заміна стосується чинного водоміра ' + point.meterDesignation + ', діє з ' + point.startsOn + '.', { exact: true }).waitFor();
+          const target = replacement.locator(':scope > p');
+          assert.equal(await target.count(), 1, 'One explicit replacement target');
+          assert.equal(await target.innerText(), 'Заміна стосується чинного водоміра ' + point.meterDesignation + ', діє з ' + point.startsOn + '.');
           assert.equal(await replacement.getByRole('button', { name: 'Зареєструвати заміну водоміра', exact: true }).count(), 1);
         }
         const seriesReply = await context.request.get(origin + '/community/water/' + process.env.STAND_COMMUNITY

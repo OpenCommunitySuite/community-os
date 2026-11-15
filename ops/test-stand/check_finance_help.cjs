@@ -52,7 +52,7 @@ const assert = require('node:assert/strict');
     await readHelp('cashAcceptance', 'Прийом готівки');
     await page.getByRole('button', { name: 'Завантажити платежі та зобов’язання', exact: true }).click();
     await readHelp('paymentAllocation', 'Первинний розподіл платежу');
-    const paymentPicker = page.getByLabel('Визнаний платіж', { exact: true });
+    const paymentPicker = page.getByLabel(/^Визнаний платіж/);
     const paymentId = await paymentPicker.locator('option').nth(1).getAttribute('value');
     assert.ok(paymentId, 'Synthetic recognized payment is required');
     await paymentPicker.selectOption(paymentId);

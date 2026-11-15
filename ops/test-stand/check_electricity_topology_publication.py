@@ -23,14 +23,18 @@ def main():
     parser.add_argument('--login', required=True)
     parser.add_argument('--node', required=True)
     parser.add_argument('--screenshot', type=Path, required=True)
-    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings'], default='topology')
+    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement'], default='topology')
     args = parser.parse_args()
     dual = args.scenario == 'dual-readings'
+    replacement = args.scenario == 'replacement'
     manual = args.scenario != 'topology'
     grant_column = 'electricity_recognition_basis' if manual else 'topology_publication_basis'
     basis = 'Synthetic manual reading acceptance' if manual else 'Synthetic topology acceptance'
     if dual:
         basis = 'Synthetic dual reading acceptance'
+    if replacement:
+        grant_column = 'electricity_replacement_basis'
+        basis = 'Synthetic replacement acceptance'
     if not re.fullmatch(r'communityos-test-stand:[a-zA-Z0-9_.-]+', args.image):
         parser.error('Use a synthetic stand image')
     if not args.template_container.startswith('communityos-test-stand-') or not re.fullmatch(r'[a-zA-Z0-9_-]+', args.login):
@@ -91,6 +95,8 @@ def main():
     })
     try:
         sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
+        if replacement:
+            sql(platform, f"UPDATE platform_provisioning.register_operator SET can_replace_electricity=true, electricity_recognition_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         archive = docker.call('GET', f'/containers/{args.template_container}/archive?path=/run/stand/https.pfx')
         docker.call('PUT', f'/containers/{name}/archive?path=/run/stand', archive, headers={'Content-Type': 'application/x-tar'})
         docker.call('POST', f'/containers/{name}/start')
@@ -102,6 +108,8 @@ def main():
                 script = Path(__file__).with_name('check_electricity_manual_readings.cjs') if manual else Path(__file__).with_suffix('.cjs')
                 if dual:
                     script = Path(__file__).with_name('check_electricity_dual_readings.cjs')
+                if replacement:
+                    script = Path(__file__).with_name('check_electricity_replacement.cjs')
                 child = subprocess.Popen([args.node, str(script)],
                     env=dict(os.environ, STAND_PROBE_COOKIE=secret.hex(), STAND_COMMUNITY=community,
                              STAND_HELP_SCREENSHOT=str(args.screenshot)),
@@ -139,17 +147,30 @@ def main():
             rows = sql(register, f"SELECT admission_id,installation_id,measured_on,channel FROM community_electricity.reading WHERE community_id='{community}' ORDER BY measured_on;").splitlines()
             admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE community_id='{community}' AND action='recognize';")
             expected_readings, expected_admissions = (6, '10') if dual else (3, '6')
+            if replacement:
+                expected_readings = 5
             if len(rows) != expected_readings or admissions != expected_admissions:
                 raise RuntimeError('Unexpected reading/admission count after denial')
             for row in rows:
                 admission, installation, date, channel = row.split('|')
                 admission, installation = str(uuid.UUID(admission)), str(uuid.UUID(installation))
-                if date not in ('2026-01-01', '2026-01-02', '2026-01-03') or channel not in (('day', 'night') if dual else ('total',)):
+                dates = ('2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04', '2026-01-05') if replacement else ('2026-01-01', '2026-01-02', '2026-01-03')
+                if date not in dates or channel not in (('day', 'night') if dual else ('total',)):
                     raise RuntimeError('Unexpected recognized reading target')
                 linked = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE id='{admission}' AND community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND action='recognize' AND target_id='{installation}' AND effective_on='{date}' AND channel='{channel}' AND basis='{basis}';")
                 if linked != '1':
                     raise RuntimeError('Reading does not reference its Platform admission')
             print(f'PASS: {expected_readings} readings linked to Platform admissions, {expected_admissions} attempts, no admission after revocation')
+            if replacement:
+                changes = sql(register, f"SELECT admission_id,old_installation_id,request_id FROM community_electricity.replacement WHERE community_id='{community}' AND effective_on='2026-01-04';").splitlines()
+                count = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE community_id='{community}' AND action='replace';")
+                if len(changes) != 1 or count != '4':
+                    raise RuntimeError('Unexpected replacement/admission count')
+                admission, old, request = (str(uuid.UUID(value)) for value in changes[0].split('|'))
+                linked = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE id='{admission}' AND community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND action='replace' AND target_id='{old}' AND request_id='{request}' AND effective_on='2026-01-04' AND basis='{basis}';")
+                if linked != '1':
+                    raise RuntimeError('Replacement does not reference its Platform admission')
+                print('PASS: one replacement linked to Platform admission, four attempts, no replacement after revocation')
             return
         revisions = sql(register, f"SELECT count(*) FROM community_electricity.topology_revision WHERE community_id='{community}';")
         admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE community_id='{community}' AND action='publish-topology';")
@@ -166,7 +187,8 @@ def main():
             sql(platform, f"DELETE FROM platform_provisioning.platform_session WHERE token_digest=decode('{digest}','hex');")
         finally:
             try:
-                sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}=NULL WHERE community_id='{community}' AND account_id='{account}';")
+                extra = ', electricity_recognition_basis=NULL' if replacement else ''
+                sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}=NULL{extra} WHERE community_id='{community}' AND account_id='{account}';")
             finally:
                 docker.call('POST', f'/containers/{name}/stop?t=5')
                 docker.call('DELETE', f'/containers/{name}?v=true')

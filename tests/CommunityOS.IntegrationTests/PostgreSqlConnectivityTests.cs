@@ -12,6 +12,110 @@ namespace CommunityOS.IntegrationTests;
 public class PostgreSqlConnectivityTests : IAsyncLifetime
 {
     [Fact]
+    public async Task Electricity_topology_preserves_three_roots_across_revisions_and_replacement()
+    {
+        var token = TestContext.Current.CancellationToken;
+        await using var source = NpgsqlDataSource.Create(_postgres.GetConnectionString());
+        foreach (var file in new[] { "001_manual_register.sql", "002_ownership_correction.sql",
+                     "009_electricity_readings.sql", "010_electricity_replacement.sql", "011_electricity_register_channels.sql",
+                     "012_common_electricity_points.sql", "013_meter_installation_details.sql",
+                     "014_electricity_metering_trees.sql" })
+        {
+            var sql = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, file), token);
+            await using var migration = source.CreateCommand(sql);
+            await migration.ExecuteNonQueryAsync(token);
+        }
+
+        var community = Guid.NewGuid();
+        var foreign = Guid.NewGuid();
+        var starts = new DateOnly(2026, 1, 1);
+        var movedOn = starts.AddDays(1);
+        var replacedOn = starts.AddDays(2);
+        var register = new ManualRegister(new PostgresRegisterStore(source));
+        var store = new PostgresElectricityStore(source);
+        ElectricityActor Actor() => new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Synthetic forest acceptance");
+        var stations = new[] { new TopologySubstation(Guid.NewGuid(), "Synthetic TP 1"),
+            new TopologySubstation(Guid.NewGuid(), "Synthetic TP 2") };
+        var roots = Enumerable.Range(0, 3).Select(index =>
+            new CommonElectricityPoint(Guid.NewGuid(), $"Root {index}", "Synthetic root boundary")).ToArray();
+        var streets = Enumerable.Range(0, 3).Select(index =>
+            new CommonElectricityPoint(Guid.NewGuid(), $"Street {index}", "Synthetic street boundary")).ToArray();
+        foreach (var point in roots.Concat(streets))
+            Assert.Equal(ElectricitySetupOutcome.Created,
+                await store.SetupCommonAsync(community, point, point.Designation, starts, Actor(), token, ManualElectricity.Total));
+        for (var index = 0; index < 3; index++)
+        {
+            await register.CreateAsync(community, null, $"Synthetic owner {index}", $"{index}", $"S-{index}", token);
+        }
+        var plots = (await store.ListPlotsAsync(community, token)).OrderBy(plot => plot.Number).ToArray();
+        Assert.Equal(3, plots.Length);
+        var leaves = new List<ElectricityInstallation>();
+        foreach (var plot in plots)
+        {
+            Assert.Equal(ElectricitySetupOutcome.Created,
+                await store.SetupAsync(community, plot.Id, $"Plot meter {plot.Number}", starts, Actor(), token));
+            leaves.Add(Assert.Single(await store.InstallationsAsync(community, plot.Id, token)));
+        }
+        var forest = Enumerable.Range(0, 3).SelectMany(index => new[]
+        {
+            new TopologyPlacement(roots[index].Id, 0, null, stations[index == 2 ? 1 : 0].Id),
+            new TopologyPlacement(streets[index].Id, 1, roots[index].Id, null),
+            new TopologyPlacement(leaves[index].PointId, 2, streets[index].Id, null)
+        }).ToArray();
+        void AssertForest(ElectricityTopology topology, DateOnly expectedDate, TopologyPlacement[] expected)
+        {
+            Assert.Equal(expectedDate, topology.StartsOn);
+            Assert.Equal(9, topology.Points.Count);
+            foreach (var placement in expected)
+            {
+                var point = Assert.Single(topology.Points, point => point.Id == placement.PointId);
+                Assert.Equal((placement.Depth, placement.ParentPointId, placement.SubstationId),
+                    (point.Depth, point.ParentPointId, point.SubstationId));
+                if (placement.Depth == 0)
+                    Assert.Equal(stations.Single(station => station.Id == placement.SubstationId).Designation,
+                        point.SubstationDesignation);
+            }
+            for (var index = 0; index < 3; index++)
+                Assert.Equal(plots[index].Id, topology.Points.Single(point => point.Id == leaves[index].PointId).PlotId);
+        }
+
+        Assert.Null(await store.TopologyOnAsync(community, starts.AddDays(-1), token));
+        Assert.Equal(TopologyPublicationOutcome.InvalidTree,
+            await store.PublishTopologyAsync(foreign, starts, stations, forest, Actor(), token));
+        Assert.Null(await store.TopologyOnAsync(foreign, starts, token));
+        Assert.Equal(TopologyPublicationOutcome.Published,
+            await store.PublishTopologyAsync(community, starts, stations, forest, Actor(), token));
+        AssertForest((await store.TopologyOnAsync(community, starts, token))!, starts, forest);
+
+        // Keep the shape valid but swap an individual and common point: the database must reject their roles.
+        var invalid = forest.Select(point => point.PointId == streets[0].Id ? point with { PointId = leaves[0].PointId }
+            : point.PointId == leaves[0].PointId ? point with { PointId = streets[0].Id, ParentPointId = leaves[0].PointId }
+            : point).ToArray();
+        Assert.Equal(TopologyPublicationOutcome.InvalidTree,
+            await store.PublishTopologyAsync(community, movedOn, stations, invalid, Actor(), token));
+        AssertForest((await store.TopologyOnAsync(community, movedOn, token))!, starts, forest);
+        var moved = forest.Select(point => point.PointId == streets[0].Id
+            ? point with { ParentPointId = roots[2].Id } : point).ToArray();
+        Assert.Equal(TopologyPublicationOutcome.Published,
+            await store.PublishTopologyAsync(community, movedOn, stations, moved, Actor(), token));
+        AssertForest((await store.TopologyOnAsync(community, movedOn, token))!, movedOn, moved);
+        AssertForest((await store.TopologyOnAsync(community, starts, token))!, starts, forest);
+
+        var replacement = await store.ReplaceAsync(community,
+            new(Guid.NewGuid(), leaves[0].Id, replacedOn, "Synthetic replacement", "Forest acceptance"),
+            replacedOn, Actor(), token);
+        Assert.Equal(ElectricityReplacementOutcome.Replaced, replacement.Outcome);
+        var installations = await store.InstallationsAsync(community, plots[0].Id, token);
+        Assert.Equal(2, installations.Count);
+        Assert.Equal(replacement.InstallationId, installations[0].Id);
+        Assert.All(installations, installation => Assert.Equal(leaves[0].PointId, installation.PointId));
+        Assert.Equal(replacedOn, installations[1].EndsBefore);
+        AssertForest((await store.TopologyOnAsync(community, replacedOn, token))!, movedOn, moved);
+        AssertForest((await store.TopologyOnAsync(community, starts, token))!, starts, forest);
+        Assert.Null(await store.TopologyOnAsync(foreign, replacedOn, token));
+    }
+
+    [Fact]
     public async Task Billing_posts_an_immutable_period_once_and_rejects_stale_inputs()
     {
         var token = TestContext.Current.CancellationToken;

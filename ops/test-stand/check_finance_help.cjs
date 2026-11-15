@@ -57,6 +57,8 @@ const assert = require('node:assert/strict');
     assert.ok(paymentId, 'Synthetic recognized payment is required');
     await paymentPicker.selectOption(paymentId);
     await page.getByText(/^Нерозподілений залишок /).waitFor();
+    await readHelp('paymentCorrection', 'Виправлення суми платежу');
+    await readHelp('reallocation', 'Перерозподіл платежу');
     await page.getByText('Кошториси', { exact: true }).click();
     const budgetHelp = page.getByText('Довідка: Кошториси: план і факт', { exact: true });
     await budgetHelp.click();
@@ -76,6 +78,7 @@ const assert = require('node:assert/strict');
     for (const title of ['Розрахунок і проведення періоду', 'Пошук проведених періодів', 'Поточна звірка періоду',
       'Перерахунок електроенергії', 'Разове цільове нарахування',
       'Ручна реєстрація платежу', 'Прийом готівки', 'Первинний розподіл платежу',
+      'Виправлення суми платежу', 'Перерозподіл платежу',
       'Кошториси: план і факт', 'Визнання витрати', 'Розподіл витрати за статтями']) {
       await dialog.getByRole('link', { name: title, exact: true }).click();
       await dialog.getByRole('heading', { name: title, exact: true }).waitFor();
@@ -103,6 +106,6 @@ const assert = require('node:assert/strict');
     await page.locator('select').first().selectOption('');
     assert.equal(await guideButton.count(), 0, 'Guide closes with community workspace');
     assert.deepEqual(errors, []);
-    console.log('PASS: 11 context topics, shared guide, period history and date error, current reconciliation, one-off accounts/history, recognized payment/remainder, navigation, Escape/focus, close, narrow viewport, workspace isolation, no writes');
+    console.log('PASS: 13 context topics, shared guide, period history and date error, current reconciliation, one-off accounts/history, recognized payment/remainder, navigation, Escape/focus, close, narrow viewport, workspace isolation, no writes');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error.message); process.exitCode = 1; });

@@ -1,4 +1,4 @@
-import { createContext, useContext, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useRef, useState, type ReactNode } from 'react';
 
 // Context help and the guide deliberately render the same content.
 const topics = {
@@ -328,6 +328,19 @@ const topics = {
 } as const;
 
 type Topic = keyof typeof topics;
+type GuideAudience = 'all' | 'reader' | 'operator';
+const guidePaths: Record<GuideAudience, { label: string; topics: readonly Topic[] }> = {
+  all: { label: 'Усі сценарії', topics: Object.keys(topics) as Topic[] },
+  reader: { label: 'Перегляд і звірка — читач фінансів', topics: [
+    'periods', 'reconciliation', 'accountStatement', 'debts', 'accrualSummary',
+    'paymentSummary', 'settlement', 'waterPreview', 'budgets',
+  ] },
+  operator: { label: 'Виконання операцій — уповноважений оператор', topics: [
+    'billing', 'recalculation', 'oneOff', 'manualPayment', 'cashAcceptance',
+    'paymentAllocation', 'paymentCorrection', 'reallocation', 'overpayment', 'memberAdvance',
+    'bankImport', 'bankRecognition', 'budgets', 'expenses', 'distribution',
+  ] },
+};
 const OpenGuide = createContext<(() => void) | undefined>(undefined);
 
 function HelpContent({ topic }: { topic: Topic }) {
@@ -353,6 +366,7 @@ export function FinanceContextHelp({ topic }: { topic: Topic }) {
 
 export function FinanceHelp({ children }: { children: ReactNode }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const [audience, setAudience] = useState<GuideAudience>('all');
   const open = () => dialog.current?.showModal();
   return <OpenGuide.Provider value={open}>
     <p><button type="button" onClick={open}>Посібник: фінансові сценарії</button></p>
@@ -362,8 +376,14 @@ export function FinanceHelp({ children }: { children: ReactNode }) {
       <form method="dialog"><button autoFocus>Закрити посібник</button></form>
       <h2 id="finance-guide-title">Посібник бухгалтера: фінансові сценарії</h2>
       <p>Для читачів фінансів і уповноважених операторів. Оберіть розділ відповідно до своєї дії. Довідка не надає дозволів на виконання операцій.</p>
+      <label>Сценарії за завданням <select value={audience}
+        style={{ maxWidth: '100%' }} onChange={event => setAudience(event.target.value as GuideAudience)}>
+        {(Object.keys(guidePaths) as GuideAudience[]).map(key =>
+          <option key={key} value={key}>{guidePaths[key].label}</option>)}
+      </select></label>
+      <p>Оберіть маршрут за своєю задачею. Усі розділи залишаються нижче; для виконання операції потрібні дозволи, описані в її умовах.</p>
       <nav aria-label="Розділи посібника"><ul>
-        {(Object.keys(topics) as Topic[]).map(topic => <li key={topic}>
+        {guidePaths[audience].topics.map(topic => <li key={topic}>
           <a href={'#finance-guide-' + topic}>{topics[topic].title}</a>
         </li>)}
       </ul></nav>

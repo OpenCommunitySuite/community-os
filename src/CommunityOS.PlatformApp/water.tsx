@@ -3,6 +3,7 @@ import { WaterTopology } from './water-topology';
 import { WaterBalance } from './water-balance';
 import { ReadingImport } from './reading-import';
 import { WaterVerification } from './water-verification';
+import { WaterManualHelp } from './water-manual-help';
 
 type Point = { id: string; plotId: string | null; designation: string; boundary: string | null;
   installationId: string; meterDesignation: string; startsOn: string };
@@ -96,6 +97,7 @@ export function Water({ community, canSetup, canRecognize, canReplace, canVerify
 
   return <section aria-labelledby="water-heading">
     <h2 id="water-heading">Облік технічної води</h2>
+    <WaterManualHelp />
     <WaterTopology points={points} canSetup={canSetup} read={read} post={post} />
     <WaterBalance read={read} />
     <WaterVerification canVerify={canVerify} read={read} post={post} />

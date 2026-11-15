@@ -25,7 +25,7 @@ def main():
     parser.add_argument('--expect-read-only', action='store_true')
     parser.add_argument('--permission-profiles', action='store_true',
                         help='Rehearse help with browser-only permission flag overrides; never change grants')
-    parser.add_argument('--scenario', choices=['finance', 'electricity-installation'], default='finance')
+    parser.add_argument('--scenario', choices=['finance', 'electricity-installation', 'water-manual'], default='finance')
     parser.add_argument('--topology-editor-ui', action='store_true',
                         help='Override only the topology editor browser flag; never change grants')
     args = parser.parse_args()
@@ -75,7 +75,11 @@ def main():
         with stand.PrivateRelay(5543, docker) as relay:
             threading.Thread(target=relay.serve_forever, daemon=True).start()
             try:
-                script = Path(__file__).with_name('check_electricity_installation_help.cjs') if args.scenario == 'electricity-installation' else Path(__file__).with_suffix('.cjs')
+                script = Path(__file__).with_name({
+                    'finance': 'check_finance_help.cjs',
+                    'electricity-installation': 'check_electricity_installation_help.cjs',
+                    'water-manual': 'check_water_manual_help.cjs',
+                }[args.scenario])
                 subprocess.run([args.node, str(script)], check=True,
                                env=dict(os.environ, STAND_PROBE_COOKIE=secret.hex(),
                                         STAND_COMMUNITY=args.community, STAND_HELP_SCREENSHOT=str(args.screenshot),

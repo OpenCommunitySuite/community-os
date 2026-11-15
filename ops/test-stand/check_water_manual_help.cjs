@@ -14,7 +14,15 @@ const assert = require('node:assert/strict');
       if (route.request().method() === 'POST' && url.origin === origin && url.pathname === previewPath) {
         previews++; await route.continue();
       } else if (route.request().method() !== 'GET') { writes++; await route.abort('blockedbyclient'); }
-      else await route.continue();
+      else if (process.env.STAND_WATER_REPLACEMENT_UI === '1' && url.pathname === '/community/register/communities') {
+        const response = await route.fetch();
+        assert.equal(response.status(), 200);
+        const communities = await response.json();
+        const selected = communities.find(item => item.id === process.env.STAND_COMMUNITY);
+        assert.ok(selected?.canReadWater);
+        selected.canReplaceWater = true;
+        await route.fulfill({ response, json: communities });
+      } else await route.continue();
     });
     await context.addCookies([{ name: '__Host-communityos-platform', value: process.env.STAND_PROBE_COOKIE,
       url: origin, secure: true, httpOnly: true }]);
@@ -48,10 +56,25 @@ const assert = require('node:assert/strict');
     await page.keyboard.press('Escape');
     await dialog.waitFor({ state: 'hidden' });
     assert.equal(await opener.evaluate(element => element === document.activeElement), true);
+    const replacementSummary = page.getByText('Довідка: Заміна водоміра', { exact: true });
+    await replacementSummary.click();
+    const replacementText = await replacementSummary.locator('..').locator('p, li').allTextContents();
+    const replacementOpener = replacementSummary.locator('..').getByRole('button', { name: 'Посібник: заміна водоміра', exact: true });
+    const replacementDialog = page.getByRole('dialog', { name: 'Заміна водоміра', exact: true });
+    await replacementOpener.click();
+    await replacementDialog.waitFor();
+    assert.equal(await replacementDialog.getAttribute('lang'), 'uk');
+    assert.deepEqual(await replacementDialog.locator('p, li').allTextContents(), replacementText);
+    await page.keyboard.press('Escape');
+    await replacementDialog.waitFor({ state: 'hidden' });
+    assert.equal(await replacementOpener.evaluate(element => element === document.activeElement), true);
     const area = page.getByRole('region', { name: 'Облік технічної води', exact: true });
     let readingCount = 0;
     let importSample;
     let intervalCount = 0;
+    let closedCount = 0;
+    let replacementCount = 0;
+    if (process.env.STAND_WATER_REPLACEMENT_UI === '1') assert.equal(community.canReplaceWater, true);
     for (const point of points) {
       const historyReply = page.waitForResponse(reply => reply.url().endsWith('/points/' + point.id + '/installations'));
       await area.getByLabel(/^Точка обліку води/).selectOption(point.installationId);
@@ -59,9 +82,24 @@ const assert = require('node:assert/strict');
       assert.equal(historyResponse.status(), 200);
       const history = await historyResponse.json();
       assert.ok(history.length > 0);
+      const replacement = area.getByText('Замінити водомір', { exact: true }).locator('..');
+      assert.equal(await area.getByText('Замінити водомір', { exact: true }).count(), community.canReplaceWater ? 1 : 0);
+      if (community.canReplaceWater) await replacement.locator('summary').first().click();
       for (const installation of history) {
         if (history.length > 1) await area.getByLabel(/^Історія водомірів/).selectOption(installation.id);
         await area.getByText(installation.id, { exact: true }).waitFor();
+        if (installation.endsBefore) {
+          closedCount++;
+          assert.ok((await area.getByLabel(/^Історія водомірів/).locator('option:checked').innerText()).includes(installation.endsBefore));
+        }
+        if (installation.reason) {
+          replacementCount++;
+          assert.equal(await area.getByText('Причина заміни · ' + installation.reason, { exact: true }).count(), 1);
+        }
+        if (community.canReplaceWater) {
+          await replacement.getByText('Заміна стосується чинного водоміра ' + point.meterDesignation + ', діє з ' + point.startsOn + '.', { exact: true }).waitFor();
+          assert.equal(await replacement.getByRole('button', { name: 'Зареєструвати заміну водоміра', exact: true }).count(), 1);
+        }
         const seriesReply = await context.request.get(origin + '/community/water/' + process.env.STAND_COMMUNITY
           + '/installations/' + installation.id + '/readings');
         assert.equal(seriesReply.status(), 200);
@@ -86,6 +124,17 @@ const assert = require('node:assert/strict');
       }
     }
     assert.ok(readingCount > 0 && intervalCount > 0, 'Existing synthetic readings and intervals required');
+    assert.ok(closedCount > 0 && replacementCount > 0, 'Existing synthetic replacement history required');
+    await replacementOpener.click();
+    await replacementDialog.waitFor();
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await replacementDialog.evaluate(element => element.scrollWidth <= element.clientWidth), true);
+    const replacementBox = await replacementDialog.boundingBox();
+    assert.ok(replacementBox && replacementBox.width <= 390 && replacementBox.height <= 844);
+    await page.screenshot({ path: process.env.STAND_HELP_SCREENSHOT + '.replacement.png' });
+    await replacementDialog.getByRole('button', { name: 'Закрити посібник заміни водоміра', exact: true }).click();
+    await replacementDialog.waitFor({ state: 'hidden' });
+    assert.equal(await replacementOpener.evaluate(element => element === document.activeElement), true);
     assert.ok(importSample, 'Existing recognized reading is required for the duplicate preview');
     const importArea = area.getByText('Імпорт показань води CSV', { exact: true }).locator('..');
     await importArea.locator('summary').first().click();
@@ -156,12 +205,15 @@ const assert = require('node:assert/strict');
     assert.equal(await opener.evaluate(element => element === document.activeElement), true);
     await page.locator('select').first().selectOption('');
     assert.equal(await summary.count(), 0);
+    assert.equal(await replacementSummary.count(), 0);
+    assert.equal(await replacementDialog.count(), 0);
     assert.equal(await importSummary.count(), 0);
     assert.equal(await importDialog.count(), 0);
     assert.equal(await dialog.count(), 0);
     assert.equal(writes, 0);
+    console.log('Water replacement UI: ' + (community.canReplaceWater ? 'current target checked across history' : 'form absent'));
     assert.deepEqual(errors, []);
     console.log('PASS: water shared help, ' + points.length + ' points, ' + readingCount + ' readings, '
-      + intervalCount + ' intervals, shared import guide and CSV preview, duplicate/date/fields/header/size rejection, recognition visibility, Escape/focus, 390px, community reset, no writes');
+      + intervalCount + ' intervals, shared import/replacement guides, replacement history and target, CSV preview, duplicate/date/fields/header/size rejection, recognition visibility, Escape/focus, 390px, community reset, no writes');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error.message); process.exitCode = 1; });

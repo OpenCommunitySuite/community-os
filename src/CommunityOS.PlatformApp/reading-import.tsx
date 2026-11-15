@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ElectricityImportHelp } from './electricity-import-help';
 
 type Row = { line: number; installationId: string | null; measuredOn: string | null;
   channel: string | null; value: string | null; outcome: string; readingId: string | null; meterDesignation: string | null };
@@ -74,6 +75,7 @@ export function ReadingImport({ endpoint, canApply, onApplied, water = false }: 
   const rows = report ?? preview?.rows;
   return <details>
     <summary>{water ? 'Імпорт показань води CSV' : 'Імпорт показань CSV'}</summary>
+    {!water && <ElectricityImportHelp />}
     <p>Заголовок файлу <code>{water ? 'installation_id,measured_on,value_m3' : 'installation_id,measured_on,channel,value_kwh'}</code>.</p>
     <label>Файл показань <input type="file" accept=".csv,text/csv" disabled={pending} onChange={event => {
       setFile(event.currentTarget.files?.[0]);

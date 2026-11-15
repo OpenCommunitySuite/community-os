@@ -1,6 +1,7 @@
 import type { Ref } from 'react';
 import { createPortal } from 'react-dom';
 import { money } from './billing';
+import { FinanceContextHelp } from './finance-help';
 
 type Debt = { id: string; account: string; payerId: string; kind: string; dueOn: string; outstanding: number };
 
@@ -37,6 +38,7 @@ export function AccountStatement({ community, today, debts, payerNames, account,
 
   return <details ref={detailsRef}>
     <summary>Виписка за особовим рахунком</summary>
+    <FinanceContextHelp topic="accountStatement" />
     <label>Особовий рахунок для виписки <select value={selected ? account : ''} onChange={event => setAccount(event.target.value)}>
       <option value="">Оберіть рахунок</option>
       {accounts.map(number => <option key={number} value={number}>{number}</option>)}

@@ -176,6 +176,7 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
       }} />}
     {desk && <details ref={debtDetails}>
       <summary>Реєстр заборгованості</summary>
+      <FinanceContextHelp topic="debts" />
       <p>Поточні залишки станом на {today} за датою Києва.</p>
       <label>Пошук за номером рахунку <input value={debtAccount} onChange={event => {
         setDebtAccount(event.target.value);

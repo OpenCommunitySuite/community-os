@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { money } from './billing';
 import { csvAmount, csvText, downloadCsv } from './report-csv';
+import { FinanceContextHelp } from './finance-help';
 
 type Receipt = { id: string; payerId: string; receivedOn: string; amount: number; available: number; reason: string;
   bankTransactionId: string | null; cashAcceptance: object | null };
@@ -48,6 +49,7 @@ export function PaymentSummary({ payments, payerNames, openPayment }: {
 
   return <details>
     <summary>Звіт про надходження</summary>
+    <FinanceContextHelp topic="paymentSummary" />
     <label>Дата отримання з <input type="date" value={from} onChange={event => setFrom(event.target.value)} /></label>{' '}
     <label>Дата отримання до <input type="date" value={through} onChange={event => setThrough(event.target.value)} /></label>{' '}
     <label>Платник для звіту <select value={payer} onChange={event => setPayer(event.target.value)}>

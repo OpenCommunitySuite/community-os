@@ -40,6 +40,9 @@ const assert = require('node:assert/strict');
     await readHelp('reconciliation', 'Поточна звірка періоду');
     await page.getByRole('button', { name: 'Завантажити поточну звірку', exact: true }).click();
     await page.getByRole('table', { name: 'Поточні залишки зобов’язань періоду', exact: true }).waitFor();
+    await page.getByText('Зведення нарахувань', { exact: true }).click();
+    await readHelp('accrualSummary', 'Зведення проведених нарахувань');
+    await page.getByRole('table', { name: 'Нарахування проведеного періоду', exact: true }).waitFor();
     await readHelp('recalculation', 'Перерахунок електроенергії');
     await readHelp('oneOff', 'Разове цільове нарахування');
     const oneOff = page.getByRole('region', { name: 'Разове цільове нарахування', exact: true });
@@ -57,6 +60,25 @@ const assert = require('node:assert/strict');
     assert.ok(paymentId, 'Synthetic recognized payment is required');
     await paymentPicker.selectOption(paymentId);
     await page.getByText(/^Нерозподілений залишок /).waitFor();
+    const receiptSummary = page.getByText('Звіт про надходження', { exact: true });
+    await receiptSummary.click();
+    await readHelp('paymentSummary', 'Звіт про визнані надходження');
+    const receipts = receiptSummary.locator('..');
+    await receipts.getByLabel('Дата отримання з', { exact: true }).fill('2030-01-01');
+    await receipts.getByLabel('Дата отримання до', { exact: true }).fill('2020-01-01');
+    await receipts.getByRole('alert').waitFor();
+    assert.equal(await receipts.getByRole('button', { name: 'Завантажити надходження CSV' }).count(), 0);
+    await receipts.getByLabel('Дата отримання з', { exact: true }).fill('1900-01-01');
+    await receipts.getByLabel('Дата отримання до', { exact: true }).fill('9999-12-31');
+    await receipts.getByLabel(/^Джерело надходжень/).selectOption('manual');
+    await receipts.getByRole('rowheader', { name: 'Ручна реєстрація', exact: true }).waitFor();
+    assert.equal(await receipts.getByRole('rowheader', { name: 'Банк', exact: true }).count(), 0);
+    await receipts.getByLabel(/^Джерело надходжень/).selectOption('');
+    await receipts.getByRole('table', { name: 'Платежі за вибраний період', exact: true })
+      .getByRole('button', { name: /^Відкрити платіж / }).first().click();
+    assert.equal(await paymentPicker.inputValue(), paymentId);
+    assert.equal(await receipts.getByLabel('Дата отримання з', { exact: true }).inputValue(), '1900-01-01');
+    assert.equal(await receipts.getByLabel('Дата отримання до', { exact: true }).inputValue(), '9999-12-31');
     await readHelp('paymentCorrection', 'Виправлення суми платежу');
     await readHelp('reallocation', 'Перерозподіл платежу');
     await readHelp('memberAdvance', 'Аванс на членські внески');
@@ -117,6 +139,7 @@ const assert = require('node:assert/strict');
       'Визнання переплати', 'Аванс на членські внески',
       'Імпорт банківської виписки', 'Визнання банківського платежу',
       'Виписка та друк за рахунком', 'Пошук і звірка заборгованості',
+      'Зведення проведених нарахувань', 'Звіт про визнані надходження',
       'Кошториси: план і факт', 'Визнання витрати', 'Розподіл витрати за статтями']) {
       await dialog.getByRole('link', { name: title, exact: true }).click();
       await dialog.getByRole('heading', { name: title, exact: true }).waitFor();
@@ -147,6 +170,6 @@ const assert = require('node:assert/strict');
     await page.locator('select').first().selectOption('');
     assert.equal(await guideButton.count(), 0, 'Guide closes with community workspace');
     assert.deepEqual(errors, []);
-    console.log('PASS: 19 context topics, shared guide, debt/statement navigation and filter reset, print isolation, period history and date error, bank workspace, Escape/focus, narrow viewport, workspace isolation, no writes');
+    console.log('PASS: 21 context topics, shared guide, accrual/receipt summaries, receipt date error and source filter, payment navigation and retained dates, debt/statement navigation, print isolation, Escape/focus, narrow viewport, no writes');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error.message); process.exitCode = 1; });

@@ -4,6 +4,7 @@ import { WaterBalance } from './water-balance';
 import { ReadingImport } from './reading-import';
 import { WaterVerification } from './water-verification';
 import { WaterManualHelp } from './water-manual-help';
+import { WaterReplacementHelp } from './water-replacement-help';
 
 type Point = { id: string; plotId: string | null; designation: string; boundary: string | null;
   installationId: string; meterDesignation: string; startsOn: string };
@@ -98,6 +99,7 @@ export function Water({ community, canSetup, canRecognize, canReplace, canVerify
   return <section aria-labelledby="water-heading">
     <h2 id="water-heading">Облік технічної води</h2>
     <WaterManualHelp />
+    <WaterReplacementHelp />
     <WaterTopology points={points} canSetup={canSetup} read={read} post={post} />
     <WaterBalance read={read} />
     <WaterVerification canVerify={canVerify} read={read} post={post} />
@@ -149,8 +151,9 @@ export function Water({ community, canSetup, canRecognize, canReplace, canVerify
     {point && readingInstallation && <p>Ідентифікатор установки води · <code>{readingInstallation}</code></p>}
     {installations.find(item => item.id === readingInstallation)?.reason &&
       <p>Причина заміни · {installations.find(item => item.id === readingInstallation)?.reason}</p>}
-    {point && canReplace && <details key={selected}>
+    {point && canReplace && <details key={'water-replacement:' + selected}>
       <summary>Замінити водомір</summary>
+      <p>Заміна стосується чинного водоміра {point.meterDesignation}, діє з {point.startsOn}.</p>
       <form onSubmit={event => {
         event.preventDefault();
         const form = event.currentTarget;
@@ -172,7 +175,7 @@ export function Water({ community, canSetup, canRecognize, canReplace, canVerify
         <button disabled={pending}>Зареєструвати заміну водоміра</button>
       </form>
     </details>}
-    {point && readingInstallation && canRecognize && <form key={readingInstallation} onSubmit={event => {
+    {point && readingInstallation && canRecognize && <form key={'water-reading:' + readingInstallation} onSubmit={event => {
       event.preventDefault();
       const form = event.currentTarget;
       const data = new FormData(form);

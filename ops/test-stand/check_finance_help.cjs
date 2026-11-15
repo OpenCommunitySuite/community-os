@@ -16,24 +16,48 @@ const assert = require('node:assert/strict');
     let writes = 0;
     page.on('request', request => { if (request.method() !== 'GET') writes++; });
     await page.goto(origin + '/community/');
-    const guideButton = page.getByRole('button', { name: 'Посібник: кошториси та витрати', exact: true });
+    const guideButton = page.getByRole('button', { name: 'Посібник: фінансові сценарії', exact: true });
     assert.equal(await guideButton.count(), 0, 'No finance guide before community selection');
     await page.locator('select').first().selectOption(process.env.STAND_COMMUNITY);
     await guideButton.waitFor();
+    const newTopics = new Map();
+    async function readHelp(topic, title) {
+      const summary = page.getByText('Довідка: ' + title, { exact: true });
+      await summary.click();
+      newTopics.set(topic, await summary.locator('..').locator('p').allTextContents());
+    }
+    await readHelp('billing', 'Розрахунок і проведення періоду');
+    await page.getByText('Проведені періоди', { exact: true }).click();
+    await readHelp('periods', 'Пошук проведених періодів');
+    await page.getByRole('button', { name: 'Завантажити проведені періоди', exact: true }).click();
+    await page.getByRole('table', { name: 'Історія проведених періодів', exact: true }).waitFor();
+    await page.getByLabel('Споживання з', { exact: true }).fill('2030-01-01');
+    await page.getByLabel('Споживання до включно', { exact: true }).fill('2020-01-01');
+    await page.getByRole('alert').filter({ hasText: 'Початкова дата' }).waitFor();
+    await page.getByRole('button', { name: 'Скинути фільтр дат', exact: true }).click();
+    await page.getByRole('button', { name: /^Відкрити період / }).first().click();
+    await page.getByText('Звірка розрахункового періоду', { exact: true }).click();
+    await readHelp('reconciliation', 'Поточна звірка періоду');
+    await page.getByRole('button', { name: 'Завантажити поточну звірку', exact: true }).click();
+    await page.getByRole('table', { name: 'Поточні залишки зобов’язань періоду', exact: true }).waitFor();
     await page.getByText('Кошториси', { exact: true }).click();
     const budgetHelp = page.getByText('Довідка: Кошториси: план і факт', { exact: true });
     await budgetHelp.click();
     const help = budgetHelp.locator('..');
     await help.getByRole('heading', { name: 'Як виправити', exact: true }).waitFor();
     const helpParagraphs = await help.locator('p').allTextContents();
-    const contextOpener = help.getByRole('button', { name: 'Посібник: кошториси та витрати' });
+    const contextOpener = help.getByRole('button', { name: 'Посібник: фінансові сценарії' });
     await contextOpener.click();
     const dialog = page.getByRole('dialog');
     await dialog.waitFor();
     assert.equal(await dialog.getAttribute('lang'), 'uk');
     const guideBudget = dialog.locator('#finance-guide-budgets');
     assert.deepEqual(await guideBudget.locator('p').allTextContents(), helpParagraphs);
-    for (const title of ['Кошториси: план і факт', 'Визнання витрати', 'Розподіл витрати за статтями']) {
+    for (const [topic, paragraphs] of newTopics) {
+      assert.deepEqual(await dialog.locator('#finance-guide-' + topic).locator('p').allTextContents(), paragraphs);
+    }
+    for (const title of ['Розрахунок і проведення періоду', 'Пошук проведених періодів', 'Поточна звірка періоду',
+      'Кошториси: план і факт', 'Визнання витрати', 'Розподіл витрати за статтями']) {
       await dialog.getByRole('link', { name: title, exact: true }).click();
       await dialog.getByRole('heading', { name: title, exact: true }).waitFor();
     }
@@ -60,6 +84,6 @@ const assert = require('node:assert/strict');
     await page.locator('select').first().selectOption('');
     assert.equal(await guideButton.count(), 0, 'Guide closes with community workspace');
     assert.deepEqual(errors, []);
-    console.log('PASS: 3 context topics, shared guide, navigation, Escape/focus, close, narrow viewport, workspace isolation, no writes');
+    console.log('PASS: 6 context topics, shared guide, period history and date error, current reconciliation, navigation, Escape/focus, close, narrow viewport, workspace isolation, no writes');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error.message); process.exitCode = 1; });

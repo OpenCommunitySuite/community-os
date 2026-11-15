@@ -166,13 +166,13 @@ function Register() {
     {community?.canReadWater && <Water key={'water:' + community.id} community={community.id}
       canSetup={community.canSetupWater} canRecognize={community.canRecognizeWater} canReplace={community.canReplaceWater}
       canVerify={community.canVerifyWater} />}
-    {community?.canReadBilling && <Billing key={'billing:' + community.id} community={community.id}
-      openStatement={async account => {
-        if (paymentWorkspace.current) await paymentWorkspace.current.openStatement(account);
-      }}
-      canPost={community.canPostBilling} canRecalculate={community.canRecalculateBilling} />}
-    {community?.canReadBilling && <OneOff key={'one-off:' + community.id} community={community.id} canPost={community.canPostOneOff} />}
     {community?.canReadBilling && <FinanceHelp key={'finance-help:' + community.id}>
+      <Billing key={'billing:' + community.id} community={community.id}
+        openStatement={async account => {
+          if (paymentWorkspace.current) await paymentWorkspace.current.openStatement(account);
+        }}
+        canPost={community.canPostBilling} canRecalculate={community.canRecalculateBilling} />
+      <OneOff key={'one-off:' + community.id} community={community.id} canPost={community.canPostOneOff} />
       <Budgets key={'budgets:' + community.id} community={community.id}
         canRegister={community.canRegisterBudget} />
       <Expenses key={'expenses:' + community.id} community={community.id}

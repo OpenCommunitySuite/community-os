@@ -23,10 +23,11 @@ def main():
     parser.add_argument('--login', required=True)
     parser.add_argument('--node', required=True)
     parser.add_argument('--screenshot', type=Path, required=True)
-    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement'], default='topology')
+    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import'], default='topology')
     args = parser.parse_args()
     dual = args.scenario == 'dual-readings'
     replacement = args.scenario == 'replacement'
+    csv_import = args.scenario == 'csv-import'
     manual = args.scenario != 'topology'
     grant_column = 'electricity_recognition_basis' if manual else 'topology_publication_basis'
     basis = 'Synthetic manual reading acceptance' if manual else 'Synthetic topology acceptance'
@@ -35,6 +36,8 @@ def main():
     if replacement:
         grant_column = 'electricity_replacement_basis'
         basis = 'Synthetic replacement acceptance'
+    if csv_import:
+        basis = 'Synthetic CSV acceptance'
     if not re.fullmatch(r'communityos-test-stand:[a-zA-Z0-9_.-]+', args.image):
         parser.error('Use a synthetic stand image')
     if not args.template_container.startswith('communityos-test-stand-') or not re.fullmatch(r'[a-zA-Z0-9_-]+', args.login):
@@ -110,6 +113,8 @@ def main():
                     script = Path(__file__).with_name('check_electricity_dual_readings.cjs')
                 if replacement:
                     script = Path(__file__).with_name('check_electricity_replacement.cjs')
+                if csv_import:
+                    script = Path(__file__).with_name('check_electricity_csv_import.cjs')
                 child = subprocess.Popen([args.node, str(script)],
                     env=dict(os.environ, STAND_PROBE_COOKIE=secret.hex(), STAND_COMMUNITY=community,
                              STAND_HELP_SCREENSHOT=str(args.screenshot)),
@@ -149,6 +154,8 @@ def main():
             expected_readings, expected_admissions = (6, '10') if dual else (3, '6')
             if replacement:
                 expected_readings = 5
+            if csv_import:
+                expected_admissions = '14'
             if len(rows) != expected_readings or admissions != expected_admissions:
                 raise RuntimeError('Unexpected reading/admission count after denial')
             for row in rows:
@@ -161,6 +168,10 @@ def main():
                 if linked != '1':
                     raise RuntimeError('Reading does not reference its Platform admission')
             print(f'PASS: {expected_readings} readings linked to Platform admissions, {expected_admissions} attempts, no admission after revocation')
+            if csv_import:
+                imported = sql(register, f"SELECT count(*) FROM community_electricity.reading WHERE community_id='{community}' AND source='csv-import';")
+                if imported != '3':
+                    raise RuntimeError('Imported readings must preserve CSV provenance')
             if replacement:
                 changes = sql(register, f"SELECT admission_id,old_installation_id,request_id FROM community_electricity.replacement WHERE community_id='{community}' AND effective_on='2026-01-04';").splitlines()
                 count = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE community_id='{community}' AND action='replace';")

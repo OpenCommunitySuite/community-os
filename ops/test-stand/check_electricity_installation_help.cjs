@@ -64,6 +64,18 @@ const assert = require('node:assert/strict');
     await page.keyboard.press('Escape');
     await readingDialog.waitFor({ state: 'hidden' });
     assert.equal(await readingOpener.evaluate(element => element === document.activeElement), true);
+    const replacementSummary = page.getByText('Довідка: Заміна лічильника', { exact: true });
+    await replacementSummary.click();
+    const replacementText = await replacementSummary.locator('..').locator('p, li').allTextContents();
+    const replacementOpener = replacementSummary.locator('..').getByRole('button', { name: 'Посібник: заміна лічильника', exact: true });
+    const replacementDialog = page.getByRole('dialog', { name: 'Заміна лічильника електроенергії', exact: true });
+    await replacementOpener.click();
+    await replacementDialog.waitFor();
+    assert.equal(await replacementDialog.getAttribute('lang'), 'uk');
+    assert.deepEqual(await replacementDialog.locator('p, li').allTextContents(), replacementText);
+    await page.keyboard.press('Escape');
+    await replacementDialog.waitFor({ state: 'hidden' });
+    assert.equal(await replacementOpener.evaluate(element => element === document.activeElement), true);
     const area = page.getByRole('region', { name: 'Облік електроенергії', exact: true });
     const installationsReply = page.waitForResponse(response => response.url().endsWith('/plots/' + installed.id + '/installations'));
     await area.getByLabel(/^Точка або ділянка для обліку/).selectOption(installed.id);
@@ -71,6 +83,8 @@ const assert = require('node:assert/strict');
     assert.equal(historyResponse.status(), 200);
     const history = await historyResponse.json();
     assert.ok(history.length > 0);
+    assert.ok(history.some(item => item.endsBefore) && history.some(item => item.replacement),
+      'Existing synthetic replacement with old and new installations is required');
     const picker = area.getByLabel(/^Історія установок/);
     let importSample;
     for (const item of history) {
@@ -81,6 +95,17 @@ const assert = require('node:assert/strict');
         ['Місце встановлення', item.details.location], ['Дата монтажу', item.details.mountedOn],
         ['Серійний номер пломби', item.details.sealSerialNumber]]) {
         assert.equal(await details.getByText(label, { exact: true }).locator('xpath=following-sibling::dd[1]').innerText(), value ?? 'Не вказано');
+      }
+      const canReplace = communities.find(community => community.id === process.env.STAND_COMMUNITY).canReplaceElectricity;
+      assert.equal(await area.getByRole('button', { name: 'Зареєструвати заміну', exact: true }).count(),
+        canReplace && !item.endsBefore ? 1 : 0, 'Replacement form requires an active installation and permission');
+      if (item.endsBefore) {
+        await area.getByText('Установку закрито з ' + item.endsBefore + '. Кінцевого граничного показання немає.', { exact: true }).waitFor();
+      }
+      if (item.replacement) {
+        const notice = await area.getByText(/^Причина заміни ·/).innerText();
+        assert.ok(notice.includes(item.replacement.reason));
+        assert.ok(notice.includes('Початкового граничного показання немає.'));
       }
       const seriesReply = await context.request.get(origin + '/community/electricity/' + process.env.STAND_COMMUNITY
         + '/installations/' + item.id + '/readings');
@@ -160,6 +185,16 @@ const assert = require('node:assert/strict');
     await importDialog.getByRole('button', { name: 'Закрити посібник імпорту', exact: true }).click();
     await importDialog.waitFor({ state: 'hidden' });
     assert.equal(await importOpener.evaluate(element => element === document.activeElement), true);
+    await replacementOpener.click();
+    await replacementDialog.waitFor();
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await replacementDialog.evaluate(element => element.scrollWidth <= element.clientWidth), true);
+    const replacementBox = await replacementDialog.boundingBox();
+    assert.ok(replacementBox && replacementBox.width <= 390 && replacementBox.height <= 844);
+    await page.screenshot({ path: process.env.STAND_HELP_SCREENSHOT + '.replacement.png' });
+    await replacementDialog.getByRole('button', { name: 'Закрити посібник заміни', exact: true }).click();
+    await replacementDialog.waitFor({ state: 'hidden' });
+    assert.equal(await replacementOpener.evaluate(element => element === document.activeElement), true);
     await readingOpener.click();
     await readingDialog.waitFor();
     await page.setViewportSize({ width: 390, height: 844 });
@@ -188,11 +223,13 @@ const assert = require('node:assert/strict');
     assert.equal(await summary.count(), 0);
     assert.equal(await importSummary.count(), 0);
     assert.equal(await importDialog.count(), 0);
+    assert.equal(await replacementSummary.count(), 0);
+    assert.equal(await replacementDialog.count(), 0);
     assert.equal(await readingSummary.count(), 0);
     assert.equal(await readingDialog.count(), 0);
     assert.equal(await dialog.count(), 0, 'Guide unmounts with the community workspace');
     assert.equal(writes, 0, 'No mutation attempts');
     assert.deepEqual(errors, []);
-    console.log('PASS: electricity installation shared help, ' + history.length + ' existing installations, details and recognized readings, shared reading/import guides, duplicate and invalid CSV preview, header/size rejection, Escape/focus, 390px, community reset, no writes');
+    console.log('PASS: electricity installation shared help, ' + history.length + ' existing installations, details and recognized readings, shared reading/import/replacement guides, replacement history and permission, duplicate and invalid CSV preview, header/size rejection, Escape/focus, 390px, community reset, no writes');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error.message); process.exitCode = 1; });

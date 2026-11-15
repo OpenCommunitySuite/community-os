@@ -18,7 +18,11 @@ const assert = require('node:assert/strict');
     page.setDefaultTimeout(15000);
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
+    const communitiesReply = page.waitForResponse(response => new URL(response.url()).pathname === '/community/register/communities');
     await page.goto(origin + '/community/');
+    const communities = await (await communitiesReply).json();
+    assert.ok(communities.find(item => item.id === process.env.STAND_COMMUNITY)?.canReadElectricity,
+      'Choose an existing synthetic community and login with electricity read access');
     const summary = page.getByText('Довідка: Прилад та установка', { exact: true });
     assert.equal(await summary.count(), 0);
     const plotsReply = page.waitForResponse(response => response.url().endsWith('/electricity/' + process.env.STAND_COMMUNITY + '/plots'));
@@ -80,6 +84,6 @@ const assert = require('node:assert/strict');
     assert.equal(await dialog.count(), 0, 'Guide unmounts with the community workspace');
     assert.equal(writes, 0, 'No mutation attempts');
     assert.deepEqual(errors, []);
-    console.log('PASS: electricity installation shared help, existing installation history and details, Escape/focus, 390px, community reset, no writes');
+    console.log('PASS: electricity installation shared help, ' + history.length + ' existing installations and their details, Escape/focus, 390px, community reset, no writes');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error.message); process.exitCode = 1; });

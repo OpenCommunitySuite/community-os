@@ -23,12 +23,13 @@ def main():
     parser.add_argument('--login', required=True)
     parser.add_argument('--node', required=True)
     parser.add_argument('--screenshot', type=Path, required=True)
-    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'water-readings'], default='topology')
+    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'water-readings', 'water-replacement'], default='topology')
     args = parser.parse_args()
     dual = args.scenario == 'dual-readings'
     replacement = args.scenario == 'replacement'
     csv_import = args.scenario == 'csv-import'
-    water = args.scenario == 'water-readings'
+    water_replacement = args.scenario == 'water-replacement'
+    water = args.scenario in ('water-readings', 'water-replacement')
     manual = args.scenario != 'topology'
     grant_column = 'electricity_recognition_basis' if manual else 'topology_publication_basis'
     basis = 'Synthetic manual reading acceptance' if manual else 'Synthetic topology acceptance'
@@ -42,6 +43,9 @@ def main():
     if water:
         grant_column = 'water_recognition_basis'
         basis = 'Synthetic water reading acceptance'
+    if water_replacement:
+        grant_column = 'water_replacement_basis'
+        basis = 'Synthetic water replacement acceptance'
     if not re.fullmatch(r'communityos-test-stand:[a-zA-Z0-9_.-]+', args.image):
         parser.error('Use a synthetic stand image')
     if not args.template_container.startswith('communityos-test-stand-') or not re.fullmatch(r'[a-zA-Z0-9_-]+', args.login):
@@ -116,6 +120,8 @@ def main():
         sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         if replacement:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET can_replace_electricity=true, electricity_recognition_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
+        if water_replacement:
+            sql(platform, f"UPDATE platform_provisioning.register_operator SET water_recognition_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         archive = docker.call('GET', f'/containers/{args.template_container}/archive?path=/run/stand/https.pfx')
         docker.call('PUT', f'/containers/{name}/archive?path=/run/stand', archive, headers={'Content-Type': 'application/x-tar'})
         docker.call('POST', f'/containers/{name}/start')
@@ -133,6 +139,8 @@ def main():
                     script = Path(__file__).with_name('check_electricity_csv_import.cjs')
                 if water:
                     script = Path(__file__).with_name('check_water_readings.cjs')
+                if water_replacement:
+                    script = Path(__file__).with_name('check_water_replacement.cjs')
                 child = subprocess.Popen([args.node, str(script)],
                     env=dict(os.environ, STAND_PROBE_COOKIE=secret.hex(), STAND_COMMUNITY=community,
                              STAND_HELP_SCREENSHOT=str(args.screenshot)),
@@ -170,17 +178,28 @@ def main():
             rows = sql(register, f"SELECT admission_id,installation_id,measured_on FROM community_water.reading WHERE community_id='{community}' ORDER BY measured_on;").splitlines()
             admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE community_id='{community}' AND action='recognize';")
             attributed = sql(register, f"SELECT count(*) FROM community_water.reading WHERE community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND source='manual-observation' AND basis='{basis}';")
-            if len(rows) != 5 or admissions != '8' or attributed != '5':
+            if len(rows) != 5 or admissions != ('6' if water_replacement else '8') or attributed != '5':
                 raise RuntimeError('Unexpected water reading/admission count or attribution')
             for row in rows:
                 admission, installation, date = row.split('|')
                 admission, installation = str(uuid.UUID(admission)), str(uuid.UUID(installation))
-                if date not in ('2026-01-01', '2026-01-02', '2026-01-03'):
+                dates = ('2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04', '2026-01-05') if water_replacement else ('2026-01-01', '2026-01-02', '2026-01-03')
+                if date not in dates:
                     raise RuntimeError('Unexpected water reading date')
                 linked = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE id='{admission}' AND community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND action='recognize' AND target_id='{installation}' AND effective_on='{date}' AND basis='{basis}';")
                 if linked != '1':
                     raise RuntimeError('Water reading does not reference its Platform admission')
-            print('PASS: five water readings with original attribution linked to eight Platform admissions')
+            print(f'PASS: five water readings with original attribution linked to {admissions} Platform admissions')
+            if water_replacement:
+                changes = sql(register, f"SELECT admission_id,old_installation_id,request_id FROM community_water.replacement WHERE community_id='{community}' AND effective_on='2026-01-04';").splitlines()
+                count = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE community_id='{community}' AND action='replace';")
+                if len(changes) != 1 or count != '4':
+                    raise RuntimeError('Unexpected water replacement/admission count')
+                admission, old, request = (str(uuid.UUID(value)) for value in changes[0].split('|'))
+                linked = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE id='{admission}' AND community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND action='replace' AND target_id='{old}' AND request_id='{request}' AND effective_on='2026-01-04' AND basis='{basis}';")
+                if linked != '1':
+                    raise RuntimeError('Water replacement does not reference its Platform admission')
+                print('PASS: one water replacement linked to four Platform admissions, no replacement after revocation')
             return
         if manual:
             rows = sql(register, f"SELECT admission_id,installation_id,measured_on,channel FROM community_electricity.reading WHERE community_id='{community}' ORDER BY measured_on;").splitlines()
@@ -233,6 +252,8 @@ def main():
         finally:
             try:
                 extra = ', electricity_recognition_basis=NULL' if replacement else ''
+                if water_replacement:
+                    extra = ', water_recognition_basis=NULL'
                 sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}=NULL{extra} WHERE community_id='{community}' AND account_id='{account}';")
             finally:
                 docker.call('POST', f'/containers/{name}/stop?t=5')

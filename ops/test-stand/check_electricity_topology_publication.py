@@ -23,7 +23,7 @@ def main():
     parser.add_argument('--login', required=True)
     parser.add_argument('--node', required=True)
     parser.add_argument('--screenshot', type=Path, required=True)
-    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'water-readings', 'water-replacement', 'water-import', 'water-topology', 'water-balance'], default='topology')
+    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'water-readings', 'water-replacement', 'water-import', 'water-topology', 'water-balance', 'water-verification'], default='topology')
     args = parser.parse_args()
     dual = args.scenario == 'dual-readings'
     replacement = args.scenario == 'replacement'
@@ -32,7 +32,8 @@ def main():
     water_import = args.scenario == 'water-import'
     water_topology = args.scenario == 'water-topology'
     water_balance = args.scenario == 'water-balance'
-    water = args.scenario in ('water-readings', 'water-replacement', 'water-import', 'water-topology', 'water-balance')
+    water_verification = args.scenario == 'water-verification'
+    water = args.scenario.startswith('water-')
     manual = args.scenario != 'topology'
     grant_column = 'electricity_recognition_basis' if manual else 'topology_publication_basis'
     basis = 'Synthetic manual reading acceptance' if manual else 'Synthetic topology acceptance'
@@ -56,6 +57,9 @@ def main():
         basis = 'Synthetic water topology acceptance'
     if water_balance:
         basis = 'Synthetic water balance acceptance'
+    if water_verification:
+        grant_column = 'water_verification_basis'
+        basis = 'Synthetic water verification acceptance'
     if not re.fullmatch(r'communityos-test-stand:[a-zA-Z0-9_.-]+', args.image):
         parser.error('Use a synthetic stand image')
     if not args.template_container.startswith('communityos-test-stand-') or not re.fullmatch(r'[a-zA-Z0-9_-]+', args.login):
@@ -174,6 +178,8 @@ def main():
                     script = Path(__file__).with_name('check_water_topology_publication.cjs')
                 if water_balance:
                     script = Path(__file__).with_name('check_water_balance_acceptance.cjs')
+                if water_verification:
+                    script = Path(__file__).with_name('check_water_verification_acceptance.cjs')
                 child = subprocess.Popen([args.node, str(script)],
                     env=dict(os.environ, STAND_PROBE_COOKIE=secret.hex(), STAND_COMMUNITY=community,
                              STAND_HELP_SCREENSHOT=str(args.screenshot)),
@@ -208,6 +214,22 @@ def main():
                         child.wait()
             finally:
                 relay.shutdown()
+        if water_verification:
+            rows = sql(register, f"SELECT admission_id,meter_id,verified_on FROM community_water.meter_verification WHERE community_id='{community}';").splitlines()
+            admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE community_id='{community}' AND action='verify-meter';")
+            attributed = sql(register, f"SELECT count(*) FROM community_water.meter_verification WHERE community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND basis='{basis}';")
+            if len(rows) != 4 or admissions != '6' or attributed != '4':
+                raise RuntimeError('Unexpected verification/admission count or attribution')
+            from datetime import date
+            for row in rows:
+                admission, meter, verified = row.split('|')
+                admission, meter = str(uuid.UUID(admission)), str(uuid.UUID(meter))
+                verified = date.fromisoformat(verified).isoformat()
+                linked = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE id='{admission}' AND community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND action='verify-meter' AND target_id='{meter}' AND effective_on='{verified}' AND basis='{basis}';")
+                if linked != '1':
+                    raise RuntimeError('Verification does not reference its Platform admission')
+            print('PASS: four verifications linked to six Platform admissions, no verification after revocation')
+            return
         if water_balance:
             admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE community_id='{community}';")
             if admissions != '0' or balance_fingerprint() != fingerprint:

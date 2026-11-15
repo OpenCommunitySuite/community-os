@@ -23,7 +23,7 @@ def main():
     parser.add_argument('--login', required=True)
     parser.add_argument('--node', required=True)
     parser.add_argument('--screenshot', type=Path, required=True)
-    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'water-readings', 'water-replacement', 'water-import', 'water-topology'], default='topology')
+    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'water-readings', 'water-replacement', 'water-import', 'water-topology', 'water-balance'], default='topology')
     args = parser.parse_args()
     dual = args.scenario == 'dual-readings'
     replacement = args.scenario == 'replacement'
@@ -31,7 +31,8 @@ def main():
     water_replacement = args.scenario == 'water-replacement'
     water_import = args.scenario == 'water-import'
     water_topology = args.scenario == 'water-topology'
-    water = args.scenario in ('water-readings', 'water-replacement', 'water-import', 'water-topology')
+    water_balance = args.scenario == 'water-balance'
+    water = args.scenario in ('water-readings', 'water-replacement', 'water-import', 'water-topology', 'water-balance')
     manual = args.scenario != 'topology'
     grant_column = 'electricity_recognition_basis' if manual else 'topology_publication_basis'
     basis = 'Synthetic manual reading acceptance' if manual else 'Synthetic topology acceptance'
@@ -53,6 +54,8 @@ def main():
     if water_topology:
         grant_column = 'water_setup_basis'
         basis = 'Synthetic water topology acceptance'
+    if water_balance:
+        basis = 'Synthetic water balance acceptance'
     if not re.fullmatch(r'communityos-test-stand:[a-zA-Z0-9_.-]+', args.image):
         parser.error('Use a synthetic stand image')
     if not args.template_container.startswith('communityos-test-stand-') or not re.fullmatch(r'[a-zA-Z0-9_-]+', args.login):
@@ -93,7 +96,7 @@ def main():
         COMMIT;
     """)
     commands = ['BEGIN;']
-    if water_topology:
+    if water_topology or water_balance:
         for label in ('Root', 'Street'):
             point, meter = str(uuid.uuid4()), str(uuid.uuid4())
             commands.extend([
@@ -123,6 +126,14 @@ def main():
             f"INSERT INTO community_electricity.installation (community_id,id,point_id,meter_id,starts_on,admission_id,account_id,subject_id,basis,reading_multiplier) VALUES ('{community}',gen_random_uuid(),'{point}','{meter}','2026-01-01',gen_random_uuid(),'{account}','{subject}','Synthetic fixture',{40 if manual else 1});",
         ])
     sql(register, '\n'.join(commands + ['COMMIT;']))
+    def balance_fingerprint():
+        tables = ('reading', 'installation', 'replacement', 'topology_revision', 'topology_point')
+        parts = ' UNION ALL '.join(f"SELECT to_jsonb(t)::text AS value FROM community_water.{table} t WHERE community_id='{community}'" for table in tables)
+        return sql(register, f"SELECT md5(string_agg(value,'|' ORDER BY value)) FROM ({parts}) records;")
+    if water_balance:
+        from water_balance_fixture import seed
+        seed(lambda command: sql(register, command), community, account, subject)
+        fingerprint = balance_fingerprint()
     prefix = 'communityos-test-stand-topology-' + secrets.token_hex(4)
     name = prefix + '-web'
     secret = secrets.token_bytes(32)
@@ -132,7 +143,8 @@ def main():
         'HostConfig': {'NetworkMode': template['HostConfig']['NetworkMode']},
     })
     try:
-        sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
+        if not water_balance:
+            sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         if replacement:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET can_replace_electricity=true, electricity_recognition_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         if water_replacement:
@@ -160,6 +172,8 @@ def main():
                     script = Path(__file__).with_name('check_water_csv_import.cjs')
                 if water_topology:
                     script = Path(__file__).with_name('check_water_topology_publication.cjs')
+                if water_balance:
+                    script = Path(__file__).with_name('check_water_balance_acceptance.cjs')
                 child = subprocess.Popen([args.node, str(script)],
                     env=dict(os.environ, STAND_PROBE_COOKIE=secret.hex(), STAND_COMMUNITY=community,
                              STAND_HELP_SCREENSHOT=str(args.screenshot)),
@@ -177,7 +191,8 @@ def main():
                         if message is None:
                             break
                         if message == 'REVOKE' and not revoked:
-                            sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}=NULL WHERE community_id='{community}' AND account_id='{account}';")
+                            assignment = 'can_read_water=false' if water_balance else f'{grant_column}=NULL'
+                            sql(platform, f"UPDATE platform_provisioning.register_operator SET {assignment} WHERE community_id='{community}' AND account_id='{account}';")
                             revoked = True
                             child.stdin.write('REVOKED\n')
                             child.stdin.flush()
@@ -193,6 +208,12 @@ def main():
                         child.wait()
             finally:
                 relay.shutdown()
+        if water_balance:
+            admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE community_id='{community}';")
+            if admissions != '0' or balance_fingerprint() != fingerprint:
+                raise RuntimeError('Read-only balance probe changed resource data or created admissions')
+            print('PASS: balance fixture unchanged and no write admissions created')
+            return
         if water_topology:
             rows = sql(register, f"SELECT r.admission_id,r.starts_on,p.point_id FROM community_water.topology_revision r JOIN community_water.topology_point p USING (community_id,starts_on) WHERE r.community_id='{community}' AND p.parent_id IS NULL;").splitlines()
             admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE community_id='{community}' AND action='publish-topology';")
@@ -290,6 +311,8 @@ def main():
                 extra = ', electricity_recognition_basis=NULL' if replacement else ''
                 if water_replacement:
                     extra = ', water_recognition_basis=NULL'
+                if water_balance:
+                    extra = ', can_read_water=false'
                 sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}=NULL{extra} WHERE community_id='{community}' AND account_id='{account}';")
             finally:
                 docker.call('POST', f'/containers/{name}/stop?t=5')

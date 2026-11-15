@@ -48,6 +48,15 @@ const assert = require('node:assert/strict');
     const historyResponse = page.waitForResponse(response => response.url().endsWith('/one-off/history'));
     await oneOff.getByRole('button', { name: 'Історія разових нарахувань', exact: true }).click();
     assert.equal((await historyResponse).status(), 200, 'One-off history is available to reader');
+    await readHelp('manualPayment', 'Ручна реєстрація платежу');
+    await readHelp('cashAcceptance', 'Прийом готівки');
+    await page.getByRole('button', { name: 'Завантажити платежі та зобов’язання', exact: true }).click();
+    await readHelp('paymentAllocation', 'Первинний розподіл платежу');
+    const paymentPicker = page.getByLabel(/^Визнаний платіж/);
+    const paymentId = await paymentPicker.locator('option').nth(1).getAttribute('value');
+    assert.ok(paymentId, 'Synthetic recognized payment is required');
+    await paymentPicker.selectOption(paymentId);
+    await page.getByText(/^Нерозподілений залишок /).waitFor();
     await page.getByText('Кошториси', { exact: true }).click();
     const budgetHelp = page.getByText('Довідка: Кошториси: план і факт', { exact: true });
     await budgetHelp.click();
@@ -66,6 +75,7 @@ const assert = require('node:assert/strict');
     }
     for (const title of ['Розрахунок і проведення періоду', 'Пошук проведених періодів', 'Поточна звірка періоду',
       'Перерахунок електроенергії', 'Разове цільове нарахування',
+      'Ручна реєстрація платежу', 'Прийом готівки', 'Первинний розподіл платежу',
       'Кошториси: план і факт', 'Визнання витрати', 'Розподіл витрати за статтями']) {
       await dialog.getByRole('link', { name: title, exact: true }).click();
       await dialog.getByRole('heading', { name: title, exact: true }).waitFor();
@@ -93,6 +103,6 @@ const assert = require('node:assert/strict');
     await page.locator('select').first().selectOption('');
     assert.equal(await guideButton.count(), 0, 'Guide closes with community workspace');
     assert.deepEqual(errors, []);
-    console.log('PASS: 8 context topics, shared guide, period history and date error, current reconciliation, one-off accounts/history, navigation, Escape/focus, close, narrow viewport, workspace isolation, no writes');
+    console.log('PASS: 11 context topics, shared guide, period history and date error, current reconciliation, one-off accounts/history, recognized payment/remainder, navigation, Escape/focus, close, narrow viewport, workspace isolation, no writes');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error.message); process.exitCode = 1; });

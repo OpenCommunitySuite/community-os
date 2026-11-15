@@ -7,6 +7,7 @@ import { AdvanceForm } from './advance';
 import { PaymentSummary } from './payment-summary';
 import { AccountStatement, debtKinds } from './account-statement';
 import { csvAmount, csvText, downloadCsv } from './report-csv';
+import { FinanceContextHelp } from './finance-help';
 
 type Line = { obligationId: string; amount: number };
 type Allocation = { requestId: string; paymentId: string; reason: string; lines: Line[] };
@@ -149,6 +150,8 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
 
   return <section aria-labelledby="payments-heading">
     <h2 id="payments-heading">Платежі та розподіл</h2>
+    <FinanceContextHelp topic="manualPayment" />
+    <FinanceContextHelp topic="cashAcceptance" />
     <button disabled={busy} onClick={() => void run(refresh)}>Завантажити платежі та зобов’язання</button>
     {desk && <PaymentSummary payments={desk.payments} payerNames={payerNames} openPayment={id => {
       if (id !== selected) {
@@ -276,6 +279,7 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
         setMessage(receipt.cash ? 'Прийом готівки та платіж зареєстровано.' : 'Платіж зареєстровано.');
       })}>{receipt.cash ? 'Підтвердити прийом готівки' : 'Підтвердити реєстрацію платежу'}</button>
     </div>}
+    {desk && <FinanceContextHelp topic="paymentAllocation" />}
     {desk && <label>Визнаний платіж <select ref={paymentPicker} value={selected} disabled={busy} onChange={event => {
       setSelected(event.target.value); setDraft(undefined);
     }}><option value="">Оберіть платіж</option>

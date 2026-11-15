@@ -62,6 +62,32 @@ const assert = require('node:assert/strict');
     await readHelp('memberAdvance', 'Аванс на членські внески');
     await page.getByText('Залишки розрахунків', { exact: true }).click();
     await readHelp('overpayment', 'Визнання переплати');
+    const debtSummary = page.getByText('Реєстр заборгованості', { exact: true });
+    await debtSummary.click();
+    await readHelp('debts', 'Пошук і звірка заборгованості');
+    const debts = debtSummary.locator('..');
+    await debts.getByRole('table', { name: 'Реєстр непогашених зобов’язань', exact: true })
+      .getByRole('button', { name: /^Відкрити виписку за рахунком / }).first().click();
+    await readHelp('accountStatement', 'Виписка та друк за рахунком');
+    const statementAccount = await page.getByLabel(/^Особовий рахунок для виписки/).inputValue();
+    assert.ok(statementAccount, 'Statement opens for the selected debt account');
+    await page.emulateMedia({ media: 'print' });
+    assert.equal(await page.locator('#account-statement-print').isVisible(), true);
+    assert.equal(await page.locator('#root').isVisible(), false, 'Print excludes workspace and help');
+    assert.equal(await page.locator('#account-statement-print summary').count(), 0);
+    await page.emulateMedia({ media: 'screen' });
+    await debts.getByLabel(/^Вид нарахування/).selectOption('electricity');
+    await debts.getByLabel('Лише прострочені', { exact: true }).check();
+    await debts.getByLabel('Строк оплати з', { exact: true }).fill('2030-01-01');
+    await debts.getByLabel('Строк оплати до включно', { exact: true }).fill('2020-01-01');
+    await debts.getByRole('alert').waitFor();
+    await page.getByRole('button', { name: 'Відкрити заборгованість у реєстрі', exact: true }).click();
+    assert.equal(await debts.getByLabel('Пошук за номером рахунку', { exact: true }).inputValue(), statementAccount);
+    assert.equal(await debts.getByLabel(/^Вид нарахування/).inputValue(), '');
+    assert.equal(await debts.getByLabel('Лише прострочені', { exact: true }).isChecked(), false);
+    assert.equal(await debts.getByLabel('Строк оплати з', { exact: true }).inputValue(), '');
+    assert.equal(await debts.getByLabel('Строк оплати до включно', { exact: true }).inputValue(), '');
+    assert.equal(await paymentPicker.inputValue(), paymentId, 'Selected payment survives report navigation');
     await readHelp('bankImport', 'Імпорт банківської виписки');
     await page.getByRole('button', { name: 'Завантажити банківські рахунки й операції', exact: true }).click();
     await readHelp('bankRecognition', 'Визнання банківського платежу');
@@ -90,6 +116,7 @@ const assert = require('node:assert/strict');
       'Виправлення суми платежу', 'Перерозподіл платежу',
       'Визнання переплати', 'Аванс на членські внески',
       'Імпорт банківської виписки', 'Визнання банківського платежу',
+      'Виписка та друк за рахунком', 'Пошук і звірка заборгованості',
       'Кошториси: план і факт', 'Визнання витрати', 'Розподіл витрати за статтями']) {
       await dialog.getByRole('link', { name: title, exact: true }).click();
       await dialog.getByRole('heading', { name: title, exact: true }).waitFor();
@@ -120,6 +147,6 @@ const assert = require('node:assert/strict');
     await page.locator('select').first().selectOption('');
     assert.equal(await guideButton.count(), 0, 'Guide closes with community workspace');
     assert.deepEqual(errors, []);
-    console.log('PASS: 17 context topics, shared guide, period history and date error, current reconciliation, one-off accounts/history, recognized payment/remainder, bank workspace and disabled preview, navigation, Escape/focus, close, narrow viewport, workspace isolation, no writes');
+    console.log('PASS: 19 context topics, shared guide, debt/statement navigation and filter reset, print isolation, period history and date error, bank workspace, Escape/focus, narrow viewport, workspace isolation, no writes');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error.message); process.exitCode = 1; });

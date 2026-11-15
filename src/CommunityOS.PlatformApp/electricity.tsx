@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { MeteringTopology } from './metering-topology';
 import { ReadingImport } from './reading-import';
+import { ElectricityInstallationHelp } from './electricity-installation-help';
 
 type Channel = 'total' | 'day' | 'night';
 type Details = { model: string | null; serialNumber: string | null; location: string | null;
@@ -200,6 +201,7 @@ export function Electricity({ community, canSetup, canRecognize, canReplace, can
 
   return <section aria-labelledby="electricity-heading">
     <h2 id="electricity-heading">Облік електроенергії</h2>
+    <ElectricityInstallationHelp />
     <ReadingImport endpoint={endpoint} canApply={canRecognize} onApplied={() => loadSeries(installation)} />
     <MeteringTopology canPublish={canPublishTopology} commonPoints={commonPoints}
       individualPoints={plots.flatMap(plot => plot.installation ?

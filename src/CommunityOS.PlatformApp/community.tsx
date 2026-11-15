@@ -183,9 +183,9 @@ function Register() {
         canRecord={community.canRecordPayment} canAllocate={community.canAllocatePayment} canAcceptCash={community.canAcceptCash}
         canReallocate={community.canReallocatePayment} canCorrect={community.canCorrectPayment}
         canRecognizeOverpayment={community.canRecognizeOverpayment} canManageAdvance={community.canManageAdvance} />
+      <Bank key={'bank:' + community.id} community={community.id}
+        canImport={community.canImportBank} canRecognize={community.canRecognizeBank} />
     </FinanceHelp>}
-    {community?.canReadBilling && <Bank key={'bank:' + community.id} community={community.id}
-      canImport={community.canImportBank} canRecognize={community.canRecognizeBank} />}
   </>;
 }
 

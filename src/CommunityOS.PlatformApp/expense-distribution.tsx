@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { money } from './billing';
+import { FinanceContextHelp } from './finance-help';
 
 type Part = { budgetItemId: string; amount: number };
 type Preview = { amount: number; items: { id: string; budget: string; designation: string }[];
@@ -38,6 +39,7 @@ export function ExpenseDistribution({ endpoint, canAllocate }: { endpoint: strin
 
   return <details>
     <summary>Розподіл витрати</summary>
+    <FinanceContextHelp topic="distribution" />
     <button type="button" disabled={busy} onClick={() => void run(load)}>Оновити розподіл</button>
     {preview && <>
       <p>Нерозподілено: {money.format(remainder)}</p>

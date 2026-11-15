@@ -1,4 +1,4 @@
-"""Exercise isolated synthetic electricity writes through the UI and revoke their grant."""
+"""Exercise isolated synthetic resource writes through the UI and revoke their grant."""
 
 import argparse
 import hashlib
@@ -23,11 +23,12 @@ def main():
     parser.add_argument('--login', required=True)
     parser.add_argument('--node', required=True)
     parser.add_argument('--screenshot', type=Path, required=True)
-    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import'], default='topology')
+    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'water-readings'], default='topology')
     args = parser.parse_args()
     dual = args.scenario == 'dual-readings'
     replacement = args.scenario == 'replacement'
     csv_import = args.scenario == 'csv-import'
+    water = args.scenario == 'water-readings'
     manual = args.scenario != 'topology'
     grant_column = 'electricity_recognition_basis' if manual else 'topology_publication_basis'
     basis = 'Synthetic manual reading acceptance' if manual else 'Synthetic topology acceptance'
@@ -38,6 +39,9 @@ def main():
         basis = 'Synthetic replacement acceptance'
     if csv_import:
         basis = 'Synthetic CSV acceptance'
+    if water:
+        grant_column = 'water_recognition_basis'
+        basis = 'Synthetic water reading acceptance'
     if not re.fullmatch(r'communityos-test-stand:[a-zA-Z0-9_.-]+', args.image):
         parser.error('Use a synthetic stand image')
     if not args.template_container.startswith('communityos-test-stand-') or not re.fullmatch(r'[a-zA-Z0-9_-]+', args.login):
@@ -70,14 +74,26 @@ def main():
           (operation_id,community_id,creator_account_id,request_id,initial_administrator_account_id,display_name)
           VALUES (gen_random_uuid(),'{community}','{account}',gen_random_uuid(),'{account}','{basis}');
         INSERT INTO platform_provisioning.register_availability
-          (community_id,community_active,register_enabled,electricity_enabled) VALUES ('{community}',true,true,true);
+          (community_id,community_active,register_enabled,electricity_enabled,water_enabled)
+          VALUES ('{community}',true,true,{str(not water).lower()},{str(water).lower()});
         INSERT INTO platform_provisioning.register_operator
-          (community_id,account_id,subject_id,linked,can_read,can_read_electricity,can_recognize_electricity,{grant_column})
-          VALUES ('{community}','{account}','{subject}',true,true,true,{str(manual).lower()},NULL);
+          (community_id,account_id,subject_id,linked,can_read,can_read_electricity,can_recognize_electricity,can_read_water,{grant_column})
+          VALUES ('{community}','{account}','{subject}',true,true,{str(not water).lower()},{str(manual and not water).lower()},{str(water).lower()},NULL);
         COMMIT;
     """)
     commands = ['BEGIN;']
     for index in range(3):
+        if water:
+            if index == 2:
+                continue
+            plot, point, meter = (str(uuid.uuid4()) for _ in range(3))
+            commands.extend([
+                f"INSERT INTO community_register.plot VALUES ('{community}','{plot}','Plot {index}');",
+                f"INSERT INTO community_water.accounting_point (community_id,id,plot_id,designation) VALUES ('{community}','{point}','{plot}','Water {index}');",
+                f"INSERT INTO community_water.meter (community_id,id,designation) VALUES ('{community}','{meter}','Meter {index}');",
+                f"INSERT INTO community_water.installation (community_id,id,point_id,meter_id,starts_on,admission_id,account_id,subject_id,basis) VALUES ('{community}',gen_random_uuid(),'{point}','{meter}','2026-01-01',gen_random_uuid(),'{account}','{subject}','Synthetic fixture');",
+            ])
+            continue
         for label in (f'Root {index}', f'Street {index}'):
             commands.append(f"INSERT INTO community_electricity.accounting_point (community_id,id,common_designation,measurement_boundary) VALUES ('{community}',gen_random_uuid(),'{label}','Synthetic boundary');")
         plot, point, meter = (str(uuid.uuid4()) for _ in range(3))
@@ -115,6 +131,8 @@ def main():
                     script = Path(__file__).with_name('check_electricity_replacement.cjs')
                 if csv_import:
                     script = Path(__file__).with_name('check_electricity_csv_import.cjs')
+                if water:
+                    script = Path(__file__).with_name('check_water_readings.cjs')
                 child = subprocess.Popen([args.node, str(script)],
                     env=dict(os.environ, STAND_PROBE_COOKIE=secret.hex(), STAND_COMMUNITY=community,
                              STAND_HELP_SCREENSHOT=str(args.screenshot)),
@@ -148,6 +166,22 @@ def main():
                         child.wait()
             finally:
                 relay.shutdown()
+        if water:
+            rows = sql(register, f"SELECT admission_id,installation_id,measured_on FROM community_water.reading WHERE community_id='{community}' ORDER BY measured_on;").splitlines()
+            admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE community_id='{community}' AND action='recognize';")
+            attributed = sql(register, f"SELECT count(*) FROM community_water.reading WHERE community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND source='manual-observation' AND basis='{basis}';")
+            if len(rows) != 5 or admissions != '8' or attributed != '5':
+                raise RuntimeError('Unexpected water reading/admission count or attribution')
+            for row in rows:
+                admission, installation, date = row.split('|')
+                admission, installation = str(uuid.UUID(admission)), str(uuid.UUID(installation))
+                if date not in ('2026-01-01', '2026-01-02', '2026-01-03'):
+                    raise RuntimeError('Unexpected water reading date')
+                linked = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE id='{admission}' AND community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND action='recognize' AND target_id='{installation}' AND effective_on='{date}' AND basis='{basis}';")
+                if linked != '1':
+                    raise RuntimeError('Water reading does not reference its Platform admission')
+            print('PASS: five water readings with original attribution linked to eight Platform admissions')
+            return
         if manual:
             rows = sql(register, f"SELECT admission_id,installation_id,measured_on,channel FROM community_electricity.reading WHERE community_id='{community}' ORDER BY measured_on;").splitlines()
             admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE community_id='{community}' AND action='recognize';")

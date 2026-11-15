@@ -12,6 +12,7 @@ import { WaterChargePreview } from './water-charge-preview';
 import { OneOff } from './one-off';
 import { Payments, type PaymentWorkspace } from './payments';
 import { Bank } from './bank';
+import { FinanceHelp } from './finance-help';
 
 type Community = { id: string; name: string; canRead: boolean; canAdd: boolean; canPrepareImport: boolean;
   canApproveImport: boolean; canCorrectOwnership: boolean; canReadElectricity: boolean;
@@ -171,10 +172,12 @@ function Register() {
       }}
       canPost={community.canPostBilling} canRecalculate={community.canRecalculateBilling} />}
     {community?.canReadBilling && <OneOff key={'one-off:' + community.id} community={community.id} canPost={community.canPostOneOff} />}
-    {community?.canReadBilling && <Budgets key={'budgets:' + community.id} community={community.id}
-      canRegister={community.canRegisterBudget} />}
-    {community?.canReadBilling && <Expenses key={'expenses:' + community.id} community={community.id}
-      canRecognize={community.canRecognizeExpense} canAllocate={community.canAllocateExpense} />}
+    {community?.canReadBilling && <FinanceHelp key={'finance-help:' + community.id}>
+      <Budgets key={'budgets:' + community.id} community={community.id}
+        canRegister={community.canRegisterBudget} />
+      <Expenses key={'expenses:' + community.id} community={community.id}
+        canRecognize={community.canRecognizeExpense} canAllocate={community.canAllocateExpense} />
+    </FinanceHelp>}
     {community?.canReadBilling && <WaterChargePreview key={'water-charge:' + community.id} endpoint={'/community/billing/' + community.id} />}
     {community?.canReadBilling && <Payments ref={paymentWorkspace} key={'payments:' + community.id} community={community.id}
       communityName={community.name}

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { money } from './billing';
 import { ExpenseDistribution } from './expense-distribution';
+import { FinanceContextHelp } from './finance-help';
 
 type Expense = { id: string; incurredOn: string; purpose: string; amount: number; evidence: string };
 
@@ -27,6 +28,7 @@ export function Expenses({ community, canRecognize, canAllocate }: { community: 
 
   return <details>
     <summary>Витрати</summary>
+    <FinanceContextHelp topic="expenses" />
     <button type="button" disabled={busy} onClick={() => void run(load)}>Завантажити витрати</button>
     {canRecognize && <form onSubmit={event => {
       event.preventDefault();

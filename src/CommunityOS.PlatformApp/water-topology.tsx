@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { WaterTopologyHelp } from './water-topology-help';
 
 type Point = { id: string; designation: string; plotId: string | null };
 type Placement = { pointId: string; parentId: string | null };
@@ -118,6 +119,7 @@ export function WaterTopology({ points, canSetup, read, post }: {
 
   return <details>
     <summary>Дерево обліку води</summary>
+    <WaterTopologyHelp />
     <label>Дата дерева води <input type="date" value={date} onChange={event => {
       setDate(event.target.value);
       setResult(undefined);

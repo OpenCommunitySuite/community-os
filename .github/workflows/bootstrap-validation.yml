@@ -37,6 +37,9 @@ jobs:
       - name: Выполнить архитектурные и интеграционные тесты
         run: dotnet test CommunityOS.slnx --no-restore
 
+      - name: Проверить синтетическую сверку начального состояния
+        run: python3 -m unittest discover -s ops/test-stand -p 'test_opening_reconciliation.py'
+
       - name: Проверить Web API и health endpoints
         shell: bash
         run: |

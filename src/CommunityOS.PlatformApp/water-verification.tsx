@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { WaterVerificationHelp } from './water-verification-help';
 
 type Verification = { verifiedOn: string; dueOn: string; evidence: string; accountId: string; recordedAt: string };
 type Meter = { id: string; designation: string; point: string; active: boolean; history: Verification[] };
@@ -38,6 +39,7 @@ export function WaterVerification({ canVerify, read, post }: {
 
   return <details>
     <summary>Повірка водомірів</summary>
+    <WaterVerificationHelp />
     <button type="button" disabled={busy} onClick={() => void run(load)}>Завантажити строки повірки</button>
     {register && <>
       <label><input type="checkbox" checked={attentionOnly} onChange={event => setAttentionOnly(event.target.checked)} />

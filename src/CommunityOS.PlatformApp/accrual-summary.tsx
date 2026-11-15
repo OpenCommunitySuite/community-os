@@ -1,5 +1,6 @@
 import { money } from './billing';
 import { csvAmount, csvText, downloadCsv } from './report-csv';
+import { FinanceContextHelp } from './finance-help';
 
 type Electricity = { id: string; accountNumber: string; originalAmount: number; effectiveAmount: number };
 type Fee = { account: string; amount: number };
@@ -33,6 +34,7 @@ export function AccrualSummary({ electricity, fees, from, until }: {
 
   return <details>
     <summary>Зведення нарахувань</summary>
+    <FinanceContextHelp topic="accrualSummary" />
     <button type="button" onClick={download}>Завантажити зведення CSV</button>
     <table>
       <caption>Нарахування проведеного періоду</caption>

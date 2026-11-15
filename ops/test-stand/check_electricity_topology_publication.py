@@ -23,7 +23,7 @@ def main():
     parser.add_argument('--login', required=True)
     parser.add_argument('--node', required=True)
     parser.add_argument('--screenshot', type=Path, required=True)
-    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'water-readings', 'water-replacement', 'water-import', 'water-topology', 'water-balance', 'water-verification'], default='topology')
+    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'water-readings', 'water-replacement', 'water-import', 'water-topology', 'water-balance', 'water-verification', 'water-verification-history'], default='topology')
     args = parser.parse_args()
     dual = args.scenario == 'dual-readings'
     replacement = args.scenario == 'replacement'
@@ -32,7 +32,8 @@ def main():
     water_import = args.scenario == 'water-import'
     water_topology = args.scenario == 'water-topology'
     water_balance = args.scenario == 'water-balance'
-    water_verification = args.scenario == 'water-verification'
+    verification_history = args.scenario == 'water-verification-history'
+    water_verification = args.scenario in ('water-verification', 'water-verification-history')
     water = args.scenario.startswith('water-')
     manual = args.scenario != 'topology'
     grant_column = 'electricity_recognition_basis' if manual else 'topology_publication_basis'
@@ -153,6 +154,8 @@ def main():
             sql(platform, f"UPDATE platform_provisioning.register_operator SET can_replace_electricity=true, electricity_recognition_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         if water_replacement:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET water_recognition_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
+        if verification_history:
+            sql(platform, f"UPDATE platform_provisioning.register_operator SET water_replacement_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         archive = docker.call('GET', f'/containers/{args.template_container}/archive?path=/run/stand/https.pfx')
         docker.call('PUT', f'/containers/{name}/archive?path=/run/stand', archive, headers={'Content-Type': 'application/x-tar'})
         docker.call('POST', f'/containers/{name}/start')
@@ -182,7 +185,7 @@ def main():
                     script = Path(__file__).with_name('check_water_verification_acceptance.cjs')
                 child = subprocess.Popen([args.node, str(script)],
                     env=dict(os.environ, STAND_PROBE_COOKIE=secret.hex(), STAND_COMMUNITY=community,
-                             STAND_HELP_SCREENSHOT=str(args.screenshot)),
+                             STAND_HELP_SCREENSHOT=str(args.screenshot), STAND_VERIFICATION_HISTORY=str(verification_history).lower()),
                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, encoding='utf-8')
                 messages = queue.Queue()
                 def output():
@@ -229,6 +232,19 @@ def main():
                 if linked != '1':
                     raise RuntimeError('Verification does not reference its Platform admission')
             print('PASS: four verifications linked to six Platform admissions, no verification after revocation')
+            if verification_history:
+                changes = sql(register, f"SELECT admission_id,old_installation_id,request_id,effective_on FROM community_water.replacement WHERE community_id='{community}';").splitlines()
+                count = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE community_id='{community}' AND action='replace';")
+                if len(changes) != 1 or count != '1':
+                    raise RuntimeError('Unexpected verification history replacement count')
+                admission, old, request, effective = changes[0].split('|')
+                admission, old, request = (str(uuid.UUID(value)) for value in (admission, old, request))
+                effective = date.fromisoformat(effective).isoformat()
+                linked = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE id='{admission}' AND community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND action='replace' AND target_id='{old}' AND request_id='{request}' AND effective_on='{effective}' AND basis='{basis}';")
+                historical = sql(register, f"SELECT count(*) FROM community_water.meter_verification v JOIN community_water.installation i ON (i.community_id,i.meter_id)=(v.community_id,v.meter_id) WHERE v.community_id='{community}' AND i.id='{old}' AND i.ends_before='{effective}';")
+                if linked != '1' or historical != '4':
+                    raise RuntimeError('Replacement admission or removed meter verification history differs')
+                print('PASS: replacement linked to Platform admission and four verifications remain on removed meter')
             return
         if water_balance:
             admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE community_id='{community}';")
@@ -333,6 +349,8 @@ def main():
                 extra = ', electricity_recognition_basis=NULL' if replacement else ''
                 if water_replacement:
                     extra = ', water_recognition_basis=NULL'
+                if verification_history:
+                    extra = ', water_replacement_basis=NULL'
                 if water_balance:
                     extra = ', can_read_water=false'
                 sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}=NULL{extra} WHERE community_id='{community}' AND account_id='{account}';")

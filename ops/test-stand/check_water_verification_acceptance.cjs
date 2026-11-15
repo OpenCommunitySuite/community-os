@@ -104,11 +104,52 @@ const readline = require('node:readline');
     await attention.uncheck();
     await status(primary, 'Строк не настав');
     await status(other, 'Строк невідомий');
-    const final = await read();
+    let final = await read();
     const history = final.meters.find(meter => meter.id === primary.id).history;
     assert.deepEqual(history.map(row => [row.verifiedOn, row.dueOn]),
       [[day(0), day(31)], [day(-1), day(30)], [day(-2), day(0)], [day(-3), day(-1)]]);
     assert.deepEqual(final.meters.find(meter => meter.id === other.id).history, []);
+    if (process.env.STAND_VERIFICATION_HISTORY === 'true') {
+      const points = await page.evaluate(async path => (await fetch(path)).json(), base + '/points');
+      const point = points.find(item => item.meterDesignation === primary.designation);
+      assert.ok(point);
+      const series = page.waitForResponse(response => response.url().endsWith(`${base}/installations/${point.installationId}/readings`));
+      await page.locator('label').filter({ hasText: /^Точка обліку води/ }).locator('select').selectOption(point.installationId);
+      assert.equal((await series).status(), 200);
+      const replacement = page.locator('details').filter({ has: page.locator(':scope > summary', { hasText: /^Замінити водомір$/ }) });
+      await replacement.locator(':scope > summary').click();
+      for (const [name, value] of Object.entries({ meterDesignation: 'Synthetic verified replacement',
+        effectiveOn: initial.today, reason: 'Synthetic verification history acceptance' }))
+        await replacement.locator(`input[name="${name}"]`).fill(value);
+      const path = `${base}/installations/${point.installationId}/replace`;
+      writes.add(path);
+      const reply = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith(path));
+      await replacement.getByRole('button', { name: 'Зареєструвати заміну водоміра', exact: true }).click();
+      const response = await reply;
+      assert.equal(response.status(), 200);
+      assert.equal((await response.json()).outcome, 'Replaced');
+      await page.getByText('Заміну водоміра зареєстровано.', { exact: true }).waitFor();
+      final = await load();
+      const removed = final.meters.find(meter => meter.id === primary.id);
+      const current = final.meters.find(meter => meter.designation === 'Synthetic verified replacement');
+      assert.equal(final.meters.length, 3);
+      assert.equal(removed.active, false);
+      assert.deepEqual(removed.history, history, 'Replacement must preserve every verification field');
+      assert.equal(current.active, true);
+      assert.notEqual(current.id, primary.id);
+      assert.deepEqual(current.history, [], 'New meter must not inherit verification history');
+      assert.equal(await deadlines.locator('tbody tr').count(), 2);
+      assert.equal(await deadlines.getByRole('rowheader', { name: primary.designation, exact: true }).count(), 0);
+      await status(current, 'Строк невідомий');
+      await picker.selectOption(current.id);
+      assert.equal(await area.getByRole('table', { name: 'Історія повірок водоміра', exact: true }).count(), 0);
+      await picker.selectOption(primary.id);
+      const oldRows = area.getByRole('table', { name: 'Історія повірок водоміра', exact: true }).locator('tbody tr');
+      assert.equal(await oldRows.count(), 4);
+      for (let index = 0; index < history.length; index++)
+        assert.deepEqual((await oldRows.nth(index).locator('td').allTextContents()).slice(0, 4),
+          [history[index].verifiedOn, history[index].dueOn, history[index].evidence, history[index].accountId]);
+    }
     async function post(meter, payload, csrf) {
       return page.evaluate(async ({ path, payload, csrf }) => {
         const headers = { 'Content-Type': 'application/json' };
@@ -149,5 +190,7 @@ const readline = require('node:readline');
     await page.screenshot({ path: process.env.STAND_HELP_SCREENSHOT, fullPage: true });
     assert.deepEqual(errors, []);
     console.log('PASS: real verification registration, deadline boundaries, replay, conflict, validation, CSRF and revoked form');
+    if (process.env.STAND_VERIFICATION_HISTORY === 'true')
+      console.log('PASS: replacement preserves removed meter verification history without transferring deadlines to new meter');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

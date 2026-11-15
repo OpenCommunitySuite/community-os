@@ -212,6 +212,36 @@ const profiles = matrix ? [
       for (const [topic, paragraphs] of newTopics) {
         assert.deepEqual(await dialog.locator('#finance-guide-' + topic).locator('p').allTextContents(), paragraphs);
       }
+      const taskNavigation = dialog.getByRole('navigation', { name: 'Розділи посібника' });
+      const audience = dialog.getByLabel(/^Сценарії за завданням/);
+      assert.equal(await audience.inputValue(), 'all');
+      assert.equal(await taskNavigation.getByRole('link').count(), 23);
+      const paths = new Map();
+      for (const [profile, count, target] of [
+        ['reader', 9, 'Поточні залишки платника'],
+        ['operator', 15, 'Ручна реєстрація платежу'],
+      ]) {
+        await audience.selectOption(profile);
+        const links = taskNavigation.getByRole('link');
+        assert.equal(await links.count(), count, profile + ': task navigation size');
+        paths.set(profile, await links.evaluateAll(items => items.map(item => item.getAttribute('href'))));
+        await taskNavigation.getByRole('link', { name: target, exact: true }).click();
+        await dialog.getByRole('heading', { name: target, exact: true }).waitFor();
+        assert.equal(await dialog.locator('section').count(), 23, 'Task filter retains all guide content');
+      }
+      assert.equal(new Set([...paths.get('reader'), ...paths.get('operator')]).size, 23,
+        'Both task routes cover every topic');
+      for (const href of new Set([...paths.get('reader'), ...paths.get('operator')])) {
+        assert.equal(await dialog.locator(href).count(), 1, 'Each task link has one destination');
+      }
+      await page.keyboard.press('Escape');
+      await dialog.waitFor({ state: 'hidden' });
+      assert.equal(await contextOpener.evaluate(element => element === document.activeElement), true);
+      await contextOpener.click();
+      await dialog.waitFor();
+      assert.equal(await audience.inputValue(), 'operator', 'Task route survives reopening');
+      await audience.selectOption('all');
+      assert.equal(await taskNavigation.getByRole('link').count(), 23);
       for (const title of ['Розрахунок і проведення періоду', 'Пошук проведених періодів', 'Поточна звірка періоду',
         'Перерахунок електроенергії', 'Разове цільове нарахування',
         'Ручна реєстрація платежу', 'Прийом готівки', 'Первинний розподіл платежу',
@@ -260,14 +290,21 @@ const profiles = matrix ? [
         'CSV header fits without horizontal overflow');
       const box = await dialog.boundingBox();
       assert.ok(box && box.width <= 390 && box.height <= 844, 'Guide fits narrow viewport');
+      await audience.selectOption('reader');
+      await audience.scrollIntoViewIfNeeded();
       await page.screenshot({ path: process.env.STAND_HELP_SCREENSHOT });
       await dialog.getByRole('button', { name: 'Закрити посібник' }).click();
       assert.equal(writes + blockedWrites, 0, 'Help does not attempt mutation requests');
       await page.locator('select').first().selectOption('');
       assert.equal(await guideButton.count(), 0, 'Guide closes with community workspace');
+      await page.locator('select').first().selectOption(process.env.STAND_COMMUNITY);
+      await guideButton.first().click();
+      await dialog.waitFor();
+      assert.equal(await audience.inputValue(), 'all', 'Community selection resets task route');
+      await dialog.getByRole('button', { name: 'Закрити посібник' }).click();
       assert.deepEqual(errors, []);
       await context.close();
-      console.log('PASS: ' + (profile ? profile.name + ': ' : '') + '23 context topics, shared guide, payer balances, water preview with missing boundaries, summaries and filters, payment/report navigation, print isolation, Escape/focus, narrow viewport, no writes');
+      console.log('PASS: ' + (profile ? profile.name + ': ' : '') + '23 context topics, shared guide and reader/operator task navigation, payer balances, water preview with missing boundaries, summaries and filters, payment/report navigation, print isolation, Escape/focus, narrow viewport, no writes');
     }
     if (matrix) console.log('PASS: 18 browser permission profiles; grants unchanged; all mutation requests blocked');
   } finally { await browser.close(); }

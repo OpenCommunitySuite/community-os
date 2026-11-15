@@ -755,6 +755,29 @@ public class PostgreSqlConnectivityTests : IAsyncLifetime
         var installations = await store.CommonInstallationsAsync(community, secondCommon.Id, token);
         Assert.Equal(replacementDetails, installations[0].Details);
         Assert.Equal(details, installations[1].Details);
+        Assert.Empty((await store.SeriesAsync(community, installations[0].Id, token))!.Readings);
+        Assert.Equal(ReadingOutcome.OutsideInstallation,
+            (await store.RecognizeAsync(community, shared.Id, commonReplacement.EffectiveOn,
+                104m, today, Actor(), token)).Outcome);
+        var replacementStart = await store.RecognizeAsync(community, installations[0].Id,
+            commonReplacement.EffectiveOn, 1m, today, Actor(), token);
+        var replacementEnd = await store.RecognizeAsync(community, installations[0].Id,
+            commonReplacement.EffectiveOn.AddDays(1), 4m, today, Actor(), token);
+        Assert.Equal(ReadingOutcome.Recognized, replacementStart.Outcome);
+        Assert.Equal(ReadingOutcome.Recognized, replacementEnd.Outcome);
+        var replacementSeries = (await store.SeriesAsync(community, installations[0].Id, token))!;
+        Assert.Equal(new[] { 1m, 4m }, replacementSeries.Readings.Select(reading => reading.Value));
+        var replacementInterval = Assert.Single(replacementSeries.Intervals);
+        Assert.Equal((replacementStart.ReadingId, replacementEnd.ReadingId),
+            (replacementInterval.FromReadingId, replacementInterval.ToReadingId));
+        Assert.Equal((3m, 1m, "3"),
+            (replacementInterval.Value, replacementInterval.Multiplier, replacementInterval.RawDeltaExact));
+        var historicalSeries = (await store.SeriesAsync(community, shared.Id, token))!;
+        Assert.Equal(raw.Readings.ToArray(), historicalSeries.Readings.ToArray());
+        Assert.Equal(raw.Intervals.ToArray(), historicalSeries.Intervals.ToArray());
+        var historicalInterval = Assert.Single(historicalSeries.Intervals);
+        Assert.Equal((120m, 40m, "3"),
+            (historicalInterval.Value, historicalInterval.Multiplier, historicalInterval.RawDeltaExact));
         var currentTree = Assert.IsType<ElectricityTopology>(await store.TopologyOnAsync(community, starts.AddDays(2), token));
         Assert.Equal(shared.PointId, currentTree.Points.Single(point => point.Id == installation.PointId).ParentPointId);
         Assert.Equal(shared.PointId, installations[0].PointId);

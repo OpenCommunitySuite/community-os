@@ -210,6 +210,7 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
     </details>}
     {desk && <details>
       <summary>Залишки розрахунків</summary>
+      <FinanceContextHelp topic="overpayment" />
       <label>Платник для звірки <select value={balancePayer} onChange={event => setBalancePayer(event.target.value)}>
         <option value="">Оберіть платника</option>
         {desk.payers.map(payer => <option key={payer.id} value={payer.id}>{payer.name}</option>)}
@@ -290,6 +291,7 @@ export function Payments({ ref, community, communityName, canRecord, canAllocate
     {payment && <div key={payment.id}>
       <FinanceContextHelp topic="paymentCorrection" />
       <FinanceContextHelp topic="reallocation" />
+      <FinanceContextHelp topic="memberAdvance" />
       <p>Початкова сума {money.format(payment.originalAmount)} · Чинна сума {money.format(payment.amount)}</p>
       {canCorrect && !payment.bankTransactionId && !payment.cashAcceptance && payment.allocations.length === 0 && payment.advances.length === 0 &&
         <PaymentCorrection paymentId={payment.id} post={request} refresh={refresh} />}

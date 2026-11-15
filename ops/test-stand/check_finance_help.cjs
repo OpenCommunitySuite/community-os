@@ -59,6 +59,9 @@ const assert = require('node:assert/strict');
     await page.getByText(/^Нерозподілений залишок /).waitFor();
     await readHelp('paymentCorrection', 'Виправлення суми платежу');
     await readHelp('reallocation', 'Перерозподіл платежу');
+    await readHelp('memberAdvance', 'Аванс на членські внески');
+    await page.getByText('Залишки розрахунків', { exact: true }).click();
+    await readHelp('overpayment', 'Визнання переплати');
     await page.getByText('Кошториси', { exact: true }).click();
     const budgetHelp = page.getByText('Довідка: Кошториси: план і факт', { exact: true });
     await budgetHelp.click();
@@ -79,6 +82,7 @@ const assert = require('node:assert/strict');
       'Перерахунок електроенергії', 'Разове цільове нарахування',
       'Ручна реєстрація платежу', 'Прийом готівки', 'Первинний розподіл платежу',
       'Виправлення суми платежу', 'Перерозподіл платежу',
+      'Визнання переплати', 'Аванс на членські внески',
       'Кошториси: план і факт', 'Визнання витрати', 'Розподіл витрати за статтями']) {
       await dialog.getByRole('link', { name: title, exact: true }).click();
       await dialog.getByRole('heading', { name: title, exact: true }).waitFor();
@@ -106,6 +110,6 @@ const assert = require('node:assert/strict');
     await page.locator('select').first().selectOption('');
     assert.equal(await guideButton.count(), 0, 'Guide closes with community workspace');
     assert.deepEqual(errors, []);
-    console.log('PASS: 13 context topics, shared guide, period history and date error, current reconciliation, one-off accounts/history, recognized payment/remainder, navigation, Escape/focus, close, narrow viewport, workspace isolation, no writes');
+    console.log('PASS: 15 context topics, shared guide, period history and date error, current reconciliation, one-off accounts/history, recognized payment/remainder, navigation, Escape/focus, close, narrow viewport, workspace isolation, no writes');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error.message); process.exitCode = 1; });

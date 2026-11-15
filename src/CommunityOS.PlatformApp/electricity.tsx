@@ -3,6 +3,7 @@ import { MeteringTopology } from './metering-topology';
 import { ReadingImport } from './reading-import';
 import { ElectricityInstallationHelp } from './electricity-installation-help';
 import { ElectricityReadingHelp } from './electricity-reading-help';
+import { ElectricityReplacementHelp } from './electricity-replacement-help';
 
 type Channel = 'total' | 'day' | 'night';
 type Details = { model: string | null; serialNumber: string | null; location: string | null;
@@ -204,6 +205,7 @@ export function Electricity({ community, canSetup, canRecognize, canReplace, can
     <h2 id="electricity-heading">Облік електроенергії</h2>
     <ElectricityInstallationHelp />
     <ElectricityReadingHelp />
+    <ElectricityReplacementHelp />
     <ReadingImport endpoint={endpoint} canApply={canRecognize} onApplied={() => loadSeries(installation)} />
     <MeteringTopology canPublish={canPublishTopology} commonPoints={commonPoints}
       individualPoints={plots.flatMap(plot => plot.installation ?

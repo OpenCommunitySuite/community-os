@@ -23,14 +23,15 @@ def main():
     parser.add_argument('--login', required=True)
     parser.add_argument('--node', required=True)
     parser.add_argument('--screenshot', type=Path, required=True)
-    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'water-readings', 'water-replacement', 'water-import'], default='topology')
+    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'water-readings', 'water-replacement', 'water-import', 'water-topology'], default='topology')
     args = parser.parse_args()
     dual = args.scenario == 'dual-readings'
     replacement = args.scenario == 'replacement'
     csv_import = args.scenario == 'csv-import'
     water_replacement = args.scenario == 'water-replacement'
     water_import = args.scenario == 'water-import'
-    water = args.scenario in ('water-readings', 'water-replacement', 'water-import')
+    water_topology = args.scenario == 'water-topology'
+    water = args.scenario in ('water-readings', 'water-replacement', 'water-import', 'water-topology')
     manual = args.scenario != 'topology'
     grant_column = 'electricity_recognition_basis' if manual else 'topology_publication_basis'
     basis = 'Synthetic manual reading acceptance' if manual else 'Synthetic topology acceptance'
@@ -49,6 +50,9 @@ def main():
         basis = 'Synthetic water replacement acceptance'
     if water_import:
         basis = 'Synthetic water CSV acceptance'
+    if water_topology:
+        grant_column = 'water_setup_basis'
+        basis = 'Synthetic water topology acceptance'
     if not re.fullmatch(r'communityos-test-stand:[a-zA-Z0-9_.-]+', args.image):
         parser.error('Use a synthetic stand image')
     if not args.template_container.startswith('communityos-test-stand-') or not re.fullmatch(r'[a-zA-Z0-9_-]+', args.login):
@@ -89,6 +93,14 @@ def main():
         COMMIT;
     """)
     commands = ['BEGIN;']
+    if water_topology:
+        for label in ('Root', 'Street'):
+            point, meter = str(uuid.uuid4()), str(uuid.uuid4())
+            commands.extend([
+                f"INSERT INTO community_water.accounting_point (community_id,id,designation,measurement_boundary) VALUES ('{community}','{point}','{label}','Synthetic boundary');",
+                f"INSERT INTO community_water.meter (community_id,id,designation) VALUES ('{community}','{meter}','{label} meter');",
+                f"INSERT INTO community_water.installation (community_id,id,point_id,meter_id,starts_on,admission_id,account_id,subject_id,basis) VALUES ('{community}',gen_random_uuid(),'{point}','{meter}','2026-01-01',gen_random_uuid(),'{account}','{subject}','Synthetic fixture');",
+            ])
     for index in range(3):
         if water:
             if index == 2:
@@ -146,6 +158,8 @@ def main():
                     script = Path(__file__).with_name('check_water_replacement.cjs')
                 if water_import:
                     script = Path(__file__).with_name('check_water_csv_import.cjs')
+                if water_topology:
+                    script = Path(__file__).with_name('check_water_topology_publication.cjs')
                 child = subprocess.Popen([args.node, str(script)],
                     env=dict(os.environ, STAND_PROBE_COOKIE=secret.hex(), STAND_COMMUNITY=community,
                              STAND_HELP_SCREENSHOT=str(args.screenshot)),
@@ -179,6 +193,21 @@ def main():
                         child.wait()
             finally:
                 relay.shutdown()
+        if water_topology:
+            rows = sql(register, f"SELECT r.admission_id,r.starts_on,p.point_id FROM community_water.topology_revision r JOIN community_water.topology_point p USING (community_id,starts_on) WHERE r.community_id='{community}' AND p.parent_id IS NULL;").splitlines()
+            admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE community_id='{community}' AND action='publish-topology';")
+            if len(rows) != 2 or admissions != '4':
+                raise RuntimeError('Unexpected water topology/admission count')
+            for row in rows:
+                admission, date, root = row.split('|')
+                admission, root = str(uuid.UUID(admission)), str(uuid.UUID(root))
+                if date not in ('2026-01-01', '2026-01-02'):
+                    raise RuntimeError('Unexpected topology date')
+                linked = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE id='{admission}' AND community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND action='publish-topology' AND target_id='{root}' AND effective_on='{date}' AND basis='{basis}';")
+                if linked != '1':
+                    raise RuntimeError('Water topology does not reference its Platform admission')
+            print('PASS: two water topology versions linked to four Platform admissions, no publication after revocation')
+            return
         if water:
             rows = sql(register, f"SELECT admission_id,installation_id,measured_on FROM community_water.reading WHERE community_id='{community}' ORDER BY measured_on;").splitlines()
             admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE community_id='{community}' AND action='recognize';")

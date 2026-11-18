@@ -19,7 +19,7 @@ import stand
 
 
 @contextmanager
-def hold_installation(docker, postgres, database, community, installation):
+def hold_installation(docker, postgres, database, community, installation, schema):
     """Hold the Community write until the synthetic grant has been revoked."""
     exec_id = docker.exec_id(postgres, [
         'psql', '-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-U', stand.MIGRATOR, '-d', database,
@@ -31,7 +31,7 @@ def hold_installation(docker, postgres, database, community, installation):
             BEGIN;
             SET LOCAL lock_timeout = '3s';
             SET LOCAL idle_in_transaction_session_timeout = '25s';
-            SELECT 'LOCKED' FROM community_electricity.installation
+            SELECT 'LOCKED' FROM {schema}.installation
               WHERE community_id='{community}' AND id='{installation}' FOR UPDATE;
         """.encode())
         output = b''
@@ -60,22 +60,23 @@ def main():
     parser.add_argument('--login', required=True)
     parser.add_argument('--node', required=True)
     parser.add_argument('--screenshot', type=Path, required=True)
-    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-topology', 'water-balance', 'water-verification', 'water-verification-history'], default='topology')
+    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-import-revocation', 'water-topology', 'water-balance', 'water-verification', 'water-verification-history'], default='topology')
     args = parser.parse_args()
     dual_import = args.scenario == 'csv-import-dual'
     dual = args.scenario == 'dual-readings' or dual_import
     replacement = args.scenario == 'replacement'
     electricity_import_history = args.scenario == 'csv-import-history'
-    csv_revocation = args.scenario == 'csv-import-revocation'
+    csv_revocation = args.scenario in ('csv-import-revocation', 'water-import-revocation')
     csv_import = args.scenario in ('csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation')
     water_replacement = args.scenario == 'water-replacement'
     import_history = args.scenario == 'water-import-history'
-    water_import = args.scenario in ('water-import', 'water-import-history')
+    water_import = args.scenario in ('water-import', 'water-import-history', 'water-import-revocation')
     water_topology = args.scenario == 'water-topology'
     water_balance = args.scenario == 'water-balance'
     verification_history = args.scenario == 'water-verification-history'
     water_verification = args.scenario in ('water-verification', 'water-verification-history')
     water = args.scenario.startswith('water-')
+    reading_schema = 'community_water' if water else 'community_electricity'
     manual = args.scenario != 'topology'
     grant_column = 'electricity_recognition_basis' if manual else 'topology_publication_basis'
     basis = 'Synthetic manual reading acceptance' if manual else 'Synthetic topology acceptance'
@@ -152,6 +153,7 @@ def main():
             ])
     first_installation = str(uuid.uuid4())
     for index in range(3):
+        installation = first_installation if index == 0 else str(uuid.uuid4())
         if water:
             if index == 2:
                 continue
@@ -160,13 +162,12 @@ def main():
                 f"INSERT INTO community_register.plot VALUES ('{community}','{plot}','Plot {index}');",
                 f"INSERT INTO community_water.accounting_point (community_id,id,plot_id,designation) VALUES ('{community}','{point}','{plot}','Water {index}');",
                 f"INSERT INTO community_water.meter (community_id,id,designation) VALUES ('{community}','{meter}','Meter {index}');",
-                f"INSERT INTO community_water.installation (community_id,id,point_id,meter_id,starts_on,admission_id,account_id,subject_id,basis) VALUES ('{community}',gen_random_uuid(),'{point}','{meter}','2026-01-01',gen_random_uuid(),'{account}','{subject}','Synthetic fixture');",
+                f"INSERT INTO community_water.installation (community_id,id,point_id,meter_id,starts_on,admission_id,account_id,subject_id,basis) VALUES ('{community}','{installation}','{point}','{meter}','2026-01-01',gen_random_uuid(),'{account}','{subject}','Synthetic fixture');",
             ])
             continue
         for label in (f'Root {index}', f'Street {index}'):
             commands.append(f"INSERT INTO community_electricity.accounting_point (community_id,id,common_designation,measurement_boundary) VALUES ('{community}',gen_random_uuid(),'{label}','Synthetic boundary');")
         plot, point, meter = (str(uuid.uuid4()) for _ in range(3))
-        installation = first_installation if index == 0 else str(uuid.uuid4())
         commands.extend([
             f"INSERT INTO community_register.plot VALUES ('{community}','{plot}','Plot {index}');",
             f"INSERT INTO community_electricity.accounting_point (community_id,id,plot_id) VALUES ('{community}','{point}','{plot}');",
@@ -237,7 +238,7 @@ def main():
                              STAND_IMPORT_HISTORY=str(import_history).lower(),
                              STAND_ELECTRICITY_IMPORT_HISTORY=str(electricity_import_history).lower(),
                              STAND_ELECTRICITY_IMPORT_DUAL=str(dual_import).lower(),
-                             STAND_ELECTRICITY_IMPORT_REVOCATION=str(csv_revocation).lower()),
+                             STAND_CSV_IMPORT_REVOCATION=str(csv_revocation).lower()),
                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, encoding='utf-8')
                 messages = queue.Queue()
                 def output():
@@ -252,25 +253,28 @@ def main():
                         if message is None:
                             break
                         if message == 'REVOKE_DURING_APPLY' and csv_revocation and not revoked:
-                            with hold_installation(docker, postgres, register, community, first_installation):
+                            with hold_installation(docker, postgres, register, community, first_installation, reading_schema):
                                 child.stdin.write('LOCKED\n')
                                 child.stdin.flush()
+                                admission_table = 'water_admission' if water else 'electricity_admission'
+                                admission_fields = 'target_id,effective_on' if water else 'target_id,effective_on,channel'
+                                expected = f'{first_installation}|2026-01-01' + ('' if water else '|total')
                                 deadline = time.monotonic() + 10
                                 while True:
-                                    admission = sql(platform, f"""SELECT target_id,effective_on,channel
-                                        FROM platform_provisioning.electricity_admission
+                                    admission = sql(platform, f"""SELECT {admission_fields}
+                                        FROM platform_provisioning.{admission_table}
                                         WHERE community_id='{community}' AND action='recognize';""")
                                     if admission:
-                                        if admission != f'{first_installation}|2026-01-01|total':
+                                        if admission != expected:
                                             raise RuntimeError('Unexpected Platform admission while Community is locked')
                                         break
                                     if time.monotonic() >= deadline:
                                         raise RuntimeError('First Platform admission did not arrive while Community was locked')
                                     time.sleep(0.1)
-                                if sql(register, f"SELECT count(*) FROM community_electricity.reading WHERE community_id='{community}';") != '0':
+                                if sql(register, f"SELECT count(*) FROM {reading_schema}.reading WHERE community_id='{community}';") != '0':
                                     raise RuntimeError('Reading was already committed before revocation')
                                 revoked_account = sql(platform, f"""SET lock_timeout = '3s';
-                                    UPDATE platform_provisioning.register_operator SET electricity_recognition_basis=NULL
+                                    UPDATE platform_provisioning.register_operator SET {grant_column}=NULL
                                     WHERE community_id='{community}' AND account_id='{account}' RETURNING account_id;""")
                                 if revoked_account != account:
                                     raise RuntimeError('Synthetic grant was not revoked')
@@ -351,6 +355,8 @@ def main():
             expected_rows, expected_admissions = (3, '14') if water_import else (5, '6' if water_replacement else '8')
             if import_history:
                 expected_rows, expected_admissions = 5, '20'
+            if csv_revocation:
+                expected_rows, expected_admissions = 1, '1'
             reading_source = 'csv-import' if water_import else 'manual-observation'
             attributed = sql(register, f"SELECT count(*) FROM community_water.reading WHERE community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND source='{reading_source}' AND basis='{basis}';")
             if len(rows) != expected_rows or admissions != expected_admissions or attributed != str(expected_rows):

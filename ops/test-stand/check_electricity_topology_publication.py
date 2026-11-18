@@ -1,6 +1,7 @@
 """Exercise isolated synthetic resource writes through the UI and revoke their grant."""
 
 import argparse
+from contextlib import contextmanager
 import hashlib
 import os
 from pathlib import Path
@@ -10,10 +11,46 @@ import secrets
 import subprocess
 import sys
 import threading
+import time
 import uuid
 
 sys.dont_write_bytecode = True
 import stand
+
+
+@contextmanager
+def hold_installation(docker, postgres, database, community, installation):
+    """Hold the Community write until the synthetic grant has been revoked."""
+    exec_id = docker.exec_id(postgres, [
+        'psql', '-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-U', stand.MIGRATOR, '-d', database,
+    ], stdin=True)
+    sock, stream = docker.hijack(exec_id)
+    with sock, stream:
+        sock.settimeout(8)
+        sock.sendall(f"""
+            BEGIN;
+            SET LOCAL lock_timeout = '3s';
+            SET LOCAL idle_in_transaction_session_timeout = '25s';
+            SELECT 'LOCKED' FROM community_electricity.installation
+              WHERE community_id='{community}' AND id='{installation}' FOR UPDATE;
+        """.encode())
+        output = b''
+        frames = stand.frames(stream)
+        try:
+            for channel, data in frames:
+                if channel == 1:
+                    output += data
+                    if b'LOCKED\n' in output:
+                        break
+            else:
+                raise RuntimeError('Synthetic installation lock was not acquired')
+            yield
+        finally:
+            sock.sendall(b'ROLLBACK;\n\\q\n')
+            for _ in frames:
+                pass
+    if docker.call('GET', f'/exec/{exec_id}/json')['ExitCode'] != 0:
+        raise RuntimeError('Synthetic installation lock session failed')
 
 
 def main():
@@ -23,13 +60,14 @@ def main():
     parser.add_argument('--login', required=True)
     parser.add_argument('--node', required=True)
     parser.add_argument('--screenshot', type=Path, required=True)
-    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-topology', 'water-balance', 'water-verification', 'water-verification-history'], default='topology')
+    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-topology', 'water-balance', 'water-verification', 'water-verification-history'], default='topology')
     args = parser.parse_args()
     dual_import = args.scenario == 'csv-import-dual'
     dual = args.scenario == 'dual-readings' or dual_import
     replacement = args.scenario == 'replacement'
     electricity_import_history = args.scenario == 'csv-import-history'
-    csv_import = args.scenario in ('csv-import', 'csv-import-history', 'csv-import-dual')
+    csv_revocation = args.scenario == 'csv-import-revocation'
+    csv_import = args.scenario in ('csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation')
     water_replacement = args.scenario == 'water-replacement'
     import_history = args.scenario == 'water-import-history'
     water_import = args.scenario in ('water-import', 'water-import-history')
@@ -112,6 +150,7 @@ def main():
                 f"INSERT INTO community_water.meter (community_id,id,designation) VALUES ('{community}','{meter}','{label} meter');",
                 f"INSERT INTO community_water.installation (community_id,id,point_id,meter_id,starts_on,admission_id,account_id,subject_id,basis) VALUES ('{community}',gen_random_uuid(),'{point}','{meter}','2026-01-01',gen_random_uuid(),'{account}','{subject}','Synthetic fixture');",
             ])
+    first_installation = str(uuid.uuid4())
     for index in range(3):
         if water:
             if index == 2:
@@ -127,11 +166,12 @@ def main():
         for label in (f'Root {index}', f'Street {index}'):
             commands.append(f"INSERT INTO community_electricity.accounting_point (community_id,id,common_designation,measurement_boundary) VALUES ('{community}',gen_random_uuid(),'{label}','Synthetic boundary');")
         plot, point, meter = (str(uuid.uuid4()) for _ in range(3))
+        installation = first_installation if index == 0 else str(uuid.uuid4())
         commands.extend([
             f"INSERT INTO community_register.plot VALUES ('{community}','{plot}','Plot {index}');",
             f"INSERT INTO community_electricity.accounting_point (community_id,id,plot_id) VALUES ('{community}','{point}','{plot}');",
             f"INSERT INTO community_electricity.meter (community_id,id,designation,register_mode) VALUES ('{community}','{meter}','Meter {index}','{'dual' if dual else 'total'}');",
-            f"INSERT INTO community_electricity.installation (community_id,id,point_id,meter_id,starts_on,admission_id,account_id,subject_id,basis,reading_multiplier) VALUES ('{community}',gen_random_uuid(),'{point}','{meter}','2026-01-01',gen_random_uuid(),'{account}','{subject}','Synthetic fixture',{40 if manual else 1});",
+            f"INSERT INTO community_electricity.installation (community_id,id,point_id,meter_id,starts_on,admission_id,account_id,subject_id,basis,reading_multiplier) VALUES ('{community}','{installation}','{point}','{meter}','2026-01-01',gen_random_uuid(),'{account}','{subject}','Synthetic fixture',{40 if manual else 1});",
         ])
     sql(register, '\n'.join(commands + ['COMMIT;']))
     def balance_fingerprint():
@@ -196,7 +236,8 @@ def main():
                              STAND_HELP_SCREENSHOT=str(args.screenshot), STAND_VERIFICATION_HISTORY=str(verification_history).lower(),
                              STAND_IMPORT_HISTORY=str(import_history).lower(),
                              STAND_ELECTRICITY_IMPORT_HISTORY=str(electricity_import_history).lower(),
-                             STAND_ELECTRICITY_IMPORT_DUAL=str(dual_import).lower()),
+                             STAND_ELECTRICITY_IMPORT_DUAL=str(dual_import).lower(),
+                             STAND_ELECTRICITY_IMPORT_REVOCATION=str(csv_revocation).lower()),
                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, encoding='utf-8')
                 messages = queue.Queue()
                 def output():
@@ -210,7 +251,33 @@ def main():
                         message = messages.get(timeout=90)
                         if message is None:
                             break
-                        if message == 'REVOKE' and not revoked:
+                        if message == 'REVOKE_DURING_APPLY' and csv_revocation and not revoked:
+                            with hold_installation(docker, postgres, register, community, first_installation):
+                                child.stdin.write('LOCKED\n')
+                                child.stdin.flush()
+                                deadline = time.monotonic() + 10
+                                while True:
+                                    admission = sql(platform, f"""SELECT target_id,effective_on,channel
+                                        FROM platform_provisioning.electricity_admission
+                                        WHERE community_id='{community}' AND action='recognize';""")
+                                    if admission:
+                                        if admission != f'{first_installation}|2026-01-01|total':
+                                            raise RuntimeError('Unexpected Platform admission while Community is locked')
+                                        break
+                                    if time.monotonic() >= deadline:
+                                        raise RuntimeError('First Platform admission did not arrive while Community was locked')
+                                    time.sleep(0.1)
+                                if sql(register, f"SELECT count(*) FROM community_electricity.reading WHERE community_id='{community}';") != '0':
+                                    raise RuntimeError('Reading was already committed before revocation')
+                                revoked_account = sql(platform, f"""SET lock_timeout = '3s';
+                                    UPDATE platform_provisioning.register_operator SET electricity_recognition_basis=NULL
+                                    WHERE community_id='{community}' AND account_id='{account}' RETURNING account_id;""")
+                                if revoked_account != account:
+                                    raise RuntimeError('Synthetic grant was not revoked')
+                            revoked = True
+                            child.stdin.write('REVOKED\n')
+                            child.stdin.flush()
+                        elif message == 'REVOKE' and not csv_revocation and not revoked:
                             assignment = 'can_read_water=false' if water_balance else f'{grant_column}=NULL'
                             sql(platform, f"UPDATE platform_provisioning.register_operator SET {assignment} WHERE community_id='{community}' AND account_id='{account}';")
                             revoked = True
@@ -321,6 +388,8 @@ def main():
                 expected_readings, expected_admissions = 5, '20'
             if dual_import:
                 expected_admissions = '16'
+            if csv_revocation:
+                expected_readings, expected_admissions = 1, '1'
             if len(rows) != expected_readings or admissions != expected_admissions:
                 raise RuntimeError('Unexpected reading/admission count after denial')
             for row in rows:

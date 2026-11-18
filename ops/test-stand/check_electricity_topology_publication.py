@@ -20,7 +20,7 @@ import stand
 
 @contextmanager
 def hold_installation(docker, postgres, database, community, installation, schema):
-    """Hold the Community write until the synthetic grant has been revoked."""
+    """Hold a synthetic installation and identify the blocking session."""
     exec_id = docker.exec_id(postgres, [
         'psql', '-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-U', stand.MIGRATOR, '-d', database,
     ], stdin=True)
@@ -31,7 +31,7 @@ def hold_installation(docker, postgres, database, community, installation, schem
             BEGIN;
             SET LOCAL lock_timeout = '3s';
             SET LOCAL idle_in_transaction_session_timeout = '25s';
-            SELECT 'LOCKED' FROM {schema}.installation
+            SELECT 'LOCKED|' || pg_backend_pid() FROM {schema}.installation
               WHERE community_id='{community}' AND id='{installation}' FOR UPDATE;
         """.encode())
         output = b''
@@ -40,17 +40,43 @@ def hold_installation(docker, postgres, database, community, installation, schem
             for channel, data in frames:
                 if channel == 1:
                     output += data
-                    if b'LOCKED\n' in output:
+                    locked = re.search(rb'LOCKED\|(\d+)\n', output)
+                    if locked:
                         break
             else:
                 raise RuntimeError('Synthetic installation lock was not acquired')
-            yield
+            yield int(locked[1])
         finally:
             sock.sendall(b'ROLLBACK;\n\\q\n')
             for _ in frames:
                 pass
     if docker.call('GET', f'/exec/{exec_id}/json')['ExitCode'] != 0:
         raise RuntimeError('Synthetic installation lock session failed')
+
+
+def wait_for_water_writes(sql, database, holder, expected):
+    deadline = time.monotonic() + 6
+    while time.monotonic() < deadline:
+        waiting = sql(database, f"""
+            WITH RECURSIVE blocked(pid) AS (
+                SELECT {holder}
+                UNION
+                SELECT activity.pid FROM pg_stat_activity activity
+                JOIN blocked ON blocked.pid = ANY(pg_blocking_pids(activity.pid))
+                WHERE activity.datname = current_database() AND activity.wait_event_type = 'Lock'
+            )
+            SELECT CASE WHEN activity.query LIKE '%FOR UPDATE OF i%' THEN 'replace'
+                        WHEN activity.query LIKE '%SELECT starts_on, ends_before%' THEN 'recognize'
+                        ELSE 'unexpected' END
+            FROM blocked JOIN pg_stat_activity activity USING (pid)
+            WHERE pid <> {holder} AND activity.query LIKE '%community_water.installation%';
+        """).splitlines()
+        if sorted(waiting) == sorted(expected):
+            return
+        if any(action not in expected for action in waiting) or len(waiting) > len(expected):
+            raise RuntimeError('Unexpected writes waiting on synthetic water installation')
+        time.sleep(0.1)
+    raise RuntimeError('Expected writes did not wait on synthetic water installation')
 
 
 def main():
@@ -60,7 +86,11 @@ def main():
     parser.add_argument('--login', required=True)
     parser.add_argument('--node', required=True)
     parser.add_argument('--screenshot', type=Path, required=True)
-    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-import-revocation', 'water-topology', 'water-balance', 'water-verification', 'water-verification-history'], default='topology')
+    water_races = {
+        'water-import-race-import-first': 'recognize',
+        'water-import-race-replacement-first': 'replace',
+    }
+    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-import-revocation', 'water-topology', 'water-balance', 'water-verification', 'water-verification-history', *water_races], default='topology')
     args = parser.parse_args()
     dual_import = args.scenario == 'csv-import-dual'
     dual = args.scenario == 'dual-readings' or dual_import
@@ -70,7 +100,8 @@ def main():
     csv_import = args.scenario in ('csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation')
     water_replacement = args.scenario == 'water-replacement'
     import_history = args.scenario == 'water-import-history'
-    water_import = args.scenario in ('water-import', 'water-import-history', 'water-import-revocation')
+    water_race_order = water_races.get(args.scenario)
+    water_import = water_race_order is not None or args.scenario in ('water-import', 'water-import-history', 'water-import-revocation')
     water_topology = args.scenario == 'water-topology'
     water_balance = args.scenario == 'water-balance'
     verification_history = args.scenario == 'water-verification-history'
@@ -203,7 +234,7 @@ def main():
             sql(platform, f"UPDATE platform_provisioning.register_operator SET can_replace_electricity=true, electricity_replacement_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         if water_replacement:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET water_recognition_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
-        if verification_history or import_history:
+        if verification_history or import_history or water_race_order:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET water_replacement_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         archive = docker.call('GET', f'/containers/{args.template_container}/archive?path=/run/stand/https.pfx')
         docker.call('PUT', f'/containers/{name}/archive?path=/run/stand', archive, headers={'Content-Type': 'application/x-tar'})
@@ -238,7 +269,8 @@ def main():
                              STAND_IMPORT_HISTORY=str(import_history).lower(),
                              STAND_ELECTRICITY_IMPORT_HISTORY=str(electricity_import_history).lower(),
                              STAND_ELECTRICITY_IMPORT_DUAL=str(dual_import).lower(),
-                             STAND_CSV_IMPORT_REVOCATION=str(csv_revocation).lower()),
+                             STAND_CSV_IMPORT_REVOCATION=str(csv_revocation).lower(),
+                             STAND_WATER_IMPORT_RACE=water_race_order or ''),
                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, encoding='utf-8')
                 messages = queue.Queue()
                 def output():
@@ -247,12 +279,29 @@ def main():
                     messages.put(None)
                 threading.Thread(target=output, daemon=True).start()
                 revoked = False
+                raced = False
                 try:
                     while True:
                         message = messages.get(timeout=90)
                         if message is None:
                             break
-                        if message == 'REVOKE_DURING_APPLY' and csv_revocation and not revoked:
+                        if message == 'LOCK_RACE' and water_race_order and not raced:
+                            with hold_installation(docker, postgres, register, community, first_installation, reading_schema) as holder:
+                                child.stdin.write('LOCKED\n')
+                                child.stdin.flush()
+                                wait_for_water_writes(sql, register, holder, [water_race_order])
+                                child.stdin.write('START_SECOND\n')
+                                child.stdin.flush()
+                                wait_for_water_writes(sql, register, holder, ['recognize', 'replace'])
+                                admissions = sql(platform, f"""SELECT action FROM platform_provisioning.water_admission
+                                    WHERE community_id='{community}' AND target_id='{first_installation}'
+                                    AND effective_on='2026-01-04' ORDER BY action;""").splitlines()
+                                if admissions != ['recognize', 'replace']:
+                                    raise RuntimeError('Both queued writes must have distinct Platform admissions')
+                            raced = True
+                            child.stdin.write('RELEASED\n')
+                            child.stdin.flush()
+                        elif message == 'REVOKE_DURING_APPLY' and csv_revocation and not revoked:
                             with hold_installation(docker, postgres, register, community, first_installation, reading_schema):
                                 child.stdin.write('LOCKED\n')
                                 child.stdin.flush()
@@ -281,7 +330,7 @@ def main():
                             revoked = True
                             child.stdin.write('REVOKED\n')
                             child.stdin.flush()
-                        elif message == 'REVOKE' and not csv_revocation and not revoked:
+                        elif message == 'REVOKE' and not (csv_revocation or water_race_order) and not revoked:
                             assignment = 'can_read_water=false' if water_balance else f'{grant_column}=NULL'
                             sql(platform, f"UPDATE platform_provisioning.register_operator SET {assignment} WHERE community_id='{community}' AND account_id='{account}';")
                             revoked = True
@@ -291,7 +340,7 @@ def main():
                             print(message)
                         else:
                             raise RuntimeError('Unexpected browser probe output')
-                    if child.wait(timeout=10) != 0 or not revoked:
+                    if child.wait(timeout=10) != 0 or not (raced if water_race_order else revoked):
                         raise RuntimeError('Browser electricity acceptance failed')
                 finally:
                     if child.poll() is None:
@@ -357,6 +406,8 @@ def main():
                 expected_rows, expected_admissions = 5, '20'
             if csv_revocation:
                 expected_rows, expected_admissions = 1, '1'
+            if water_race_order:
+                expected_rows, expected_admissions = int(water_race_order == 'recognize'), '1'
             reading_source = 'csv-import' if water_import else 'manual-observation'
             attributed = sql(register, f"SELECT count(*) FROM community_water.reading WHERE community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND source='{reading_source}' AND basis='{basis}';")
             if len(rows) != expected_rows or admissions != expected_admissions or attributed != str(expected_rows):
@@ -365,22 +416,31 @@ def main():
                 admission, installation, date = row.split('|')
                 admission, installation = str(uuid.UUID(admission)), str(uuid.UUID(installation))
                 dates = ('2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04', '2026-01-05') if water_replacement or import_history else ('2026-01-01', '2026-01-02', '2026-01-03')
+                if water_race_order:
+                    dates = ('2026-01-04',)
                 if date not in dates:
                     raise RuntimeError('Unexpected water reading date')
                 linked = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE id='{admission}' AND community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND action='recognize' AND target_id='{installation}' AND effective_on='{date}' AND basis='{basis}';")
                 if linked != '1':
                     raise RuntimeError('Water reading does not reference its Platform admission')
-            print(f'PASS: {expected_rows} water readings with {reading_source} attribution linked to {admissions} Platform admissions')
-            if water_replacement or import_history:
+            if expected_rows == 0:
+                print('PASS: one attempted recognition and no water reading')
+            else:
+                print(f'PASS: {expected_rows} water readings with {reading_source} attribution linked to {admissions} Platform admissions')
+            if water_replacement or import_history or water_race_order:
                 changes = sql(register, f"SELECT admission_id,old_installation_id,request_id FROM community_water.replacement WHERE community_id='{community}' AND effective_on='2026-01-04';").splitlines()
                 count = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE community_id='{community}' AND action='replace';")
-                if len(changes) != 1 or count != ('1' if import_history else '4'):
+                expected_changes = int(water_race_order != 'recognize')
+                if len(changes) != expected_changes or count != ('1' if import_history or water_race_order else '4'):
                     raise RuntimeError('Unexpected water replacement/admission count')
+                if expected_changes == 0:
+                    print('PASS: one attempted replacement and no replacement record')
+                    return
                 admission, old, request = (str(uuid.UUID(value)) for value in changes[0].split('|'))
                 linked = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE id='{admission}' AND community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND action='replace' AND target_id='{old}' AND request_id='{request}' AND effective_on='2026-01-04' AND basis='{basis}';")
                 if linked != '1':
                     raise RuntimeError('Water replacement does not reference its Platform admission')
-                print('PASS: one water replacement linked to Platform admission' if import_history else 'PASS: one water replacement linked to four Platform admissions, no replacement after revocation')
+                print('PASS: one water replacement linked to Platform admission' if import_history or water_race_order else 'PASS: one water replacement linked to four Platform admissions, no replacement after revocation')
             return
         if manual:
             rows = sql(register, f"SELECT admission_id,installation_id,measured_on,channel FROM community_electricity.reading WHERE community_id='{community}' ORDER BY measured_on;").splitlines()
@@ -443,7 +503,7 @@ def main():
                     extra = ', can_replace_electricity=false, electricity_replacement_basis=NULL'
                 if water_replacement:
                     extra = ', water_recognition_basis=NULL'
-                if verification_history or import_history:
+                if verification_history or import_history or water_race_order:
                     extra = ', water_replacement_basis=NULL'
                 if water_balance:
                     extra = ', can_read_water=false'

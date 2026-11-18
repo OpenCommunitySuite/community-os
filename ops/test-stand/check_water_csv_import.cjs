@@ -3,6 +3,7 @@ const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
 const readline = require('node:readline');
+const checkCsvImportRevocation = require('./check_csv_import_revocation.cjs');
 
 (async () => {
   const origin = 'https://127.0.0.1:5543';
@@ -39,6 +40,7 @@ const readline = require('node:readline');
     const installation = { id: point.installationId };
     const seriesPath = `${base}/installations/${installation.id}/readings`;
     const historical = process.env.STAND_IMPORT_HISTORY === 'true';
+    const revokeDuringApply = process.env.STAND_CSV_IMPORT_REVOCATION === 'true';
     let next;
     if (historical) {
       const series = page.waitForResponse(response => response.url().endsWith(seriesPath));
@@ -61,11 +63,12 @@ const readline = require('node:readline');
       assert.notEqual(next, installation.id);
       await page.getByText('Заміну водоміра зареєстровано.', { exact: true }).waitFor();
     }
-    const csv = 'installation_id,measured_on,value_m3\n' + [
+    const rowsToImport = revokeDuringApply ? ['2026-01-01,10', '2026-01-02,11', '2026-01-03,12.5'] : [
       '2026-01-01,10', '2026-01-03,12.5', '2026-01-02,13',
       '2026-01-02,11', '2026-01-01,10', '2026-01-01,12',
       'not-a-date,14', '2025-12-31,1',
-    ].map(row => installation.id + ',' + row).concat(historical ? [
+    ];
+    const csv = 'installation_id,measured_on,value_m3\n' + rowsToImport.map(row => installation.id + ',' + row).concat(historical ? [
       `${installation.id},2026-01-04,13`, `${next},2026-01-04,1`, `${next},2026-01-05,4`,
     ] : []).join('\n') + '\n';
     const digest = createHash('sha256').update(csv).digest('hex').toUpperCase();
@@ -90,6 +93,12 @@ const readline = require('node:readline');
     assert.deepEqual(empty.readings, []);
     const preview = await click('Переглянути CSV', previewPath);
     assert.equal(preview.digest, digest);
+    if (revokeDuringApply) {
+      await checkCsvImportRevocation({
+        page, area, applyPath, previewPath, click, read, empty, preview, errors, firstValue: '10',
+      });
+      return;
+    }
     assert.deepEqual(preview.rows.map(row => row.outcome),
       ['Ready', 'Ready', 'Ready', 'Ready', 'Ready', 'Ready', 'InvalidDate', 'OutsideInstallation']
         .concat(historical ? ['OutsideInstallation', 'Ready', 'Ready'] : []));

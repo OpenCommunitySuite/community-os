@@ -39,6 +39,7 @@ const readline = require('node:readline');
     assert.equal(installation.details.multiplierExact, '40');
     const seriesPath = `${base}/installations/${installation.id}/readings`;
     const historical = process.env.STAND_ELECTRICITY_IMPORT_HISTORY === 'true';
+    const dual = process.env.STAND_ELECTRICITY_IMPORT_DUAL === 'true';
     let next;
     if (historical) {
       const series = page.waitForResponse(response => response.url().endsWith(seriesPath));
@@ -61,11 +62,16 @@ const readline = require('node:readline');
       assert.notEqual(next, installation.id);
       await page.getByText('Заміну лічильника зареєстровано.', { exact: true }).waitFor();
     }
-    const csv = 'installation_id,measured_on,channel,value_kwh\n' + [
+    const dualRows = [
+      '2026-01-01,day,100', '2026-01-01,night,50', '2026-01-03,day,106',
+      '2026-01-03,night,53', '2026-01-02,day,103', '2026-01-02,night,51',
+      '2026-01-02,total,154', '2026-01-02,day,103',
+    ];
+    const csv = 'installation_id,measured_on,channel,value_kwh\n' + (dual ? dualRows : [
       '2026-01-01,total,100', '2026-01-03,total,103', '2026-01-02,total,104',
       '2026-01-02,total,101', '2026-01-01,total,100', '2026-01-01,total,102',
       'not-a-date,total,105', '2026-01-02,day,50',
-    ].map(row => installation.id + ',' + row).concat(historical ? [
+    ]).map(row => installation.id + ',' + row).concat(historical ? [
       `${installation.id},2026-01-04,total,104`, `${next},2026-01-04,total,1`, `${next},2026-01-05,total,4`,
     ] : []).join('\n') + '\n';
     const digest = createHash('sha256').update(csv).digest('hex').toUpperCase();
@@ -91,7 +97,8 @@ const readline = require('node:readline');
     const preview = await click('Переглянути CSV', previewPath);
     assert.equal(preview.digest, digest);
     assert.deepEqual(preview.rows.map(row => row.outcome),
-      ['Ready', 'Ready', 'Ready', 'Ready', 'Ready', 'Ready', 'InvalidDate', 'UnsupportedChannel']
+      (dual ? [...Array(6).fill('Ready'), 'UnsupportedChannel', 'Ready'] :
+        ['Ready', 'Ready', 'Ready', 'Ready', 'Ready', 'Ready', 'InvalidDate', 'UnsupportedChannel'])
         .concat(historical ? ['OutsideInstallation', 'Ready', 'Ready'] : []));
     assert.deepEqual(await read(), empty, 'Preview must not recognize readings');
     async function rawApply(body, csrf) {
@@ -109,16 +116,35 @@ const readline = require('node:readline');
     assert.deepEqual(await read(), empty);
     const applied = await click('Підтвердити й застосувати CSV', applyPath);
     assert.deepEqual(applied.rows.map(row => row.outcome),
-      ['Recognized', 'Recognized', 'Decreasing', 'Recognized', 'AlreadyRecorded', 'DateConflict', 'InvalidDate', 'UnsupportedChannel']
+      (dual ? [...Array(6).fill('Recognized'), 'UnsupportedChannel', 'AlreadyRecorded'] :
+        ['Recognized', 'Recognized', 'Decreasing', 'Recognized', 'AlreadyRecorded', 'DateConflict', 'InvalidDate', 'UnsupportedChannel'])
         .concat(historical ? ['OutsideInstallation', 'Recognized', 'Recognized'] : []));
-    assert.equal(applied.rows[0].readingId, applied.rows[4].readingId);
+    assert.equal(applied.rows[dual ? 4 : 0].readingId, applied.rows[dual ? 7 : 4].readingId);
     const final = await read();
-    assert.deepEqual(final.readings.map(row => [row.date, row.valueExact, row.source]),
-      [['2026-01-01', '100', 'csv-import'], ['2026-01-02', '101', 'csv-import'], ['2026-01-03', '103', 'csv-import']]);
-    assert.deepEqual(final.intervals.map(row => [row.rawDeltaExact, row.valueExact]), [['1', '40'], ['2', '80']]);
-    for (let index = 0; index < 2; index++) {
-      assert.equal(final.intervals[index].fromReadingId, final.readings[index].id);
-      assert.equal(final.intervals[index].toReadingId, final.readings[index + 1].id);
+    const expectedByChannel = dual
+      ? { day: [['100', '103', '106'], ['120', '120']], night: [['50', '51', '53'], ['40', '80']] }
+      : { total: [['100', '101', '103'], ['40', '80']] };
+    assert.equal(final.readings.length, dual ? 6 : 3);
+    assert.equal(final.intervals.length, dual ? 4 : 2);
+    for (const [channel, [values, estimates]] of Object.entries(expectedByChannel)) {
+      const readings = final.readings.filter(row => row.channel === channel);
+      const intervals = final.intervals.filter(row => row.channel === channel);
+      assert.deepEqual(readings.map(row => [row.date, row.valueExact, row.source]), values.map((value, index) =>
+        [`2026-01-0${index + 1}`, value, 'csv-import']));
+      assert.deepEqual(intervals.map(row => [row.rawDeltaExact, row.valueExact]), estimates.map((value, index) =>
+        [String(Number(values[index + 1]) - Number(values[index])), value]));
+      for (let index = 0; index < intervals.length; index++) {
+        assert.equal(intervals[index].fromReadingId, readings[index].id);
+        assert.equal(intervals[index].toReadingId, readings[index + 1].id);
+      }
+    }
+    if (dual) {
+      assert.deepEqual(final.combinedIntervals.map(({ day, night, valueExact }) => ({ day, night, valueExact })),
+        [0, 1].map(index => ({
+          day: final.intervals.filter(row => row.channel === 'day')[index],
+          night: final.intervals.filter(row => row.channel === 'night')[index],
+          valueExact: ['160', '200'][index],
+        })));
     }
     const nextPath = `${base}/installations/${next}/readings`;
     const nextFinal = historical ? await read(nextPath) : null;
@@ -135,7 +161,8 @@ const readline = require('node:readline');
     }
     const repeated = await click('Підтвердити й застосувати CSV', applyPath);
     assert.deepEqual(repeated.rows.map(row => row.outcome),
-      ['AlreadyRecorded', 'AlreadyRecorded', 'DateConflict', 'AlreadyRecorded', 'AlreadyRecorded', 'DateConflict', 'InvalidDate', 'UnsupportedChannel']
+      (dual ? [...Array(6).fill('AlreadyRecorded'), 'UnsupportedChannel', 'AlreadyRecorded'] :
+        ['AlreadyRecorded', 'AlreadyRecorded', 'DateConflict', 'AlreadyRecorded', 'AlreadyRecorded', 'DateConflict', 'InvalidDate', 'UnsupportedChannel'])
         .concat(historical ? ['OutsideInstallation', 'AlreadyRecorded', 'AlreadyRecorded'] : []));
     assert.deepEqual(await read(), final, 'Replay must preserve IDs and original attribution');
     if (historical) assert.deepEqual(await read(nextPath), nextFinal);
@@ -172,6 +199,18 @@ const readline = require('node:readline');
           assert.equal(await cells.nth(4).textContent(), expected.intervals[index].valueExact);
         }
       }
+    }
+    if (dual) {
+      const series = page.waitForResponse(response => response.url().endsWith(seriesPath));
+      await page.locator('label').filter({ hasText: /^Точка або ділянка для обліку/ }).locator('select').selectOption(plot.id);
+      assert.equal((await series).status(), 200);
+      const readingRows = page.getByRole('table').filter({ has: page.getByRole('columnheader', { name: 'Дата вимірювання', exact: true }) }).locator('tbody tr');
+      await readingRows.first().waitFor();
+      assert.equal(await readingRows.count(), 6);
+      assert.deepEqual(await readingRows.locator('td:nth-child(4)').allTextContents(), Array(6).fill('Імпорт CSV'));
+      const combined = page.getByRole('table').filter({ has: page.getByRole('columnheader', { name: 'Разом, кВт·год', exact: true }) });
+      assert.deepEqual(await combined.locator('tbody td:last-child').allTextContents(), ['160', '200']);
+      console.log('PASS: dual CSV preserves day and night readings and shows aligned combined intervals');
     }
     await page.screenshot({ path: process.env.STAND_HELP_SCREENSHOT + '.applied.png', fullPage: true });
     const input = readline.createInterface({ input: process.stdin });

@@ -40,6 +40,7 @@ const readline = require('node:readline');
     const seriesPath = `${base}/installations/${installation.id}/readings`;
     const historical = process.env.STAND_ELECTRICITY_IMPORT_HISTORY === 'true';
     const dual = process.env.STAND_ELECTRICITY_IMPORT_DUAL === 'true';
+    const revokeDuringApply = process.env.STAND_ELECTRICITY_IMPORT_REVOCATION === 'true';
     let next;
     if (historical) {
       const series = page.waitForResponse(response => response.url().endsWith(seriesPath));
@@ -67,11 +68,14 @@ const readline = require('node:readline');
       '2026-01-03,night,53', '2026-01-02,day,103', '2026-01-02,night,51',
       '2026-01-02,total,154', '2026-01-02,day,103',
     ];
-    const csv = 'installation_id,measured_on,channel,value_kwh\n' + (dual ? dualRows : [
+    const singleRows = [
       '2026-01-01,total,100', '2026-01-03,total,103', '2026-01-02,total,104',
       '2026-01-02,total,101', '2026-01-01,total,100', '2026-01-01,total,102',
       'not-a-date,total,105', '2026-01-02,day,50',
-    ]).map(row => installation.id + ',' + row).concat(historical ? [
+    ];
+    const revocationRows = ['2026-01-01,total,100', '2026-01-02,total,101', '2026-01-03,total,103'];
+    const sourceRows = revokeDuringApply ? revocationRows : dual ? dualRows : singleRows;
+    const csv = 'installation_id,measured_on,channel,value_kwh\n' + sourceRows.map(row => installation.id + ',' + row).concat(historical ? [
       `${installation.id},2026-01-04,total,104`, `${next},2026-01-04,total,1`, `${next},2026-01-05,total,4`,
     ] : []).join('\n') + '\n';
     const digest = createHash('sha256').update(csv).digest('hex').toUpperCase();
@@ -96,6 +100,44 @@ const readline = require('node:readline');
     assert.deepEqual(empty.readings, []);
     const preview = await click('Переглянути CSV', previewPath);
     assert.equal(preview.digest, digest);
+    if (revokeDuringApply) {
+      assert.deepEqual(preview.rows.map(row => row.outcome), ['Ready', 'Ready', 'Ready']);
+      assert.deepEqual(await read(), empty);
+      const input = readline.createInterface({ input: process.stdin });
+      const replies = input[Symbol.asyncIterator]();
+      let applied;
+      try {
+        console.log('REVOKE_DURING_APPLY');
+        assert.equal((await replies.next()).value, 'LOCKED');
+        applied = await click('Підтвердити й застосувати CSV', applyPath);
+        assert.equal((await replies.next()).value, 'REVOKED');
+      } finally {
+        input.close();
+      }
+      assert.deepEqual(applied.rows.map(row => [row.line, row.outcome]),
+        [[2, 'Recognized'], [3, 'Denied'], [4, 'Denied']]);
+      assert.ok(applied.rows[0].readingId);
+      assert.ok(applied.rows.slice(1).every(row => row.readingId === null));
+      const report = area.getByRole('table', { name: 'Результат застосування CSV', exact: true });
+      const deniedRows = report.getByRole('cell', { name: 'Дозвіл відкликано', exact: true });
+      await deniedRows.first().waitFor();
+      assert.equal(await deniedRows.count(), 2);
+      const final = await read();
+      assert.deepEqual(final.readings.map(row => [row.id, row.date, row.valueExact, row.source]),
+        [[applied.rows[0].readingId, '2026-01-01', '100', 'csv-import']]);
+      assert.deepEqual(final.intervals, []);
+      await page.screenshot({ path: process.env.STAND_HELP_SCREENSHOT + '.applied.png', fullPage: true });
+      const denied = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith(applyPath));
+      await area.getByRole('button', { name: 'Підтвердити й застосувати CSV', exact: true }).click();
+      assert.equal((await denied).status(), 403);
+      await area.getByText('Дозвіл на цю дію відсутній.', { exact: true }).waitFor();
+      const afterRevocation = await click('Переглянути CSV', previewPath);
+      assert.deepEqual(afterRevocation.rows.map(row => row.outcome), ['AlreadyRecorded', 'Ready', 'Ready']);
+      assert.deepEqual(await read(), final);
+      assert.deepEqual(errors, []);
+      console.log('PASS: one admitted CSV row commits, two are denied during apply, retry is forbidden and read stays available');
+      return;
+    }
     assert.deepEqual(preview.rows.map(row => row.outcome),
       (dual ? [...Array(6).fill('Ready'), 'UnsupportedChannel', 'Ready'] :
         ['Ready', 'Ready', 'Ready', 'Ready', 'Ready', 'Ready', 'InvalidDate', 'UnsupportedChannel'])

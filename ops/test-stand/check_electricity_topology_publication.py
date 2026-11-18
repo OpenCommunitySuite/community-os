@@ -23,12 +23,13 @@ def main():
     parser.add_argument('--login', required=True)
     parser.add_argument('--node', required=True)
     parser.add_argument('--screenshot', type=Path, required=True)
-    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-topology', 'water-balance', 'water-verification', 'water-verification-history'], default='topology')
+    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-topology', 'water-balance', 'water-verification', 'water-verification-history'], default='topology')
     args = parser.parse_args()
-    dual = args.scenario == 'dual-readings'
+    dual_import = args.scenario == 'csv-import-dual'
+    dual = args.scenario == 'dual-readings' or dual_import
     replacement = args.scenario == 'replacement'
     electricity_import_history = args.scenario == 'csv-import-history'
-    csv_import = args.scenario in ('csv-import', 'csv-import-history')
+    csv_import = args.scenario in ('csv-import', 'csv-import-history', 'csv-import-dual')
     water_replacement = args.scenario == 'water-replacement'
     import_history = args.scenario == 'water-import-history'
     water_import = args.scenario in ('water-import', 'water-import-history')
@@ -172,7 +173,7 @@ def main():
             threading.Thread(target=relay.serve_forever, daemon=True).start()
             try:
                 script = Path(__file__).with_name('check_electricity_manual_readings.cjs') if manual else Path(__file__).with_suffix('.cjs')
-                if dual:
+                if dual and not dual_import:
                     script = Path(__file__).with_name('check_electricity_dual_readings.cjs')
                 if replacement:
                     script = Path(__file__).with_name('check_electricity_replacement.cjs')
@@ -194,7 +195,8 @@ def main():
                     env=dict(os.environ, STAND_PROBE_COOKIE=secret.hex(), STAND_COMMUNITY=community,
                              STAND_HELP_SCREENSHOT=str(args.screenshot), STAND_VERIFICATION_HISTORY=str(verification_history).lower(),
                              STAND_IMPORT_HISTORY=str(import_history).lower(),
-                             STAND_ELECTRICITY_IMPORT_HISTORY=str(electricity_import_history).lower()),
+                             STAND_ELECTRICITY_IMPORT_HISTORY=str(electricity_import_history).lower(),
+                             STAND_ELECTRICITY_IMPORT_DUAL=str(dual_import).lower()),
                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, encoding='utf-8')
                 messages = queue.Queue()
                 def output():
@@ -317,6 +319,8 @@ def main():
                 expected_admissions = '14'
             if electricity_import_history:
                 expected_readings, expected_admissions = 5, '20'
+            if dual_import:
+                expected_admissions = '16'
             if len(rows) != expected_readings or admissions != expected_admissions:
                 raise RuntimeError('Unexpected reading/admission count after denial')
             for row in rows:
@@ -328,11 +332,11 @@ def main():
                 linked = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE id='{admission}' AND community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND action='recognize' AND target_id='{installation}' AND effective_on='{date}' AND channel='{channel}' AND basis='{basis}';")
                 if linked != '1':
                     raise RuntimeError('Reading does not reference its Platform admission')
-            print(f'PASS: {expected_readings} readings linked to Platform admissions, {expected_admissions} attempts, no admission after revocation')
             if csv_import:
                 imported = sql(register, f"SELECT count(*) FROM community_electricity.reading WHERE community_id='{community}' AND source='csv-import';")
                 if imported != str(expected_readings):
                     raise RuntimeError('Imported readings must preserve CSV provenance')
+            print(f'PASS: {expected_readings} readings linked to Platform admissions, {expected_admissions} attempts, no admission after revocation')
             if replacement or electricity_import_history:
                 changes = sql(register, f"SELECT admission_id,old_installation_id,request_id FROM community_electricity.replacement WHERE community_id='{community}' AND effective_on='2026-01-04';").splitlines()
                 count = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE community_id='{community}' AND action='replace';")

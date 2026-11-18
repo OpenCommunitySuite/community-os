@@ -102,6 +102,7 @@ def main():
                        f"DELETE FROM platform_provisioning.platform_session WHERE token_digest=decode('{digest}','hex');", private=True)
         finally:
             docker.call('POST', f'/containers/{name}/stop?t=5')
+            docker.call('DELETE', f'/containers/{name}')
 
 
 if __name__ == '__main__':

@@ -164,6 +164,7 @@ const readline = require('node:readline');
           const cells = readingRows.nth(index).locator('td');
           assert.equal(await cells.nth(0).textContent(), expected.readings[index].date);
           assert.equal(await cells.nth(2).textContent(), expected.readings[index].valueExact);
+          assert.equal(await cells.nth(3).textContent(), 'Імпорт CSV');
         }
         for (let index = 0; index < expected.intervals.length; index++) {
           const cells = intervalRows.nth(index).locator('td');

@@ -116,6 +116,7 @@ const readline = require('node:readline');
     for (let index = 0; index < 3; index++) {
       assert.equal(await readingRows.nth(index).locator('td').nth(0).textContent(), final.readings[index].date);
       assert.equal(await readingRows.nth(index).locator('td').nth(2).textContent(), final.readings[index].valueExact);
+      assert.equal(await readingRows.nth(index).locator('td').nth(3).textContent(), 'Ручне спостереження');
     }
     for (let index = 0; index < 2; index++) {
       const cells = intervalRows.nth(index).locator('td');

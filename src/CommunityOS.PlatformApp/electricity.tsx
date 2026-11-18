@@ -16,11 +16,15 @@ type CommonPoint = { id: string; designation: string; boundary: string };
 type Interval = { fromReadingId: string; toReadingId: string; from: string; to: string; valueExact: string;
   rawDeltaExact: string; channel: Channel };
 type Series = {
-  readings: { id: string; date: string; valueExact: string; recognizedAt: string; accountId: string; channel: Channel }[];
+  readings: { id: string; date: string; valueExact: string; recognizedAt: string; accountId: string; channel: Channel;
+    source: 'manual-observation' | 'csv-import' }[];
   intervals: Interval[];
   combinedIntervals: { day: Interval; night: Interval; valueExact: string }[];
 };
 const channelNames: Record<Channel, string> = { total: 'Загальний', day: 'День', night: 'Ніч' };
+const sourceNames: Record<Series['readings'][number]['source'], string> = {
+  'manual-observation': 'Ручне спостереження', 'csv-import': 'Імпорт CSV',
+};
 
 const messages: Record<string, string> = {
   AlreadyRecorded: 'Таке значення за цю дату вже записано.',
@@ -314,7 +318,7 @@ export function Electricity({ community, canSetup, canRecognize, canReplace, can
         {series.readings.length === 0 ? <p>Показань ще немає.</p> : <table>
           <thead><tr><th>Дата вимірювання</th><th>Регістр</th><th>кВт·год</th><th>Джерело</th><th>Визнано</th><th>Обліковий запис</th></tr></thead>
           <tbody>{series.readings.map(item => <tr key={item.id}>
-            <td>{item.date}</td><td>{channelNames[item.channel]}</td><td>{format(item.valueExact)}</td><td>Ручне спостереження</td>
+            <td>{item.date}</td><td>{channelNames[item.channel]}</td><td>{format(item.valueExact)}</td><td>{sourceNames[item.source]}</td>
             <td>{new Date(item.recognizedAt).toLocaleString('uk-UA')}</td><td>{item.accountId}</td>
           </tr>)}</tbody>
         </table>}

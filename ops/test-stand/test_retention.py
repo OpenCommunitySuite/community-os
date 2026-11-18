@@ -1,5 +1,7 @@
 """Regression checks for storage cleanup scope and image retention."""
 import unittest
+import json
+from urllib.parse import parse_qs, urlsplit
 from retention import cleanup, require_free_space
 
 
@@ -23,7 +25,11 @@ class DockerStub:
 
     def call(self, method, path):
         if method == "GET":
-            return self.containers if path.startswith("/containers") else self.images
+            if path.startswith("/containers"):
+                return self.containers
+            filters = json.loads(parse_qs(urlsplit(path).query)["filters"][0])
+            return [image for image in self.images
+                    if bool(image.get("RepoTags")) == ("reference" in filters)]
         self.mutations.append((method, path))
         if path == "/containers/temporary":
             self.containers = [c for c in self.containers if c["Id"] != "temporary"]

@@ -30,11 +30,12 @@ WEB_ROLE = "stand_web"
 
 
 class Docker:
-    def __init__(self, port):
+    def __init__(self, port, timeout=900):
         self.port = port
+        self.timeout = timeout
 
     def call(self, method, path, body=None, *, missing=False, headers=None):
-        connection = http.client.HTTPConnection("127.0.0.1", self.port, timeout=900)
+        connection = http.client.HTTPConnection("127.0.0.1", self.port, timeout=self.timeout)
         try:
             if (method == "POST" and path.startswith("/containers/create") and isinstance(body, dict)
                     and (body.get("Labels") or {}).get(LABEL, "").startswith(PREFIX)):
@@ -165,7 +166,7 @@ class Docker:
                     tar.add(ROOT / item, arcname=item, recursive=False)
             size = archive.tell()
             archive.seek(0)
-            connection = http.client.HTTPConnection("127.0.0.1", self.port, timeout=900)
+            connection = http.client.HTTPConnection("127.0.0.1", self.port, timeout=self.timeout)
             try:
                 query = urlencode({"dockerfile": "ops/test-stand/Dockerfile", "t": tag, "version": "1", "rm": "true"})
                 connection.request("POST", "/build?" + query, archive, {

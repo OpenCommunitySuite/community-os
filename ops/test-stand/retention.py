@@ -30,7 +30,8 @@ def cleanup(docker, *, apply=False, keep_images=3):
 
     containers = docker.call("GET", "/containers/json?all=true")
     referenced = {container["ImageID"] for container in containers}
-    images = docker.call("GET", "/images/json?all=true")
+    images = docker.call("GET", "/images/json?" + urlencode({
+        "filters": json.dumps({"reference": [PREFIX + ":*"]})}))
     owned = [image for image in images if image.get("RepoTags")
              and all(tag.startswith(PREFIX + ":") for tag in image["RepoTags"])]
     keep = referenced | {image["Id"] for image in sorted(owned, key=lambda image: image["Created"],
@@ -44,7 +45,9 @@ def cleanup(docker, *, apply=False, keep_images=3):
 
     # Older builds predate BUILD_LABEL. Match their project-specific build commands,
     # and only consider untagged images with no digest or container reference.
-    for image in images:
+    legacy_images = docker.call("GET", "/images/json?" + urlencode({
+        "filters": json.dumps({"dangling": ["true"]})}))
+    for image in legacy_images:
         if image.get("RepoTags") or image.get("RepoDigests") or image["Id"] in referenced:
             continue
         history = docker.call("GET", "/images/" + image["Id"] + "/history", missing=True)
@@ -81,7 +84,7 @@ def main():
     parser.add_argument("--keep-images", type=int, default=3)
     parser.add_argument("--check-space", action="store_true")
     args = parser.parse_args()
-    docker = Docker(args.docker_port)
+    docker = Docker(args.docker_port, timeout=60)
     cleanup(docker, apply=args.apply, keep_images=args.keep_images)
     if args.check_space:
         require_free_space(docker)

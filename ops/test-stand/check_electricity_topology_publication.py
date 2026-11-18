@@ -147,7 +147,10 @@ def main():
     digest = hashlib.sha256(secret).hexdigest()
     docker.call('POST', '/containers/create?name=' + name, {
         'Image': args.image, 'Env': environment, 'Labels': {stand.LABEL: prefix},
-        'HostConfig': {'NetworkMode': template['HostConfig']['NetworkMode']},
+        'HostConfig': {
+            'NetworkMode': template['HostConfig']['NetworkMode'],
+            'LogConfig': {'Type': 'json-file', 'Config': {'max-size': '10m', 'max-file': '3'}},
+        },
     })
     try:
         if not water_balance:
@@ -367,8 +370,10 @@ def main():
                     extra = ', can_read_water=false'
                 sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}=NULL{extra} WHERE community_id='{community}' AND account_id='{account}';")
             finally:
-                docker.call('POST', f'/containers/{name}/stop?t=5')
-                docker.call('DELETE', f'/containers/{name}?v=true')
+                try:
+                    docker.call('POST', f'/containers/{name}/stop?t=5')
+                finally:
+                    docker.call('DELETE', f'/containers/{name}?v=false')
 
 
 if __name__ == '__main__':

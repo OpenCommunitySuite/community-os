@@ -90,7 +90,7 @@ def main():
         'water-import-race-import-first': 'recognize',
         'water-import-race-replacement-first': 'replace',
     }
-    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-import-revocation', 'water-topology', 'water-balance', 'water-verification', 'water-verification-history', *water_races], default='topology')
+    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-import-revocation', 'water-topology', 'water-balance', 'water-root-replacement-balance', 'water-verification', 'water-verification-history', *water_races], default='topology')
     args = parser.parse_args()
     dual_import = args.scenario == 'csv-import-dual'
     dual = args.scenario == 'dual-readings' or dual_import
@@ -104,6 +104,7 @@ def main():
     water_import = water_race_order is not None or args.scenario in ('water-import', 'water-import-history', 'water-import-revocation')
     water_topology = args.scenario == 'water-topology'
     water_balance = args.scenario == 'water-balance'
+    water_root_balance = args.scenario == 'water-root-replacement-balance'
     verification_history = args.scenario == 'water-verification-history'
     water_verification = args.scenario in ('water-verification', 'water-verification-history')
     water = args.scenario.startswith('water-')
@@ -131,6 +132,8 @@ def main():
         basis = 'Synthetic water topology acceptance'
     if water_balance:
         basis = 'Synthetic water balance acceptance'
+    if water_root_balance:
+        basis = 'Synthetic water root replacement balance'
     if water_verification:
         grant_column = 'water_verification_basis'
         basis = 'Synthetic water verification acceptance'
@@ -174,7 +177,7 @@ def main():
         COMMIT;
     """)
     commands = ['BEGIN;']
-    if water_topology or water_balance:
+    if water_topology or water_balance or water_root_balance:
         for label in ('Root', 'Street'):
             point, meter = str(uuid.uuid4()), str(uuid.uuid4())
             commands.extend([
@@ -207,12 +210,17 @@ def main():
         ])
     sql(register, '\n'.join(commands + ['COMMIT;']))
     def balance_fingerprint():
-        tables = ('reading', 'installation', 'replacement', 'topology_revision', 'topology_point')
-        parts = ' UNION ALL '.join(f"SELECT to_jsonb(t)::text AS value FROM community_water.{table} t WHERE community_id='{community}'" for table in tables)
+        tables = ('accounting_point', 'topology_revision', 'topology_point')
+        if not water_root_balance:
+            tables += ('installation', 'replacement')
+        parts = [f"SELECT to_jsonb(t)::text AS value FROM community_water.{table} t WHERE community_id='{community}'" for table in tables]
+        reading_filter = " AND basis='Synthetic fixture'" if water_root_balance else ''
+        parts.append(f"SELECT to_jsonb(t)::text AS value FROM community_water.reading t WHERE community_id='{community}'{reading_filter}")
+        parts = ' UNION ALL '.join(parts)
         return sql(register, f"SELECT md5(string_agg(value,'|' ORDER BY value)) FROM ({parts}) records;")
-    if water_balance:
+    if water_balance or water_root_balance:
         from water_balance_fixture import seed
-        seed(lambda command: sql(register, command), community, account, subject)
+        seed(lambda command: sql(register, command), community, account, subject, root_replacement=water_root_balance)
         fingerprint = balance_fingerprint()
     prefix = 'communityos-test-stand-topology-' + secrets.token_hex(4)
     name = prefix + '-web'
@@ -234,7 +242,7 @@ def main():
             sql(platform, f"UPDATE platform_provisioning.register_operator SET can_replace_electricity=true, electricity_replacement_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         if water_replacement:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET water_recognition_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
-        if verification_history or import_history or water_race_order:
+        if verification_history or import_history or water_race_order or water_root_balance:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET water_replacement_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         archive = docker.call('GET', f'/containers/{args.template_container}/archive?path=/run/stand/https.pfx')
         docker.call('PUT', f'/containers/{name}/archive?path=/run/stand', archive, headers={'Content-Type': 'application/x-tar'})
@@ -261,6 +269,8 @@ def main():
                     script = Path(__file__).with_name('check_water_topology_publication.cjs')
                 if water_balance:
                     script = Path(__file__).with_name('check_water_balance_acceptance.cjs')
+                if water_root_balance:
+                    script = Path(__file__).with_name('check_water_root_replacement_balance.cjs')
                 if water_verification:
                     script = Path(__file__).with_name('check_water_verification_acceptance.cjs')
                 child = subprocess.Popen([args.node, str(script)],
@@ -383,6 +393,14 @@ def main():
                 raise RuntimeError('Read-only balance probe changed resource data or created admissions')
             print('PASS: balance fixture unchanged and no write admissions created')
             return
+        if water_root_balance:
+            from water_balance_fixture import verify_root_replacement
+            if balance_fingerprint() != fingerprint:
+                raise RuntimeError('Root replacement changed point identities, dated topology or fixture readings')
+            verify_root_replacement(lambda command: sql(register, command), lambda command: sql(platform, command),
+                                    community, account, subject, basis)
+            print('PASS: dated topology and fixture readings preserved; replacement and two readings linked to Platform admissions')
+            return
         if water_topology:
             rows = sql(register, f"SELECT r.admission_id,r.starts_on,p.point_id FROM community_water.topology_revision r JOIN community_water.topology_point p USING (community_id,starts_on) WHERE r.community_id='{community}' AND p.parent_id IS NULL;").splitlines()
             admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE community_id='{community}' AND action='publish-topology';")
@@ -503,7 +521,7 @@ def main():
                     extra = ', can_replace_electricity=false, electricity_replacement_basis=NULL'
                 if water_replacement:
                     extra = ', water_recognition_basis=NULL'
-                if verification_history or import_history or water_race_order:
+                if verification_history or import_history or water_race_order or water_root_balance:
                     extra = ', water_replacement_basis=NULL'
                 if water_balance:
                     extra = ', can_read_water=false'

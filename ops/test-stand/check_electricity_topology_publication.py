@@ -90,12 +90,13 @@ def main():
         'water-import-race-import-first': 'recognize',
         'water-import-race-replacement-first': 'replace',
     }
-    parser.add_argument('--scenario', choices=['topology', 'forest-replacement', 'installation-history', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-import-revocation', 'water-topology', 'water-balance', 'water-root-replacement-balance', 'water-verification', 'water-verification-history', *water_races], default='topology')
+    parser.add_argument('--scenario', choices=['topology', 'forest-replacement', 'installation-history', 'common-electricity', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-import-revocation', 'water-topology', 'water-balance', 'water-root-replacement-balance', 'water-verification', 'water-verification-history', *water_races], default='topology')
     args = parser.parse_args()
     dual_import = args.scenario == 'csv-import-dual'
     dual = args.scenario == 'dual-readings' or dual_import
     forest_replacement = args.scenario == 'forest-replacement'
     installation_history = args.scenario == 'installation-history'
+    common_electricity = args.scenario == 'common-electricity'
     replacement = args.scenario == 'replacement'
     electricity_import_history = args.scenario == 'csv-import-history'
     csv_revocation = args.scenario in ('csv-import-revocation', 'water-import-revocation')
@@ -124,6 +125,9 @@ def main():
     if installation_history:
         grant_column = 'electricity_replacement_basis'
         basis = 'Synthetic installation history'
+    if common_electricity:
+        grant_column = 'common_electricity_setup_basis'
+        basis = 'Synthetic common electricity registration'
     if csv_import:
         basis = 'Synthetic CSV acceptance'
     if water:
@@ -193,7 +197,7 @@ def main():
                 f"INSERT INTO community_water.installation (community_id,id,point_id,meter_id,starts_on,admission_id,account_id,subject_id,basis) VALUES ('{community}',gen_random_uuid(),'{point}','{meter}','2026-01-01',gen_random_uuid(),'{account}','{subject}','Synthetic fixture');",
             ])
     first_installation = str(uuid.uuid4())
-    for index in range(1 if installation_history else 3):
+    for index in range(1 if installation_history or common_electricity else 3):
         installation = first_installation if index == 0 else str(uuid.uuid4())
         if water:
             if index == 2:
@@ -209,8 +213,9 @@ def main():
         if installation_history:
             commands.append(f"INSERT INTO community_register.plot VALUES ('{community}',gen_random_uuid(),'Plot 0');")
             continue
-        for label in (f'Root {index}', f'Street {index}'):
-            commands.append(f"INSERT INTO community_electricity.accounting_point (community_id,id,common_designation,measurement_boundary) VALUES ('{community}',gen_random_uuid(),'{label}','Synthetic boundary');")
+        if not common_electricity:
+            for label in (f'Root {index}', f'Street {index}'):
+                commands.append(f"INSERT INTO community_electricity.accounting_point (community_id,id,common_designation,measurement_boundary) VALUES ('{community}',gen_random_uuid(),'{label}','Synthetic boundary');")
         plot, point, meter = (str(uuid.uuid4()) for _ in range(3))
         commands.extend([
             f"INSERT INTO community_register.plot VALUES ('{community}','{plot}','Plot {index}');",
@@ -252,6 +257,10 @@ def main():
             sql(platform, f"""UPDATE platform_provisioning.register_operator
                 SET can_replace_electricity=true, can_setup_electricity=true, electricity_setup_basis='{basis}'
                 WHERE community_id='{community}' AND account_id='{account}';""")
+        if common_electricity:
+            sql(platform, f"""UPDATE platform_provisioning.register_operator
+                SET can_setup_common_electricity=true, electricity_recognition_basis='{basis}'
+                WHERE community_id='{community}' AND account_id='{account}';""")
         if electricity_import_history or forest_replacement:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET can_replace_electricity=true, electricity_replacement_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         if water_replacement:
@@ -273,6 +282,8 @@ def main():
                     script = Path(__file__).with_name('check_electricity_replacement.cjs')
                 if installation_history:
                     script = Path(__file__).with_name('check_electricity_installation_history.cjs')
+                if common_electricity:
+                    script = Path(__file__).with_name('check_common_electricity.cjs')
                 if csv_import:
                     script = Path(__file__).with_name('check_electricity_csv_import.cjs')
                 if water:
@@ -477,6 +488,12 @@ def main():
                     raise RuntimeError('Water replacement does not reference its Platform admission')
                 print('PASS: one water replacement linked to Platform admission' if import_history or water_race_order else 'PASS: one water replacement linked to four Platform admissions, no replacement after revocation')
             return
+        if common_electricity:
+            from common_electricity_fixture import verify
+            verify(lambda command: sql(register, command), lambda command: sql(platform, command),
+                   community, account, subject, basis, first_installation)
+            print('PASS: one common point without a plot, four readings, and seven matching or attempted Platform admissions')
+            return
         if installation_history:
             rows = [row.split('|') for row in sql(register, f"""
                 SELECT i.id, i.point_id, i.admission_id, p.plot_id, i.starts_on, i.ends_before, m.register_mode,
@@ -604,6 +621,8 @@ def main():
                 extra = ', electricity_recognition_basis=NULL' if replacement else ''
                 if installation_history:
                     extra = ', can_replace_electricity=false, can_setup_electricity=false, electricity_setup_basis=NULL'
+                if common_electricity:
+                    extra = ', can_setup_common_electricity=false, can_recognize_electricity=false, electricity_recognition_basis=NULL'
                 if electricity_import_history or forest_replacement:
                     extra = ', can_replace_electricity=false, electricity_replacement_basis=NULL'
                 if water_replacement:

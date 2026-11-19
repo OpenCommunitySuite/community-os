@@ -90,10 +90,11 @@ def main():
         'water-import-race-import-first': 'recognize',
         'water-import-race-replacement-first': 'replace',
     }
-    parser.add_argument('--scenario', choices=['topology', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-import-revocation', 'water-topology', 'water-balance', 'water-root-replacement-balance', 'water-verification', 'water-verification-history', *water_races], default='topology')
+    parser.add_argument('--scenario', choices=['topology', 'forest-replacement', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-import-revocation', 'water-topology', 'water-balance', 'water-root-replacement-balance', 'water-verification', 'water-verification-history', *water_races], default='topology')
     args = parser.parse_args()
     dual_import = args.scenario == 'csv-import-dual'
     dual = args.scenario == 'dual-readings' or dual_import
+    forest_replacement = args.scenario == 'forest-replacement'
     replacement = args.scenario == 'replacement'
     electricity_import_history = args.scenario == 'csv-import-history'
     csv_revocation = args.scenario in ('csv-import-revocation', 'water-import-revocation')
@@ -109,9 +110,11 @@ def main():
     water_verification = args.scenario in ('water-verification', 'water-verification-history')
     water = args.scenario.startswith('water-')
     reading_schema = 'community_water' if water else 'community_electricity'
-    manual = args.scenario != 'topology'
+    manual = args.scenario not in ('topology', 'forest-replacement')
     grant_column = 'electricity_recognition_basis' if manual else 'topology_publication_basis'
     basis = 'Synthetic manual reading acceptance' if manual else 'Synthetic topology acceptance'
+    if forest_replacement:
+        basis = 'Synthetic forest replacement acceptance'
     if dual:
         basis = 'Synthetic dual reading acceptance'
     if replacement:
@@ -238,7 +241,7 @@ def main():
             sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         if replacement:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET can_replace_electricity=true, electricity_recognition_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
-        if electricity_import_history:
+        if electricity_import_history or forest_replacement:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET can_replace_electricity=true, electricity_replacement_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         if water_replacement:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET water_recognition_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
@@ -278,6 +281,7 @@ def main():
                              STAND_HELP_SCREENSHOT=str(args.screenshot), STAND_VERIFICATION_HISTORY=str(verification_history).lower(),
                              STAND_IMPORT_HISTORY=str(import_history).lower(),
                              STAND_ELECTRICITY_IMPORT_HISTORY=str(electricity_import_history).lower(),
+                             STAND_ELECTRICITY_FOREST_REPLACEMENT=str(forest_replacement).lower(),
                              STAND_ELECTRICITY_IMPORT_DUAL=str(dual_import).lower(),
                              STAND_CSV_IMPORT_REVOCATION=str(csv_revocation).lower(),
                              STAND_WATER_IMPORT_RACE=water_race_order or ''),
@@ -501,6 +505,42 @@ def main():
                     raise RuntimeError('Replacement does not reference its Platform admission')
                 print('PASS: one replacement linked to Platform admission' if electricity_import_history else 'PASS: one replacement linked to Platform admission, four attempts, no replacement after revocation')
             return
+        if forest_replacement:
+            revisions = [row.split('|') for row in sql(register, f"""
+                SELECT r.admission_id, r.starts_on, r.account_id, r.subject_id, r.basis, count(p.point_id)
+                FROM community_electricity.topology_revision r LEFT JOIN community_electricity.topology_point p
+                    USING (community_id, starts_on)
+                WHERE r.community_id='{community}' GROUP BY r.starts_on, r.admission_id, r.account_id, r.subject_id, r.basis
+                ORDER BY r.starts_on;""").splitlines()]
+            if [row[1:] for row in revisions] != [
+                ['2026-01-01', account, subject, basis, '9'],
+                ['2026-01-03', account, subject, basis, '9'],
+            ]:
+                raise RuntimeError('Expected two attributed nine-point revisions')
+            changes = sql(register, f"""
+                SELECT r.admission_id, r.old_installation_id, r.request_id FROM community_electricity.replacement r
+                JOIN community_electricity.installation old ON (old.community_id,old.id)=(r.community_id,r.old_installation_id)
+                JOIN community_electricity.installation new ON (new.community_id,new.id)=(r.community_id,r.new_installation_id)
+                JOIN community_electricity.accounting_point p ON (p.community_id,p.id)=(old.community_id,old.point_id)
+                JOIN community_register.plot plot ON (plot.community_id,plot.id)=(p.community_id,p.plot_id)
+                WHERE r.community_id='{community}' AND r.effective_on='2026-01-04' AND plot.number='Plot 0'
+                    AND old.ends_before=r.effective_on AND new.starts_on=r.effective_on AND new.point_id=old.point_id
+                    AND r.account_id='{account}' AND r.subject_id='{subject}' AND r.basis='{basis}';""").splitlines()
+            if len(changes) != 1 or sql(register,
+                    f"SELECT count(*) FROM community_electricity.replacement WHERE community_id='{community}';") != '1':
+                raise RuntimeError('Expected one attributed replacement on the original point')
+            admission, old, request = changes[0].split('|')
+            issued = [row.split('|') for row in sql(platform, f"""
+                SELECT id, action, target_id, effective_on, request_id, account_id, subject_id, basis
+                FROM platform_provisioning.electricity_admission WHERE community_id='{community}'
+                ORDER BY action, effective_on;""").splitlines()]
+            expected = [
+                [row[0], 'publish-topology', community, row[1], '', account, subject, basis] for row in revisions
+            ] + [[admission, 'replace', old, '2026-01-04', request, account, subject, basis]]
+            if issued != expected:
+                raise RuntimeError('Revisions or replacement do not match their Platform admissions')
+            print('PASS: two nine-point revisions and one replacement matched to exactly three Platform admissions')
+            return
         revisions = sql(register, f"SELECT count(*) FROM community_electricity.topology_revision WHERE community_id='{community}';")
         admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE community_id='{community}' AND action='publish-topology';")
         if (revisions, admissions) != ('1', '2'):
@@ -517,7 +557,7 @@ def main():
         finally:
             try:
                 extra = ', electricity_recognition_basis=NULL' if replacement else ''
-                if electricity_import_history:
+                if electricity_import_history or forest_replacement:
                     extra = ', can_replace_electricity=false, electricity_replacement_basis=NULL'
                 if water_replacement:
                     extra = ', water_recognition_basis=NULL'

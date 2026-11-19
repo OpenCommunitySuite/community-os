@@ -1,4 +1,4 @@
-// Post only the isolated synthetic community's two billing periods.
+// Post only billing periods in the isolated synthetic community.
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 const readline = require('node:readline');
@@ -21,6 +21,7 @@ async function revokeGrant() {
   assert.match(community, /^[0-9a-f-]{36}$/);
   const base = `/community/billing/${community}`;
   const partialPayment = process.env.STAND_WATER_PARTIAL_PAYMENT === 'true';
+  const postingRace = process.env.STAND_WATER_POSTING_RACE === 'true';
   const writes = new Set([base + '/post']);
   if (partialPayment) {
     for (const path of ['record', 'preview', 'allocate']) writes.add(`${base}/payments/${path}`);
@@ -43,34 +44,42 @@ async function revokeGrant() {
       }
       await route.continue();
     });
-    const page = await context.newPage();
-    page.setDefaultTimeout(20000);
     const errors = [];
-    page.on('pageerror', error => errors.push(error.message));
-    const reply = (path, method = 'GET') => page.waitForResponse(response =>
+    const responseOn = (page, path, method) => page.waitForResponse(response =>
       new URL(response.url()).pathname === path && response.request().method() === method);
+    async function openBilling() {
+      const page = await context.newPage();
+      page.setDefaultTimeout(20000);
+      page.on('pageerror', error => errors.push(error.message));
+      const communities = responseOn(page, communitiesPath, 'GET');
+      await page.goto(origin + '/community/');
+      const grants = (await (await communities).json()).find(item => item.id === community);
+      assert.ok(grants.canReadBilling && grants.canPostBilling);
+      if (partialPayment) assert.ok(grants.canRecordPayment && grants.canAllocatePayment);
+      await page.locator('select').first().selectOption(community);
+      return page;
+    }
+    const page = await openBilling();
+    const reply = (path, method = 'GET') => responseOn(page, path, method);
     const get = path => page.evaluate(async path => {
       const response = await fetch(path);
       if (!response.ok) throw new Error('Synthetic billing history unavailable');
       return response.json();
     }, path);
-    const communities = reply(communitiesPath);
-    await page.goto(origin + '/community/');
-    const grants = (await (await communities).json()).find(item => item.id === community);
-    assert.ok(grants.canReadBilling && grants.canPostBilling);
-    if (partialPayment) assert.ok(grants.canRecordPayment && grants.canAllocatePayment);
-    await page.locator('select').first().selectOption(community);
-    const section = page.getByRole('region', { name: 'Розрахунковий період', exact: true });
-    const confirm = section.getByRole('button', { name: 'Підтвердити проведення періоду', exact: true });
+    const billing = tab => tab.getByRole('region', { name: 'Розрахунковий період', exact: true });
+    const confirmation = section => section.getByRole('button', { name: 'Підтвердити проведення періоду', exact: true });
+    const section = billing(page);
+    const confirm = confirmation(section);
     const first = { from: '2026-01-01', until: '2026-01-03', calculatedOn: '2026-01-04', dueOn: '2026-01-15' };
     const second = { from: '2026-01-03', until: '2026-01-05', calculatedOn: '2026-01-06', dueOn: '2026-01-16' };
     const labels = { from: 'Початок споживання', until: 'Кінець споживання', calculatedOn: 'Дата розрахунку', dueOn: 'Сплатити до' };
-    async function preview(period, includeWater, electricity) {
+    async function preview(period, includeWater, electricity, tab = page) {
+      const target = billing(tab);
       for (const [field, value] of Object.entries(period))
-        await section.getByLabel(labels[field], { exact: true }).fill(value);
-      await section.getByRole('checkbox', { name: 'Включити воду', exact: true }).setChecked(includeWater);
-      const waiting = reply(base + '/preview');
-      await section.getByRole('button', { name: 'Попередній розрахунок', exact: true }).click();
+        await target.getByLabel(labels[field], { exact: true }).fill(value);
+      await target.getByRole('checkbox', { name: 'Включити воду', exact: true }).setChecked(includeWater);
+      const waiting = responseOn(tab, base + '/preview', 'GET');
+      await target.getByRole('button', { name: 'Попередній розрахунок', exact: true }).click();
       const response = await waiting;
       assert.equal(response.status(), 200);
       const quote = await response.json();
@@ -91,26 +100,70 @@ async function revokeGrant() {
       } else {
         assert.equal(line.water, undefined);
       }
-      await confirm.waitFor();
-      const waterLine = section.getByText(/^Вода ·/);
+      await confirmation(target).waitFor();
+      const waterLine = target.getByText(/^Вода ·/);
       if (includeWater) await waterLine.filter({ hasText: /2\.5 м³ × 20 грн\/м³ · 50,00/ }).waitFor();
       else assert.equal(await waterLine.count(), 0);
       return quote;
     }
-    async function post(quote, status, outcome, message) {
-      const posted = reply(base + '/post', 'POST');
-      await confirm.click();
-      const response = await posted;
-      assert.equal(response.status(), status);
+    async function confirmQuote(quote, tab) {
+      const posted = responseOn(tab, base + '/post', 'POST');
+      const [response] = await Promise.all([posted, confirmation(billing(tab)).click()]);
       assert.deepEqual(response.request().postDataJSON(), {
         period: quote.plan.period, digest: quote.digest, includeWater: quote.plan.includeWater ?? false,
       });
+      return response;
+    }
+    async function post(quote, status, outcome, message) {
+      const response = await confirmQuote(quote, page);
+      assert.equal(response.status(), status);
       const result = outcome ? await response.json() : undefined;
       if (outcome) assert.equal(result.outcome, outcome);
       await section.getByText(message, { exact: true }).waitFor();
       return result?.result;
     }
     const history = period => get(base + '/history?' + new URLSearchParams({ from: period.from, until: period.until }));
+    if (postingRace) {
+      const other = await openBilling();
+      const quotes = await Promise.all([preview(first, true, 480), preview(first, true, 480, other)]);
+      assert.deepEqual(quotes[0], quotes[1]);
+      assert.deepEqual(await get(base + '/periods'), []);
+      const input = readline.createInterface({ input: process.stdin });
+      const messages = input[Symbol.asyncIterator]();
+      let responses;
+      try {
+        console.log('LOCK_BILLING_RACE');
+        assert.equal((await messages.next()).value, 'LOCKED');
+        const [pair, released] = await Promise.all([
+          Promise.all([confirmQuote(quotes[0], page), confirmQuote(quotes[1], other)]), messages.next(),
+        ]);
+        assert.equal(released.value, 'RELEASED');
+        responses = pair;
+      } finally {
+        input.close();
+      }
+      for (const response of responses) assert.equal(response.status(), 200);
+      const results = await Promise.all(responses.map(response => response.json()));
+      assert.deepEqual(results.map(result => result.outcome).sort(), ['Posted', 'Replayed']);
+      const saved = results[0].result;
+      assert.deepEqual(results[1].result, saved);
+      assert.equal(saved.digest, quotes[0].digest);
+      assert.deepEqual(saved.snapshot, quotes[0].plan);
+      await Promise.all([page, other].map((tab, index) => billing(tab).getByText(
+        results[index].outcome === 'Posted' ? 'Період проведено.' : 'Період уже проведено.', { exact: true }).waitFor()));
+      assert.deepEqual((await get(base + '/periods')).map(item => item.id), [saved.id]);
+      assert.deepEqual(await history(first), saved);
+      const reconciliation = await get(`${base}/periods/${saved.id}/reconciliation`);
+      assert.equal(reconciliation.details.length, 3);
+      assert.equal(new Set(reconciliation.details.map(item => item.obligationId)).size, 3);
+      assert.deepEqual(Object.fromEntries(reconciliation.details.map(item => [item.kind, item.charged])),
+        { electricity: 480, 'member-fee': 25, water: 50 });
+      await page.screenshot({ path: process.env.STAND_HELP_SCREENSHOT, fullPage: true });
+      assert.deepEqual(unexpected, []);
+      assert.deepEqual(errors, []);
+      console.log('PASS: simultaneous confirmations returned Posted and Replayed with one saved snapshot');
+      return;
+    }
     const dryQuote = await preview(first, false, 480);
     const wetQuote = await preview(first, true, 480);
     assert.notEqual(wetQuote.digest, dryQuote.digest);

@@ -38,8 +38,8 @@ def stand_image(docker, tag):
 
 
 @contextmanager
-def hold_installation(docker, postgres, database, community, installation, schema):
-    """Hold a synthetic installation and identify the blocking session."""
+def hold_synthetic_lock(docker, postgres, database, acquire):
+    """Run the fixture statement in a transaction that is always rolled back."""
     exec_id = docker.exec_id(postgres, [
         'psql', '-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-U', stand.MIGRATOR, '-d', database,
     ], stdin=True)
@@ -50,8 +50,7 @@ def hold_installation(docker, postgres, database, community, installation, schem
             BEGIN;
             SET LOCAL lock_timeout = '3s';
             SET LOCAL idle_in_transaction_session_timeout = '25s';
-            SELECT 'LOCKED|' || pg_backend_pid() FROM {schema}.installation
-              WHERE community_id='{community}' AND id='{installation}' FOR UPDATE;
+            {acquire}
         """.encode())
         output = b''
         frames = stand.frames(stream)
@@ -63,14 +62,21 @@ def hold_installation(docker, postgres, database, community, installation, schem
                     if locked:
                         break
             else:
-                raise RuntimeError('Synthetic installation lock was not acquired')
+                raise RuntimeError('Synthetic transaction lock was not acquired')
             yield int(locked[1])
         finally:
             sock.sendall(b'ROLLBACK;\n\\q\n')
             for _ in frames:
                 pass
     if docker.call('GET', f'/exec/{exec_id}/json')['ExitCode'] != 0:
-        raise RuntimeError('Synthetic installation lock session failed')
+        raise RuntimeError('Synthetic transaction lock session failed')
+
+
+def hold_installation(docker, postgres, database, community, installation, schema):
+    return hold_synthetic_lock(docker, postgres, database, f"""
+        SELECT 'LOCKED|' || pg_backend_pid() FROM {schema}.installation
+        WHERE community_id='{community}' AND id='{installation}' FOR UPDATE;
+    """)
 
 
 def wait_for_water_writes(sql, database, holder, expected):
@@ -107,7 +113,7 @@ def main():
     parser.add_argument('--node', required=True)
     parser.add_argument('--screenshot', type=Path, required=True)
     parser.add_argument('--scenario', choices=(*SCENARIOS, 'water-charge-preview', 'water-period-posting',
-                                               'water-partial-payment'), default='topology')
+                                               'water-partial-payment', 'water-posting-race'), default='topology')
     args = parser.parse_args()
     dual_import = args.scenario == 'csv-import-dual'
     dual = args.scenario == 'dual-readings' or dual_import
@@ -127,7 +133,8 @@ def main():
     water_registration = args.scenario == 'water-registration'
     water_charge_preview = args.scenario == 'water-charge-preview'
     water_partial_payment = args.scenario == 'water-partial-payment'
-    water_period_posting = args.scenario in ('water-period-posting', 'water-partial-payment')
+    water_posting_race = args.scenario == 'water-posting-race'
+    water_period_posting = args.scenario == 'water-period-posting' or water_partial_payment or water_posting_race
     water_billing = water_charge_preview or water_period_posting
     water_balance = args.scenario == 'water-balance'
     water_root_balance = args.scenario == 'water-root-replacement-balance'
@@ -175,6 +182,8 @@ def main():
         basis = 'Synthetic water period posting'
     if water_partial_payment:
         basis = 'Synthetic water partial payment'
+    if water_posting_race:
+        basis = 'Synthetic water posting race'
     if water_balance:
         basis = 'Synthetic water balance acceptance'
     if water_root_balance:
@@ -399,6 +408,7 @@ def main():
                              STAND_WATER_STREET_BALANCE=str(water_street_balance).lower(),
                              STAND_WATER_PREVIEW_TARIFF=preview_tariff,
                              STAND_WATER_PARTIAL_PAYMENT=str(water_partial_payment).lower(),
+                             STAND_WATER_POSTING_RACE=str(water_posting_race).lower(),
                              STAND_ELECTRICITY_IMPORT_DUAL=str(dual_import).lower(),
                              STAND_CSV_IMPORT_REVOCATION=str(csv_revocation).lower(),
                              STAND_WATER_IMPORT_RACE=water_race_order or ''),
@@ -429,6 +439,16 @@ def main():
                                     AND effective_on='2026-01-04' ORDER BY action;""").splitlines()
                                 if admissions != ['recognize', 'replace']:
                                     raise RuntimeError('Both queued writes must have distinct Platform admissions')
+                            raced = True
+                            child.stdin.write('RELEASED\n')
+                            child.stdin.flush()
+                        elif message == 'LOCK_BILLING_RACE' and water_posting_race and not raced:
+                            from water_charge_fixture import reserve_period, wait_for_postings, verify_posting_admissions
+                            with hold_synthetic_lock(docker, postgres, register, reserve_period(community, account, subject)) as holder:
+                                child.stdin.write('LOCKED\n')
+                                child.stdin.flush()
+                                wait_for_postings(lambda command: sql(register, command), holder)
+                                verify_posting_admissions(lambda command: sql(platform, command), community, account, subject, basis)
                             raced = True
                             child.stdin.write('RELEASED\n')
                             child.stdin.flush()
@@ -477,8 +497,8 @@ def main():
                             print(message)
                         else:
                             raise RuntimeError('Unexpected browser probe output')
-                    if child.wait(timeout=10) != 0 or not (raced if water_race_order else revoked):
-                        raise RuntimeError('Browser electricity acceptance failed')
+                    if child.wait(timeout=10) != 0 or not (raced if water_race_order or water_posting_race else revoked):
+                        raise RuntimeError('Browser acceptance failed')
                 finally:
                     if child.poll() is None:
                         child.kill()
@@ -501,6 +521,12 @@ def main():
             verify_partial_payment(lambda command: sql(register, command), lambda command: sql(platform, command),
                                    community, account, subject, basis)
             print('PASS: one payment, one water allocation, three obligation balances and three Platform payment admissions')
+            return
+        if water_posting_race:
+            from water_charge_fixture import verify_posting_race
+            verify_posting_race(lambda command: sql(register, command), lambda command: sql(platform, command),
+                                community, account, subject, basis)
+            print('PASS: both posts waited at insertion; one snapshot, three linked obligations and two matching Platform admissions')
             return
         if water_period_posting:
             from water_charge_fixture import verify_periods

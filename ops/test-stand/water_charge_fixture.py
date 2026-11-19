@@ -1,6 +1,7 @@
 """Synthetic one-account facts for water preview and period posting."""
 
 import uuid
+import time
 
 
 def seed(sql, community, account, subject):
@@ -81,17 +82,14 @@ def seed_period(sql, community, account, subject):
         COMMIT;""")
 
 
-def verify_periods(register, platform, community, account, subject, basis):
-    periods = [row.split('|') for row in register(f"""
+def posted_periods(register, community):
+    return [row.split('|') for row in register(f"""
         SELECT id,admission_id,digest,starts_on,ends_on,calculated_on,due_on,
             coalesce(snapshot->>'includeWater','false'),account_id,subject_id,basis
         FROM community_billing.posted_period WHERE community_id='{community}' ORDER BY starts_on;""").splitlines()]
-    if [row[3:] for row in periods] != [
-        ['2026-01-01', '2026-01-03', '2026-01-04', '2026-01-15', 'true', account, subject, basis],
-        ['2026-01-03', '2026-01-05', '2026-01-06', '2026-01-16', 'false', account, subject, basis],
-    ]:
-        raise RuntimeError('Expected two attributed snapshots with distinct water inclusion')
-    wet, dry = periods
+
+
+def verify_period_accruals(register, community, subject, *, include_dry=False):
     rows = register(f"""
         SELECT p.starts_on,a.kind,trim_scale(a.amount_uah),pa.number,a.debtor_id,
             (o.id IS NOT NULL)::text
@@ -100,21 +98,39 @@ def verify_periods(register, platform, community, account, subject, basis):
         JOIN community_register.personal_account pa ON (pa.community_id,pa.id)=(a.community_id,a.personal_account_id)
         LEFT JOIN community_billing.obligation o ON (o.community_id,o.accrual_id)=(a.community_id,a.id)
         WHERE a.community_id='{community}' ORDER BY p.starts_on,a.kind;""").splitlines()
-    if rows != [
+    expected = [
         f'2026-01-01|electricity|480|WATER-001|{subject}|true',
         f'2026-01-01|member-fee|25|WATER-001|{subject}|true',
         f'2026-01-01|water|50|WATER-001|{subject}|true',
-        f'2026-01-03|electricity|160|WATER-001|{subject}|true',
-        f'2026-01-03|member-fee|25|WATER-001|{subject}|true',
-    ]:
-        raise RuntimeError('Unexpected accruals or obligations after posting, replay and conflict')
+    ]
+    if include_dry:
+        expected.extend([
+            f'2026-01-03|electricity|160|WATER-001|{subject}|true',
+            f'2026-01-03|member-fee|25|WATER-001|{subject}|true',
+        ])
+    if rows != expected:
+        raise RuntimeError('Unexpected accruals or obligations after posting')
     for table in ('accrual', 'obligation'):
-        if register(f"SELECT count(*) FROM community_billing.{table} WHERE community_id='{community}';") != '5':
-            raise RuntimeError('Expected exactly five accruals and obligations in the synthetic community')
+        if register(f"SELECT count(*) FROM community_billing.{table} WHERE community_id='{community}';") != str(len(expected)):
+            raise RuntimeError(f'Unexpected {table} count in the synthetic community')
 
-    admissions = [row.split('|') for row in platform(f"""
+
+def billing_admissions(platform, community):
+    return [row.split('|') for row in platform(f"""
         SELECT id,digest,starts_on,ends_on,account_id,subject_id,basis
         FROM platform_provisioning.billing_admission WHERE community_id='{community}';""").splitlines()]
+
+
+def verify_periods(register, platform, community, account, subject, basis):
+    periods = posted_periods(register, community)
+    if [row[3:] for row in periods] != [
+        ['2026-01-01', '2026-01-03', '2026-01-04', '2026-01-15', 'true', account, subject, basis],
+        ['2026-01-03', '2026-01-05', '2026-01-06', '2026-01-16', 'false', account, subject, basis],
+    ]:
+        raise RuntimeError('Expected two attributed snapshots with distinct water inclusion')
+    wet, dry = periods
+    verify_period_accruals(register, community, subject, include_dry=True)
+    admissions = billing_admissions(platform, community)
     if len(admissions) != 4 or any(row[4:] != [account, subject, basis] for row in admissions):
         raise RuntimeError('Expected four attributed Platform admissions before access revocation')
     for period in periods:
@@ -127,6 +143,59 @@ def verify_periods(register, platform, community, account, subject, basis):
     remaining.remove(replay)
     if len(remaining) != 1 or remaining[0][0] == wet[2] or remaining[0][1:] != wet[3:5]:
         raise RuntimeError('Expected one conflicting digest on the same period bounds')
+
+
+def reserve_period(community, account, subject):
+    # The uncommitted fixture row reserves only this synthetic community's period key.
+    return f"""
+        INSERT INTO community_billing.posted_period
+            (community_id,id,starts_on,ends_on,calculated_on,due_on,digest,snapshot,admission_id,account_id,subject_id,basis)
+        VALUES ('{community}',gen_random_uuid(),'2026-01-01','2026-01-03','2026-01-04','2026-01-15',
+            repeat('0',64),'{{}}',gen_random_uuid(),'{account}','{subject}','Synthetic concurrency guard')
+        RETURNING 'LOCKED|' || pg_backend_pid();
+    """
+
+
+def wait_for_postings(register, holder):
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        count = register(f"""
+            WITH RECURSIVE blocked(pid) AS (
+                SELECT {holder}
+                UNION
+                SELECT activity.pid FROM pg_stat_activity activity
+                JOIN blocked ON blocked.pid = ANY(pg_blocking_pids(activity.pid))
+                WHERE activity.datname = current_database() AND activity.wait_event_type = 'Lock'
+            )
+            SELECT count(*) FROM blocked JOIN pg_stat_activity activity USING (pid)
+            WHERE pid <> {holder} AND activity.query LIKE '%INSERT INTO community_billing.posted_period%';
+        """)
+        if count == '2':
+            return
+        if count not in ('0', '1'):
+            raise RuntimeError('Unexpected number of synthetic billing inserts waiting on the period')
+        time.sleep(0.1)
+    raise RuntimeError('Both synthetic billing requests must reach the period insertion before release')
+
+
+def verify_posting_admissions(platform, community, account, subject, basis):
+    admissions = billing_admissions(platform, community)
+    if len(admissions) != 2 or any(row[2:] != ['2026-01-01', '2026-01-03', account, subject, basis] for row in admissions):
+        raise RuntimeError('Expected two attributed Platform admissions for the same synthetic period')
+    if admissions[0][1] != admissions[1][1]:
+        raise RuntimeError('Both admissions must have the same billing digest')
+    return admissions
+
+
+def verify_posting_race(register, platform, community, account, subject, basis):
+    periods = posted_periods(register, community)
+    if [row[3:] for row in periods] != [['2026-01-01', '2026-01-03', '2026-01-04', '2026-01-15', 'true', account, subject, basis]]:
+        raise RuntimeError('Expected one attributed water snapshot after the concurrent posts')
+    [posted] = periods
+    verify_period_accruals(register, community, subject)
+    admissions = verify_posting_admissions(platform, community, account, subject, basis)
+    if posted[1:5] not in [row[:4] for row in admissions]:
+        raise RuntimeError('The saved snapshot must reference the admission that posted it')
 
 
 def verify_partial_payment(register, platform, community, account, subject, basis):

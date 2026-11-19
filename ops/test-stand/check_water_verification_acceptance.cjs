@@ -6,6 +6,7 @@ const readline = require('node:readline');
 (async () => {
   const origin = 'https://127.0.0.1:5543';
   const community = process.env.STAND_COMMUNITY;
+  const checkPointTypes = process.env.STAND_VERIFICATION_TYPES === 'true';
   assert.match(community, /^[0-9a-f-]{36}$/);
   const base = `/community/water/${community}`;
   const browser = await chromium.launch({ channel: 'msedge' });
@@ -41,17 +42,37 @@ const readline = require('node:readline');
       assert.equal(response.status(), 200);
       return response.json();
     }
-    async function read() {
+    async function read(path = base + '/verifications') {
       return page.evaluate(async path => {
         const response = await fetch(path);
         if (!response.ok) throw new Error('Verification history unavailable');
         return response.json();
-      }, base + '/verifications');
+      }, path);
     }
     const initial = await load();
-    assert.equal(initial.meters.length, 2);
+    assert.equal(initial.meters.length, checkPointTypes ? 4 : 2);
     assert.ok(initial.meters.every(meter => meter.active && meter.history.length === 0));
-    const [primary, other] = [...initial.meters].sort((a, b) => a.designation.localeCompare(b.designation));
+    const meterAt = point => initial.meters.find(meter => meter.point === point);
+    const primary = meterAt('Water 0');
+    const other = meterAt('Water 1');
+    assert.ok(primary && other);
+    const common = meterAt('Root');
+    const street = meterAt('Street');
+    if (checkPointTypes) {
+      assert.ok(common && street);
+      const points = await read(base + '/points');
+      const ids = Object.fromEntries(points.map(point => [point.designation, point.id]));
+      const tree = await read(base + '/topology?date=' + initial.today);
+      assert.equal(tree.startsOn, '2026-01-01');
+      assert.deepEqual(Object.fromEntries(tree.points.map(point => [point.pointId, point.parentId])), {
+        [ids.Root]: null,
+        [ids.Street]: ids.Root,
+        [ids['Water 0']]: ids.Street,
+        [ids['Water 1']]: ids.Root,
+      });
+      for (const meter of [common, street, primary, other])
+        assert.equal(points.find(point => point.id === ids[meter.point]).meterDesignation, meter.designation);
+    }
     const endpoint = meter => `${base}/meters/${meter.id}/verifications`;
     for (const meter of initial.meters) writes.add(endpoint(meter));
     const day = offset => {
@@ -62,13 +83,15 @@ const readline = require('node:readline');
     const picker = area.locator('label').filter({ hasText: /^Водомір для історії повірок/ }).locator('select');
     const deadlines = area.getByRole('table', { name: 'Строки повірки чинних водомірів', exact: true });
     const attention = area.getByRole('checkbox', { name: 'Лише водоміри, що потребують уваги', exact: true });
-    async function status(meter, expected) {
+    async function status(meter, expected, latest) {
       const row = deadlines.locator('tbody tr').filter({ has: page.getByRole('rowheader', { name: meter.designation, exact: true }) });
       await row.waitFor();
-      assert.equal(await row.locator('td').last().textContent(), expected);
+      const cells = await row.locator('td').allTextContents();
+      assert.equal(cells[0], meter.point);
+      assert.equal(cells[3], expected);
+      if (latest) assert.deepEqual(cells.slice(1, 3), latest);
     }
-    await status(primary, 'Строк невідомий');
-    await status(other, 'Строк невідомий');
+    for (const meter of initial.meters) await status(meter, 'Строк невідомий', ['—', '—']);
     await picker.selectOption(primary.id);
     const button = area.getByRole('button', { name: 'Зареєструвати повірку', exact: true });
     async function fill(verified, due, evidence) {
@@ -76,9 +99,9 @@ const readline = require('node:readline');
       await area.getByLabel('Дата наступної повірки', { exact: true }).fill(due);
       await area.getByLabel('Підстава повірки', { exact: true }).fill(evidence);
     }
-    async function submit(verified, due, evidence, code, outcome, message) {
+    async function submit(verified, due, evidence, code, outcome, message, meter = primary) {
       await fill(verified, due, evidence);
-      const reply = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith(endpoint(primary)));
+      const reply = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith(endpoint(meter)));
       await button.click();
       const response = await reply;
       assert.equal(response.status(), code);
@@ -97,10 +120,13 @@ const readline = require('node:readline');
     await submit(day(-1), day(30), 'Synthetic 30-day evidence', 200, 'Recorded', 'Повірку зареєстровано.');
     await status(primary, 'Повірка наближається');
     await attention.check();
-    assert.equal(await deadlines.locator('tbody tr').count(), 2);
+    assert.equal(await deadlines.locator('tbody tr').count(), initial.meters.length);
     await submit(day(0), day(31), 'Synthetic 31-day evidence', 200, 'Recorded', 'Повірку зареєстровано.');
-    assert.equal(await deadlines.locator('tbody tr').count(), 1);
-    assert.equal(await deadlines.locator('tbody th').textContent(), other.designation);
+    async function attentionMeters() {
+      return (await deadlines.getByRole('rowheader').allTextContents()).sort();
+    }
+    const awaitingAttention = initial.meters.filter(meter => meter.id !== primary.id).map(meter => meter.designation).sort();
+    assert.deepEqual(await attentionMeters(), awaitingAttention);
     await attention.uncheck();
     await status(primary, 'Строк не настав');
     await status(other, 'Строк невідомий');
@@ -109,6 +135,30 @@ const readline = require('node:readline');
     assert.deepEqual(history.map(row => [row.verifiedOn, row.dueOn]),
       [[day(0), day(31)], [day(-1), day(30)], [day(-2), day(0)], [day(-3), day(-1)]]);
     assert.deepEqual(final.meters.find(meter => meter.id === other.id).history, []);
+    if (checkPointTypes) {
+      const original = final;
+      await picker.selectOption(common.id);
+      await submit(day(-3), day(-1), 'Synthetic root verification', 200, 'Recorded', 'Повірку зареєстровано.', common);
+      await picker.selectOption(street.id);
+      await submit(day(-1), day(30), 'Synthetic street verification', 200, 'Recorded', 'Повірку зареєстровано.', street);
+      final = await read();
+      for (const [meter, verified, due, evidence] of [
+        [common, day(-3), day(-1), 'Synthetic root verification'],
+        [street, day(-1), day(30), 'Synthetic street verification'],
+      ]) {
+        const records = final.meters.find(item => item.id === meter.id).history;
+        assert.deepEqual(records.map(row => [row.verifiedOn, row.dueOn, row.evidence]), [[verified, due, evidence]]);
+      }
+      for (const meter of [primary, other])
+        assert.deepEqual(final.meters.find(item => item.id === meter.id), original.meters.find(item => item.id === meter.id));
+      await status(common, 'Прострочено', [day(-3), day(-1)]);
+      await status(street, 'Повірка наближається', [day(-1), day(30)]);
+      await status(primary, 'Строк не настав', [day(0), day(31)]);
+      await status(other, 'Строк невідомий', ['—', '—']);
+      await attention.check();
+      assert.deepEqual(await attentionMeters(), awaitingAttention);
+      await attention.uncheck();
+    }
     if (process.env.STAND_VERIFICATION_HISTORY === 'true') {
       const points = await page.evaluate(async path => (await fetch(path)).json(), base + '/points');
       const point = points.find(item => item.meterDesignation === primary.designation);
@@ -178,19 +228,24 @@ const readline = require('node:readline');
     await page.locator('select').first().selectOption(community);
     await loaded;
     await area.locator(':scope > summary').click();
-    await load();
-    await picker.selectOption(primary.id);
-    assert.equal(await button.count(), 0);
+    assert.deepEqual(await load(), final);
     const rows = area.getByRole('table', { name: 'Історія повірок водоміра', exact: true }).locator('tbody tr');
-    assert.equal(await rows.count(), 4);
-    for (let index = 0; index < 4; index++) {
-      const cells = await rows.nth(index).locator('td').allTextContents();
-      assert.deepEqual(cells.slice(0, 4), [history[index].verifiedOn, history[index].dueOn, history[index].evidence, history[index].accountId]);
+    for (const meter of checkPointTypes ? [common, street, primary] : [primary]) {
+      await picker.selectOption(meter.id);
+      assert.equal(await button.count(), 0);
+      const records = final.meters.find(item => item.id === meter.id).history;
+      assert.equal(await rows.count(), records.length);
+      for (const [index, record] of records.entries()) {
+        const cells = await rows.nth(index).locator('td').allTextContents();
+        assert.deepEqual(cells.slice(0, 4), [record.verifiedOn, record.dueOn, record.evidence, record.accountId]);
+      }
     }
     await page.screenshot({ path: process.env.STAND_HELP_SCREENSHOT, fullPage: true });
     assert.deepEqual(errors, []);
     console.log('PASS: real verification registration, deadline boundaries, replay, conflict, validation, CSRF and revoked form');
     if (process.env.STAND_VERIFICATION_HISTORY === 'true')
       console.log('PASS: replacement preserves removed meter verification history without transferring deadlines to new meter');
+    if (checkPointTypes)
+      console.log('PASS: independent deadlines, attention filter and readable histories across common, street and individual meters');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

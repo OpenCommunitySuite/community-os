@@ -83,6 +83,23 @@ def seed_period(sql, community, account, subject):
     return water_tariff
 
 
+def seed_billing_peer(register, platform, community, account, subject, basis):
+    platform(f"""
+        BEGIN;
+        INSERT INTO platform_provisioning.community_reservation
+            (operation_id,community_id,creator_account_id,request_id,initial_administrator_account_id,display_name)
+        VALUES (gen_random_uuid(),'{community}','{account}',gen_random_uuid(),'{account}','{basis} peer');
+        INSERT INTO platform_provisioning.register_availability
+            (community_id,community_active,register_enabled,electricity_enabled,water_enabled,billing_enabled)
+        VALUES ('{community}',true,true,true,true,true);
+        INSERT INTO platform_provisioning.register_operator
+            (community_id,account_id,subject_id,linked,can_read,can_read_electricity,can_read_water)
+        VALUES ('{community}','{account}','{subject}',true,true,true,true);
+        COMMIT;
+    """)
+    seed_period(register, community, account, subject)
+
+
 def posted_periods(register, community):
     return [row.split('|') for row in register(f"""
         SELECT id,admission_id,digest,starts_on,ends_on,calculated_on,due_on,
@@ -157,10 +174,10 @@ def reserve_period(community, account, subject):
     """
 
 
-def wait_for_postings(register, holder):
+def wait_for_postings(register, holder, expected):
     deadline = time.monotonic() + 10
-    while time.monotonic() < deadline:
-        count = register(f"""
+    while True:
+        count = int(register(f"""
             WITH RECURSIVE blocked(pid) AS (
                 SELECT {holder}
                 UNION
@@ -170,13 +187,14 @@ def wait_for_postings(register, holder):
             )
             SELECT count(*) FROM blocked JOIN pg_stat_activity activity USING (pid)
             WHERE pid <> {holder} AND activity.query LIKE '%INSERT INTO community_billing.posted_period%';
-        """)
-        if count == '2':
+        """))
+        if count == expected:
             return
-        if count not in ('0', '1'):
+        if count > expected:
             raise RuntimeError('Unexpected number of synthetic billing inserts waiting on the period')
+        if time.monotonic() >= deadline:
+            raise RuntimeError(f'Expected {expected} synthetic billing inserts before release, observed {count}')
         time.sleep(0.1)
-    raise RuntimeError('Both synthetic billing requests must reach the period insertion before release')
 
 
 def verify_posting_admissions(platform, community, account, subject, basis):
@@ -223,6 +241,19 @@ def verify_refreshed_posting(register, platform, community, account, subject, ba
     [fresh] = admissions
     if fresh[1] == stale_admission[1] or fresh[2:] != stale_admission[2:] or periods[0][1:5] != fresh[:4]:
         raise RuntimeError('The only posted period must reference the refreshed project admission')
+
+
+def verify_scoped_period(register, platform, community, account, subject, basis):
+    periods = posted_periods(register, community)
+    if [row[3:] for row in periods] != [
+        ['2026-01-01', '2026-01-03', '2026-01-04', '2026-01-15', 'true', account, subject, basis],
+    ]:
+        raise RuntimeError('Expected one attributed period in this synthetic community')
+    verify_period_accruals(register, community, subject)
+    [posted] = periods
+    expected = posted[1:5] + [account, subject, basis]
+    if billing_admissions(platform, community) != [expected]:
+        raise RuntimeError('The community must have only the admission referenced by its posted period')
 
 
 def verify_partial_payment(register, platform, community, account, subject, basis):

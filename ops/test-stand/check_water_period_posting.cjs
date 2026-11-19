@@ -25,7 +25,13 @@ const revokeGrant = () => standStep('REVOKE', 'REVOKED');
   const partialPayment = process.env.STAND_WATER_PARTIAL_PAYMENT === 'true';
   const postingRace = process.env.STAND_WATER_POSTING_RACE === 'true';
   const stalePosting = process.env.STAND_WATER_STALE_POSTING === 'true';
+  const peer = process.env.STAND_WATER_BILLING_PEER;
   const writes = new Set([base + '/post']);
+  if (peer) {
+    assert.match(peer, /^[0-9a-f-]{36}$/);
+    assert.notEqual(peer, community);
+    writes.add(`/community/billing/${peer}/post`);
+  }
   if (partialPayment) {
     for (const path of ['record', 'preview', 'allocate']) writes.add(`${base}/payments/${path}`);
   }
@@ -50,16 +56,16 @@ const revokeGrant = () => standStep('REVOKE', 'REVOKED');
     const errors = [];
     const responseOn = (page, path, method) => page.waitForResponse(response =>
       new URL(response.url()).pathname === path && response.request().method() === method);
-    async function openBilling() {
+    async function openBilling(target = community) {
       const page = await context.newPage();
       page.setDefaultTimeout(20000);
       page.on('pageerror', error => errors.push(error.message));
       const communities = responseOn(page, communitiesPath, 'GET');
       await page.goto(origin + '/community/');
-      const grants = (await (await communities).json()).find(item => item.id === community);
+      const grants = (await (await communities).json()).find(item => item.id === target);
       assert.ok(grants.canReadBilling && grants.canPostBilling);
       if (partialPayment) assert.ok(grants.canRecordPayment && grants.canAllocatePayment);
-      await page.locator('select').first().selectOption(community);
+      await page.locator('select').first().selectOption(target);
       return page;
     }
     const page = await openBilling();
@@ -76,12 +82,12 @@ const revokeGrant = () => standStep('REVOKE', 'REVOKED');
     const first = { from: '2026-01-01', until: '2026-01-03', calculatedOn: '2026-01-04', dueOn: '2026-01-15' };
     const second = { from: '2026-01-03', until: '2026-01-05', calculatedOn: '2026-01-06', dueOn: '2026-01-16' };
     const labels = { from: 'Початок споживання', until: 'Кінець споживання', calculatedOn: 'Дата розрахунку', dueOn: 'Сплатити до' };
-    async function preview(period, includeWater, electricity, tab = page, waterRate = 20) {
+    async function preview(period, includeWater, electricity, { tab = page, endpoint = base, waterRate = 20 } = {}) {
       const target = billing(tab);
       for (const [field, value] of Object.entries(period))
         await target.getByLabel(labels[field], { exact: true }).fill(value);
       await target.getByRole('checkbox', { name: 'Включити воду', exact: true }).setChecked(includeWater);
-      const waiting = responseOn(tab, base + '/preview', 'GET');
+      const waiting = responseOn(tab, endpoint + '/preview', 'GET');
       await target.getByRole('button', { name: 'Попередній розрахунок', exact: true }).click();
       const response = await waiting;
       assert.equal(response.status(), 200);
@@ -109,23 +115,75 @@ const revokeGrant = () => standStep('REVOKE', 'REVOKED');
       else assert.equal(await waterLine.count(), 0);
       return quote;
     }
-    async function confirmQuote(quote, tab) {
-      const posted = responseOn(tab, base + '/post', 'POST');
+    async function confirmQuote(quote, tab, endpoint = base) {
+      const posted = responseOn(tab, endpoint + '/post', 'POST');
       const [response] = await Promise.all([posted, confirmation(billing(tab)).click()]);
       assert.deepEqual(response.request().postDataJSON(), {
         period: quote.plan.period, digest: quote.digest, includeWater: quote.plan.includeWater ?? false,
       });
       return response;
     }
-    async function post(quote, status, outcome, message) {
-      const response = await confirmQuote(quote, page);
+    async function post(quote, status, outcome, message, tab = page, endpoint = base) {
+      const response = await confirmQuote(quote, tab, endpoint);
       assert.equal(response.status(), status);
       const result = outcome ? await response.json() : undefined;
       if (outcome) assert.equal(result.outcome, outcome);
-      await section.getByText(message, { exact: true }).waitFor();
+      await billing(tab).getByText(message, { exact: true }).waitFor();
       return result?.result;
     }
     const history = period => get(base + '/history?' + new URLSearchParams({ from: period.from, until: period.until }));
+    if (peer) {
+      const other = await openBilling(peer);
+      const endpoint = `/community/billing/${peer}`;
+      const peerQuote = await preview(first, true, 480, { tab: other, endpoint });
+      const peerSaved = await post(peerQuote, 200, 'Posted', 'Період проведено.', other, endpoint);
+      const peerHistory = endpoint + '/history?' + new URLSearchParams({ from: first.from, until: first.until });
+      const peerReconciliation = `${endpoint}/periods/${peerSaved.id}/reconciliation`;
+      const statusOf = (tab, path) => tab.evaluate(async path => (await fetch(path)).status, path);
+      assert.deepEqual(await get(peerHistory), peerSaved);
+      assert.equal(await statusOf(other, peerReconciliation), 200);
+
+      await standStep('REVOKE_PEER_POST', 'PEER_POST_REVOKED');
+      const readable = await preview(first, true, 480, { tab: other, endpoint });
+      assert.deepEqual(readable, peerQuote);
+      assert.deepEqual(await get(peerHistory), peerSaved);
+      await post(readable, 403, null, 'Дозвіл на цю дію відсутній.', other, endpoint);
+      assert.deepEqual(await get(peerHistory), peerSaved);
+
+      await standStep('REVOKE_PEER_READ', 'PEER_READ_REVOKED');
+      const peerPreview = endpoint + '/preview?' + new URLSearchParams({ ...first, includeWater: 'true' });
+      for (const path of [peerPreview, endpoint + '/periods', peerHistory, peerReconciliation]) {
+        assert.equal(await statusOf(other, path), 403);
+      }
+      const grants = responseOn(other, communitiesPath, 'GET');
+      await other.reload();
+      const listed = await (await grants).json();
+      const peerGrants = listed.find(item => item.id === peer);
+      assert.ok(peerGrants.canReadWater);
+      assert.equal(peerGrants.canReadBilling, false);
+      assert.equal(peerGrants.canPostBilling, false);
+      const ownGrants = listed.find(item => item.id === community);
+      assert.ok(ownGrants.canReadBilling && ownGrants.canPostBilling);
+      await other.locator('select').first().selectOption(peer);
+      await other.getByRole('heading', { name: 'Облік технічної води', exact: true }).waitFor();
+      assert.equal(await billing(other).count(), 0);
+
+      assert.deepEqual(await get(base + '/periods'), []);
+      const ownQuote = await preview(first, true, 480);
+      assert.notEqual(ownQuote.digest, peerQuote.digest);
+      const own = await post(ownQuote, 200, 'Posted', 'Період проведено.');
+      assert.notEqual(own.id, peerSaved.id);
+      assert.deepEqual(own.snapshot, ownQuote.plan);
+      assert.deepEqual(await history(first), own);
+      assert.deepEqual((await get(base + '/periods')).map(item => item.id), [own.id]);
+      assert.equal(await statusOf(page, `${base}/periods/${own.id}/reconciliation`), 200);
+      assert.equal(await statusOf(page, `${base}/periods/${peerSaved.id}/reconciliation`), 404);
+      await page.screenshot({ path: process.env.STAND_HELP_SCREENSHOT, fullPage: true });
+      assert.deepEqual(unexpected, []);
+      assert.deepEqual(errors, []);
+      console.log('PASS: own billing remained available; peer read and posting grants were isolated; foreign period was not found');
+      return;
+    }
     if (stalePosting) {
       const original = await preview(first, true, 480);
       await standStep('CHANGE_BILLING_TARIFF', 'TARIFF_CHANGED');
@@ -133,7 +191,7 @@ const revokeGrant = () => standStep('REVOKE', 'REVOKED');
       assert.deepEqual(await get(base + '/periods'), []);
       await standStep('CHECK_STALE_BILLING', 'STALE_CHECKED');
 
-      const refreshed = await preview(first, true, 480, page, 24);
+      const refreshed = await preview(first, true, 480, { waterRate: 24 });
       assert.notEqual(refreshed.digest, original.digest);
       const expected = structuredClone(original.plan);
       Object.assign(expected.lines[0].water, { rate: 24, amountUah: 60 });
@@ -151,7 +209,7 @@ const revokeGrant = () => standStep('REVOKE', 'REVOKED');
     }
     if (postingRace) {
       const other = await openBilling();
-      const quotes = await Promise.all([preview(first, true, 480), preview(first, true, 480, other)]);
+      const quotes = await Promise.all([preview(first, true, 480), preview(first, true, 480, { tab: other })]);
       assert.deepEqual(quotes[0], quotes[1]);
       assert.deepEqual(await get(base + '/periods'), []);
       const input = readline.createInterface({ input: process.stdin });
@@ -160,11 +218,15 @@ const revokeGrant = () => standStep('REVOKE', 'REVOKED');
       try {
         console.log('LOCK_BILLING_RACE');
         assert.equal((await messages.next()).value, 'LOCKED');
-        const [pair, released] = await Promise.all([
-          Promise.all([confirmQuote(quotes[0], page), confirmQuote(quotes[1], other)]), messages.next(),
-        ]);
-        assert.equal(released.value, 'RELEASED');
-        responses = pair;
+        async function confirmSecond() {
+          assert.equal((await messages.next()).value, 'START_SECOND');
+          await other.bringToFront();
+          const [response, released] = await Promise.all([confirmQuote(quotes[1], other), messages.next()]);
+          assert.equal(released.value, 'RELEASED');
+          return response;
+        }
+        await page.bringToFront();
+        responses = await Promise.all([confirmQuote(quotes[0], page), confirmSecond()]);
       } finally {
         input.close();
       }

@@ -114,7 +114,7 @@ def main():
     parser.add_argument('--screenshot', type=Path, required=True)
     parser.add_argument('--scenario', choices=(*SCENARIOS, 'water-charge-preview', 'water-period-posting',
                                                'water-partial-payment', 'water-posting-race',
-                                               'water-stale-posting'), default='topology')
+                                               'water-stale-posting', 'water-billing-isolation'), default='topology')
     args = parser.parse_args()
     dual_import = args.scenario == 'csv-import-dual'
     dual = args.scenario == 'dual-readings' or dual_import
@@ -136,8 +136,9 @@ def main():
     water_partial_payment = args.scenario == 'water-partial-payment'
     water_posting_race = args.scenario == 'water-posting-race'
     water_stale_posting = args.scenario == 'water-stale-posting'
+    water_billing_isolation = args.scenario == 'water-billing-isolation'
     water_period_posting = args.scenario in ('water-period-posting', 'water-partial-payment',
-                                            'water-posting-race', 'water-stale-posting')
+                                            'water-posting-race', 'water-stale-posting', 'water-billing-isolation')
     water_billing = water_charge_preview or water_period_posting
     water_balance = args.scenario == 'water-balance'
     water_root_balance = args.scenario == 'water-root-replacement-balance'
@@ -189,6 +190,8 @@ def main():
         basis = 'Synthetic water posting race'
     if water_stale_posting:
         basis = 'Synthetic stale water posting'
+    if water_billing_isolation:
+        basis = 'Synthetic water billing isolation'
     if water_balance:
         basis = 'Synthetic water balance acceptance'
     if water_root_balance:
@@ -293,6 +296,12 @@ def main():
     if water_period_posting:
         from water_charge_fixture import seed_period
         period_tariff = seed_period(lambda command: sql(register, command), community, account, subject)
+    peer = ''
+    if water_billing_isolation:
+        from water_charge_fixture import seed_billing_peer
+        peer, peer_subject = str(uuid.uuid4()), str(uuid.uuid4())
+        seed_billing_peer(lambda command: sql(register, command), lambda command: sql(platform, command),
+                          peer, account, peer_subject, basis)
     if verification_types:
         sql(register, f"""
             BEGIN;
@@ -348,6 +357,10 @@ def main():
             sql(platform, f"""UPDATE platform_provisioning.register_operator
                 SET payment_record_basis='{basis}', payment_allocate_basis='{basis}'
                 WHERE community_id='{community}' AND account_id='{account}';""")
+        if water_billing_isolation:
+            sql(platform, f"""UPDATE platform_provisioning.register_operator
+                SET can_read_billing=true, billing_post_basis='{basis}'
+                WHERE community_id='{peer}' AND account_id='{account}';""")
         if replacement:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET can_replace_electricity=true, electricity_recognition_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         if installation_history:
@@ -415,6 +428,7 @@ def main():
                              STAND_WATER_PARTIAL_PAYMENT=str(water_partial_payment).lower(),
                              STAND_WATER_POSTING_RACE=str(water_posting_race).lower(),
                              STAND_WATER_STALE_POSTING=str(water_stale_posting).lower(),
+                             STAND_WATER_BILLING_PEER=peer,
                              STAND_ELECTRICITY_IMPORT_DUAL=str(dual_import).lower(),
                              STAND_CSV_IMPORT_REVOCATION=str(csv_revocation).lower(),
                              STAND_WATER_IMPORT_RACE=water_race_order or ''),
@@ -429,6 +443,8 @@ def main():
                 raced = False
                 tariff_changed = False
                 stale_admission = None
+                peer_post_revoked = False
+                peer_read_revoked = False
                 try:
                     while True:
                         message = messages.get(timeout=90)
@@ -455,7 +471,10 @@ def main():
                             with hold_synthetic_lock(docker, postgres, register, reserve_period(community, account, subject)) as holder:
                                 child.stdin.write('LOCKED\n')
                                 child.stdin.flush()
-                                wait_for_postings(lambda command: sql(register, command), holder)
+                                wait_for_postings(lambda command: sql(register, command), holder, 1)
+                                child.stdin.write('START_SECOND\n')
+                                child.stdin.flush()
+                                wait_for_postings(lambda command: sql(register, command), holder, 2)
                                 verify_posting_admissions(lambda command: sql(platform, command), community, account, subject, basis)
                             raced = True
                             child.stdin.write('RELEASED\n')
@@ -474,6 +493,24 @@ def main():
                                                                        lambda command: sql(platform, command),
                                                                        community, account, subject, basis)
                             child.stdin.write('STALE_CHECKED\n')
+                            child.stdin.flush()
+                        elif message == 'REVOKE_PEER_POST' and water_billing_isolation and not peer_post_revoked:
+                            changed = sql(platform, f"""UPDATE platform_provisioning.register_operator
+                                SET billing_post_basis=NULL WHERE community_id='{peer}' AND account_id='{account}'
+                                AND billing_post_basis IS NOT NULL RETURNING community_id;""")
+                            if changed != peer:
+                                raise RuntimeError('Synthetic peer posting grant was not revoked')
+                            peer_post_revoked = True
+                            child.stdin.write('PEER_POST_REVOKED\n')
+                            child.stdin.flush()
+                        elif message == 'REVOKE_PEER_READ' and water_billing_isolation and peer_post_revoked and not peer_read_revoked:
+                            changed = sql(platform, f"""UPDATE platform_provisioning.register_operator
+                                SET can_read_billing=false WHERE community_id='{peer}' AND account_id='{account}'
+                                AND can_read_billing RETURNING community_id;""")
+                            if changed != peer:
+                                raise RuntimeError('Synthetic peer billing read grant was not revoked')
+                            peer_read_revoked = True
+                            child.stdin.write('PEER_READ_REVOKED\n')
                             child.stdin.flush()
                         elif message == 'REVOKE_DURING_APPLY' and csv_revocation and not revoked:
                             with hold_installation(docker, postgres, register, community, first_installation, reading_schema):
@@ -522,6 +559,8 @@ def main():
                             raise RuntimeError('Unexpected browser probe output')
                     completed = stale_admission is not None if water_stale_posting else (
                         raced if water_race_order or water_posting_race else revoked)
+                    if water_billing_isolation:
+                        completed = peer_read_revoked
                     if child.wait(timeout=10) != 0 or not completed:
                         raise RuntimeError('Browser acceptance failed')
                 finally:
@@ -558,6 +597,13 @@ def main():
             verify_refreshed_posting(lambda command: sql(register, command), lambda command: sql(platform, command),
                                      community, account, subject, basis, stale_admission)
             print('PASS: zero financial records after stale rejection; one updated snapshot and three linked obligations after refresh')
+            return
+        if water_billing_isolation:
+            from water_charge_fixture import verify_scoped_period
+            for target, payer in ((community, subject), (peer, peer_subject)):
+                verify_scoped_period(lambda command: sql(register, command), lambda command: sql(platform, command),
+                                     target, account, payer, basis)
+            print('PASS: each community retained its own snapshot, three linked obligations and one Platform admission')
             return
         if water_period_posting:
             from water_charge_fixture import verify_periods
@@ -840,7 +886,8 @@ def main():
                     extra = ', can_read_billing=false'
                 if water_partial_payment:
                     extra += ', payment_record_basis=NULL, payment_allocate_basis=NULL'
-                sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}=NULL{extra} WHERE community_id='{community}' AND account_id='{account}';")
+                communities = f"'{community}','{peer}'" if water_billing_isolation else f"'{community}'"
+                sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}=NULL{extra} WHERE community_id IN ({communities}) AND account_id='{account}';")
             finally:
                 try:
                     docker.call('POST', f'/containers/{name}/stop?t=5')

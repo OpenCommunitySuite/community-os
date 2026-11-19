@@ -2,12 +2,29 @@
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 const readline = require('node:readline');
+const checkPartialPayment = require('./check_water_partial_payment.cjs');
+
+async function revokeGrant() {
+  const input = readline.createInterface({ input: process.stdin });
+  try {
+    const acknowledged = new Promise(resolve => input.once('line', resolve));
+    console.log('REVOKE');
+    assert.equal(await acknowledged, 'REVOKED');
+  } finally {
+    input.close();
+  }
+}
 
 (async () => {
   const origin = 'https://127.0.0.1:5543';
   const community = process.env.STAND_COMMUNITY;
   assert.match(community, /^[0-9a-f-]{36}$/);
   const base = `/community/billing/${community}`;
+  const partialPayment = process.env.STAND_WATER_PARTIAL_PAYMENT === 'true';
+  const writes = new Set([base + '/post']);
+  if (partialPayment) {
+    for (const path of ['record', 'preview', 'allocate']) writes.add(`${base}/payments/${path}`);
+  }
   const communitiesPath = '/community/register/communities';
   const browser = await chromium.launch({ channel: 'msedge' });
   try {
@@ -18,7 +35,7 @@ const readline = require('node:readline');
     await context.route('**/*', async route => {
       const request = route.request();
       const url = new URL(request.url());
-      const allowed = request.method() === 'GET' || (request.method() === 'POST' && url.pathname === base + '/post');
+      const allowed = request.method() === 'GET' || (request.method() === 'POST' && writes.has(url.pathname));
       if (url.origin !== origin || !allowed) {
         unexpected.push(request.method());
         await route.abort();
@@ -41,6 +58,7 @@ const readline = require('node:readline');
     await page.goto(origin + '/community/');
     const grants = (await (await communities).json()).find(item => item.id === community);
     assert.ok(grants.canReadBilling && grants.canPostBilling);
+    if (partialPayment) assert.ok(grants.canRecordPayment && grants.canAllocatePayment);
     await page.locator('select').first().selectOption(community);
     const section = page.getByRole('region', { name: 'Розрахунковий період', exact: true });
     const confirm = section.getByRole('button', { name: 'Підтвердити проведення періоду', exact: true });
@@ -101,6 +119,15 @@ const readline = require('node:readline');
     assert.equal(wet.digest, wetQuote.digest);
     assert.deepEqual(wet.snapshot, wetQuote.plan);
     assert.deepEqual(await history(first), wet);
+    if (partialPayment) {
+      await checkPartialPayment({ page, billing: section, base, reply, get, period: wet, revokeGrant });
+      assert.deepEqual(await history(first), wet);
+      await page.screenshot({ path: process.env.STAND_HELP_SCREENSHOT, fullPage: true });
+      assert.deepEqual(unexpected, []);
+      assert.deepEqual(errors, []);
+      console.log('PASS: water payment, exact replay, revoked allocation and matching 20 UAH balances in statement and reconciliation');
+      return;
+    }
     const repeated = await preview(first, true, 480);
     assert.deepEqual(repeated, wetQuote);
     assert.deepEqual(await post(repeated, 200, 'Replayed', 'Період уже проведено.'), wet);
@@ -115,11 +142,7 @@ const readline = require('node:readline');
     assert.deepEqual(await history(second), dry);
 
     const dryAgain = await preview(second, false, 160);
-    const input = readline.createInterface({ input: process.stdin });
-    const acknowledged = new Promise(resolve => input.once('line', resolve));
-    console.log('REVOKE');
-    assert.equal(await acknowledged, 'REVOKED');
-    input.close();
+    await revokeGrant();
     await post(dryAgain, 403, null, 'Дозвіл на цю дію відсутній.');
     assert.deepEqual((await get(base + '/periods')).map(item => item.id), [dry.id, wet.id]);
     assert.deepEqual(await history(first), wet);

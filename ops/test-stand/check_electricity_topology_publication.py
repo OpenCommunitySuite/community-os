@@ -106,7 +106,8 @@ def main():
     parser.add_argument('--login', required=True)
     parser.add_argument('--node', required=True)
     parser.add_argument('--screenshot', type=Path, required=True)
-    parser.add_argument('--scenario', choices=(*SCENARIOS, 'water-charge-preview', 'water-period-posting'), default='topology')
+    parser.add_argument('--scenario', choices=(*SCENARIOS, 'water-charge-preview', 'water-period-posting',
+                                               'water-partial-payment'), default='topology')
     args = parser.parse_args()
     dual_import = args.scenario == 'csv-import-dual'
     dual = args.scenario == 'dual-readings' or dual_import
@@ -125,7 +126,8 @@ def main():
     water_topology = args.scenario in ('water-topology', 'water-street-balance')
     water_registration = args.scenario == 'water-registration'
     water_charge_preview = args.scenario == 'water-charge-preview'
-    water_period_posting = args.scenario == 'water-period-posting'
+    water_partial_payment = args.scenario == 'water-partial-payment'
+    water_period_posting = args.scenario in ('water-period-posting', 'water-partial-payment')
     water_billing = water_charge_preview or water_period_posting
     water_balance = args.scenario == 'water-balance'
     water_root_balance = args.scenario == 'water-root-replacement-balance'
@@ -171,6 +173,8 @@ def main():
     if water_period_posting:
         grant_column = 'billing_post_basis'
         basis = 'Synthetic water period posting'
+    if water_partial_payment:
+        basis = 'Synthetic water partial payment'
     if water_balance:
         basis = 'Synthetic water balance acceptance'
     if water_root_balance:
@@ -326,6 +330,10 @@ def main():
             sql(platform, f"UPDATE platform_provisioning.register_operator SET can_read_billing=true WHERE community_id='{community}' AND account_id='{account}';")
         if not (water_balance or water_charge_preview):
             sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
+        if water_partial_payment:
+            sql(platform, f"""UPDATE platform_provisioning.register_operator
+                SET payment_record_basis='{basis}', payment_allocate_basis='{basis}'
+                WHERE community_id='{community}' AND account_id='{account}';""")
         if replacement:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET can_replace_electricity=true, electricity_recognition_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         if installation_history:
@@ -390,6 +398,7 @@ def main():
                              STAND_ELECTRICITY_FOREST_REPLACEMENT=str(forest_replacement).lower(),
                              STAND_WATER_STREET_BALANCE=str(water_street_balance).lower(),
                              STAND_WATER_PREVIEW_TARIFF=preview_tariff,
+                             STAND_WATER_PARTIAL_PAYMENT=str(water_partial_payment).lower(),
                              STAND_ELECTRICITY_IMPORT_DUAL=str(dual_import).lower(),
                              STAND_CSV_IMPORT_REVOCATION=str(csv_revocation).lower(),
                              STAND_WATER_IMPORT_RACE=water_race_order or ''),
@@ -458,6 +467,8 @@ def main():
                                 assignment = 'can_read_billing=false'
                             elif water_balance:
                                 assignment = 'can_read_water=false'
+                            elif water_partial_payment:
+                                assignment = 'payment_allocate_basis=NULL'
                             sql(platform, f"UPDATE platform_provisioning.register_operator SET {assignment} WHERE community_id='{community}' AND account_id='{account}';")
                             revoked = True
                             child.stdin.write('REVOKED\n')
@@ -484,6 +495,12 @@ def main():
             if source_fingerprint(preview_sql, community) != preview_fingerprint:
                 raise RuntimeError('Water preview changed its source facts')
             print('PASS: zero periods, accruals, obligations or write admissions, and unchanged preview source facts')
+            return
+        if water_partial_payment:
+            from water_charge_fixture import verify_partial_payment
+            verify_partial_payment(lambda command: sql(register, command), lambda command: sql(platform, command),
+                                   community, account, subject, basis)
+            print('PASS: one payment, one water allocation, three obligation balances and three Platform payment admissions')
             return
         if water_period_posting:
             from water_charge_fixture import verify_periods
@@ -764,6 +781,8 @@ def main():
                     extra = ', can_read_water=false'
                 if water_billing:
                     extra = ', can_read_billing=false'
+                if water_partial_payment:
+                    extra += ', payment_record_basis=NULL, payment_allocate_basis=NULL'
                 sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}=NULL{extra} WHERE community_id='{community}' AND account_id='{account}';")
             finally:
                 try:

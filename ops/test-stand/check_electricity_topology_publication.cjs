@@ -6,18 +6,21 @@ const readline = require('node:readline');
 (async () => {
   const origin = 'https://127.0.0.1:5543';
   const community = process.env.STAND_COMMUNITY;
+  const checkReplacement = process.env.STAND_ELECTRICITY_FOREST_REPLACEMENT === 'true';
   assert.match(community, /^[0-9a-f-]{36}$/);
-  const endpoint = `/community/electricity/${community}/topology`;
+  const base = `/community/electricity/${community}`;
+  const endpoint = base + '/topology';
   const browser = await chromium.launch({ channel: 'msedge' });
   try {
     const context = await browser.newContext({ ignoreHTTPSErrors: true, serviceWorkers: 'block' });
     await context.addCookies([{ name: '__Host-communityos-platform', value: process.env.STAND_PROBE_COOKIE,
       url: origin, secure: true, httpOnly: true }]);
+    const writes = new Set([endpoint]);
     await context.route('**/*', async route => {
       const request = route.request();
       const url = new URL(request.url());
       if (url.origin !== origin || (request.method() !== 'GET' &&
-          !(request.method() === 'POST' && url.pathname === endpoint)))
+          !(request.method() === 'POST' && writes.has(url.pathname))))
         throw new Error('Unexpected request outside isolated topology probe');
       await route.continue();
     });
@@ -28,7 +31,9 @@ const readline = require('node:readline');
     const communitiesReply = page.waitForResponse(response => response.url().endsWith('/community/register/communities'));
     await page.goto(origin + '/community/');
     const communities = await (await communitiesReply).json();
-    assert.equal(communities.find(item => item.id === community)?.canPublishElectricityTopology, true);
+    const selected = communities.find(item => item.id === community);
+    assert.equal(selected?.canPublishElectricityTopology, true);
+    if (checkReplacement) assert.equal(selected.canReplaceElectricity, true);
     const plotsReply = page.waitForResponse(response => response.url().endsWith(`/electricity/${community}/plots`));
     const commonReply = page.waitForResponse(response => response.url().endsWith(`/electricity/${community}/common-points`));
     await page.locator('select').first().selectOption(community);
@@ -57,13 +62,16 @@ const readline = require('node:readline');
         { id: street.id, depth: 1, parentPointId: root.id, substationId: null },
         { id: plot.installation.pointId, depth: 2, parentPointId: street.id, substationId: null });
     }
-    await tree.getByLabel('Діє з', { exact: true }).fill('2026-01-01');
-    const publishedReply = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith(endpoint));
-    const requestReply = page.waitForRequest(request => request.method() === 'POST' && request.url().endsWith(endpoint));
-    await tree.getByRole('button', { name: 'Опублікувати редакцію', exact: true }).click();
-    assert.equal((await publishedReply).status(), 204);
-    const payload = (await requestReply).postDataJSON();
-    await tree.getByText('Редакцію опубліковано.', { exact: true }).waitFor();
+    async function publish(date, status) {
+      await tree.getByLabel('Діє з', { exact: true }).fill(date);
+      const reply = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith(endpoint));
+      await tree.getByRole('button', { name: 'Опублікувати редакцію', exact: true }).click();
+      const response = await reply;
+      assert.equal(response.status(), status);
+      if (status === 204) await tree.getByText('Редакцію опубліковано.', { exact: true }).waitFor();
+      return response.request().postDataJSON();
+    }
+    const payload = await publish('2026-01-01', 204);
     async function read(date) {
       return page.evaluate(async ({ endpoint, date }) => {
         const response = await fetch(endpoint + '?date=' + date);
@@ -78,6 +86,75 @@ const readline = require('node:readline');
       for (const key of ['depth', 'parentPointId', 'substationId']) assert.equal(actual[key], point[key]);
     }
     assert.equal(await read('2025-12-31'), null);
+    async function show(date, startsOn) {
+      await tree.getByLabel('Дата вимірювання', { exact: true }).fill(date);
+      await tree.getByRole('button', { name: 'Показати дерева', exact: true }).click();
+      await tree.getByText('Редакція діє з ' + startsOn, { exact: true }).waitFor();
+    }
+    async function assertPlotPath(station, root) {
+      const section = tree.locator('section').filter({ has: page.getByRole('heading', { name: station, exact: true }) });
+      const branch = section.locator(':scope > ul > li').filter({ hasText: new RegExp('^' + root) });
+      await branch.locator(':scope > ul > li').filter({ hasText: /^Street 0/ })
+        .locator(':scope > ul > li').filter({ hasText: /^Plot 0$/ }).waitFor();
+    }
+    let latest = topology;
+    let deniedDate = '2026-01-02';
+    if (checkReplacement) {
+      await assertPlotPath('Synthetic TP 1', 'Root 0');
+      await tree.getByRole('button', { name: 'Скопіювати до нової редакції', exact: true }).click();
+      const root2 = common.find(point => point.designation === 'Root 2').id;
+      const street0 = common.find(point => point.designation === 'Street 0').id;
+      await placementSelect('Street 0').selectOption('point:' + root2);
+      await publish('2026-01-03', 204);
+      const expectedPoints = topology.points.map(point => point.id === street0 ? { ...point, parentPointId: root2 } : point);
+      const sorted = points => [...points].sort((a, b) => a.id.localeCompare(b.id));
+      async function assertRevisions() {
+        assert.deepEqual(await read('2026-01-02'), topology);
+        const current = await read('2026-01-04');
+        assert.equal(current.startsOn, '2026-01-03');
+        assert.deepEqual(sorted(current.points), sorted(expectedPoints));
+        return current;
+      }
+      latest = await assertRevisions();
+      await assertPlotPath('Synthetic TP 2', 'Root 2');
+      const plot = plots.find(item => item.number === 'Plot 0');
+      const old = plot.installation;
+      const replacePath = `${base}/installations/${old.id}/replacement`;
+      const seriesReply = page.waitForResponse(response => response.url().endsWith(`${base}/installations/${old.id}/readings`));
+      await page.locator('label').filter({ hasText: /^Точка або ділянка для обліку/ }).locator('select').selectOption(plot.id);
+      assert.equal((await seriesReply).status(), 200);
+      writes.add(replacePath);
+      const form = page.getByRole('group', { name: 'Замінити лічильник', exact: true });
+      const date = '2026-01-04';
+      for (const [name, value] of Object.entries({ designation: 'Synthetic forest meter', effectiveOn: date,
+        reason: 'Synthetic forest replacement', model: 'Test model', serialNumber: 'FOREST-001',
+        location: 'Synthetic Plot 0', mountedOn: date, sealSerialNumber: 'FOREST-SEAL', multiplier: '1' }))
+        await form.locator(`input[name="${name}"]`).fill(value);
+      const reply = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith(replacePath));
+      await form.getByRole('button', { name: 'Зареєструвати заміну', exact: true }).click();
+      const response = await reply;
+      assert.equal(response.status(), 200);
+      const change = await response.json();
+      assert.equal(change.outcome, 'Replaced');
+      assert.notEqual(change.installationId, old.id);
+      writes.delete(replacePath);
+      await page.getByText('Заміну лічильника зареєстровано.', { exact: true }).waitFor();
+      const history = await page.evaluate(async path => {
+        const response = await fetch(path);
+        if (!response.ok) throw new Error('Installation history read failed');
+        return response.json();
+      }, `${base}/plots/${plot.id}/installations`);
+      assert.deepEqual(history.map(item => [item.id, item.pointId, item.startsOn, item.endsBefore]), [
+        [change.installationId, old.pointId, date, null],
+        [old.id, old.pointId, '2026-01-01', date],
+      ]);
+      await assertRevisions();
+      await show('2026-01-02', topology.startsOn);
+      await assertPlotPath('Synthetic TP 1', 'Root 0');
+      await show('2026-01-04', latest.startsOn);
+      await assertPlotPath('Synthetic TP 2', 'Root 2');
+      deniedDate = '2026-01-05';
+    }
     async function post(data, csrf) {
       return page.evaluate(async ({ endpoint, data, csrf }) => {
         const headers = { 'Content-Type': 'application/json' };
@@ -88,29 +165,32 @@ const readline = require('node:readline');
         return (await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify(data) })).status;
       }, { endpoint, data, csrf });
     }
-    assert.equal(await post(payload, true), 409, 'Duplicate date must conflict');
-    assert.equal(await post({ ...payload, startsOn: '2026-01-02' }, false), 403, 'CSRF required');
+    if (!checkReplacement) {
+      assert.equal(await post(payload, true), 409, 'Duplicate date must conflict');
+      assert.equal(await post({ ...payload, startsOn: deniedDate }, false), 403, 'CSRF required');
+    }
     // Keep the editor open across revocation: the next genuine UI submission must be denied.
     const input = readline.createInterface({ input: process.stdin });
     const acknowledged = new Promise(resolve => input.once('line', resolve));
     console.log('REVOKE');
     assert.equal(await acknowledged, 'REVOKED');
     input.close();
-    await tree.getByLabel('Діє з', { exact: true }).fill('2026-01-02');
-    const deniedReply = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith(endpoint));
-    await tree.getByRole('button', { name: 'Опублікувати редакцію', exact: true }).click();
-    assert.equal((await deniedReply).status(), 403);
+    await publish(deniedDate, 403);
     await tree.getByText('Дозвіл на цю дію відсутній.', { exact: true }).waitFor();
-    assert.deepEqual(await read('2026-01-02'), topology);
+    assert.deepEqual(await read(deniedDate), latest);
+    const refreshed = page.waitForResponse(response => response.url().endsWith('/community/register/communities'));
     await page.reload();
+    const permissions = (await (await refreshed).json()).find(item => item.id === community);
+    assert.equal(permissions.canPublishElectricityTopology, false);
+    if (checkReplacement) assert.equal(permissions.canReplaceElectricity, true);
     await page.locator('select').first().selectOption(community);
     await page.getByText('Дерева точок обліку', { exact: true }).click();
     assert.equal(await page.getByText('Нова редакція дерев', { exact: true }).count(), 0);
-    await page.getByLabel('Дата вимірювання', { exact: true }).fill('2026-01-02');
-    await page.getByRole('button', { name: 'Показати дерева', exact: true }).click();
-    await page.getByText('Редакція діє з 2026-01-01', { exact: true }).waitFor();
+    await show(deniedDate, latest.startsOn);
     await page.screenshot({ path: process.env.STAND_HELP_SCREENSHOT, fullPage: true });
     assert.deepEqual(errors, []);
-    console.log('PASS: real UI publication, duplicate date, CSRF, revoked stale editor and retained read access');
+    console.log(checkReplacement
+      ? 'PASS: two UI publications, historical paths across substations, meter replacement and independent revocation'
+      : 'PASS: real UI publication, duplicate date, CSRF, revoked stale editor and retained read access');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

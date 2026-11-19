@@ -63,6 +63,28 @@ def seed(sql, community, account, subject, *, root_replacement=False):
     sql('\n'.join(commands))
 
 
+def seed_street_readings(sql, community, account, subject):
+    count = sql(f"""
+        WITH fixture(designation, day, value) AS (VALUES
+            ('Root', 1, 0), ('Root', 2, 10), ('Root', 4, 30), ('Root', 5, 40),
+            ('Street', 4, 20), ('Street', 5, 26),
+            ('Water 0', 1, 0), ('Water 0', 2, 4), ('Water 0', 4, 10), ('Water 0', 5, 14),
+            ('Water 1', 1, 0), ('Water 1', 2, 3), ('Water 1', 4, 10), ('Water 1', 5, 13)
+        ), inserted AS (
+            INSERT INTO community_water.reading
+                (community_id,id,installation_id,measured_on,value_m3,source,recognition_rule,admission_id,account_id,subject_id,basis)
+            SELECT p.community_id,gen_random_uuid(),i.id,make_date(2026,1,f.day),f.value,
+                'manual-observation','synthetic-fixture',gen_random_uuid(),'{account}','{subject}','Synthetic fixture'
+            FROM fixture f JOIN community_water.accounting_point p ON p.designation=f.designation
+            JOIN community_water.installation i ON (i.community_id,i.point_id)=(p.community_id,p.id)
+            WHERE p.community_id='{community}'
+            RETURNING id
+        )
+        SELECT count(*) FROM inserted;""")
+    if count != '14':
+        raise RuntimeError('Expected fourteen synthetic readings on the four water points')
+
+
 def verify_root_replacement(register, platform, community, account, subject, basis):
     replacement = register(f"""SELECT r.admission_id, r.old_installation_id, r.new_installation_id, r.request_id
         FROM community_water.replacement r

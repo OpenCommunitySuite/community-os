@@ -153,6 +153,8 @@
 
 ## 8. Связанные документы
 
+- [Окружения развёртывания и ввод первого сообщества](DEPLOYMENT_ENVIRONMENTS_AND_PILOT.md) — Development, публичная приёмка всех функций на `dev.stexpress.dp.ua`, постоянное СТ «ЕКСПРЕС» в Production и границы использования реальных данных.
+- [Первая публичная бухгалтерская приёмка](../../ops/test-stand/ACCOUNTANT_ACCEPTANCE.md) — сценарии и развёртывание по PR №210, первый функциональный набор общего стенда.
 - [VISION](../VISION.md)
 - [DOMAIN_MODEL](../DOMAIN_MODEL.md)
 - [TERMINOLOGY](../TERMINOLOGY.md)

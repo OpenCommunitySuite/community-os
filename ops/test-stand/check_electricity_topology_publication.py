@@ -13,9 +13,28 @@ import sys
 import threading
 import time
 import uuid
+from urllib.parse import quote
 
 sys.dont_write_bytecode = True
 import stand
+
+
+WATER_RACES = {
+    'water-import-race-import-first': 'recognize',
+    'water-import-race-replacement-first': 'replace',
+}
+SCENARIOS = (
+    'topology', 'forest-replacement', 'installation-history', 'common-electricity',
+    'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history',
+    'csv-import-dual', 'csv-import-revocation', 'water-registration', 'water-readings',
+    'water-replacement', 'water-import', 'water-import-history', 'water-import-revocation',
+    'water-topology', 'water-street-balance', 'water-balance', 'water-root-replacement-balance',
+    'water-verification', 'water-verification-history', 'water-verification-types', *WATER_RACES,
+)
+
+
+def stand_image(docker, tag):
+    return docker.call('GET', f'/images/{quote(tag, safe="")}/json')
 
 
 @contextmanager
@@ -82,15 +101,12 @@ def wait_for_water_writes(sql, database, holder, expected):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--image', required=True)
+    parser.add_argument('--expected-image-id', help='Pin the validated stand tag to this local Docker image ID')
     parser.add_argument('--template-container', required=True)
     parser.add_argument('--login', required=True)
     parser.add_argument('--node', required=True)
     parser.add_argument('--screenshot', type=Path, required=True)
-    water_races = {
-        'water-import-race-import-first': 'recognize',
-        'water-import-race-replacement-first': 'replace',
-    }
-    parser.add_argument('--scenario', choices=['topology', 'forest-replacement', 'installation-history', 'common-electricity', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation', 'water-registration', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-import-revocation', 'water-topology', 'water-street-balance', 'water-balance', 'water-root-replacement-balance', 'water-verification', 'water-verification-history', 'water-verification-types', *water_races], default='topology')
+    parser.add_argument('--scenario', choices=SCENARIOS, default='topology')
     args = parser.parse_args()
     dual_import = args.scenario == 'csv-import-dual'
     dual = args.scenario == 'dual-readings' or dual_import
@@ -103,7 +119,7 @@ def main():
     csv_import = args.scenario in ('csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation')
     water_replacement = args.scenario == 'water-replacement'
     import_history = args.scenario == 'water-import-history'
-    water_race_order = water_races.get(args.scenario)
+    water_race_order = WATER_RACES.get(args.scenario)
     water_import = water_race_order is not None or args.scenario in ('water-import', 'water-import-history', 'water-import-revocation')
     water_street_balance = args.scenario == 'water-street-balance'
     water_topology = args.scenario in ('water-topology', 'water-street-balance')
@@ -161,6 +177,13 @@ def main():
     if args.screenshot.resolve().is_relative_to(stand.ROOT):
         parser.error('Keep screenshots outside the repository')
     docker = stand.Docker(23750)
+    image = args.image
+    if args.expected_image_id:
+        if not re.fullmatch(r'sha256:[0-9a-f]{64}', args.expected_image_id):
+            parser.error('Expected a local Docker image ID')
+        image = stand_image(docker, args.image)['Id']
+        if image != args.expected_image_id:
+            raise RuntimeError('Synthetic stand tag changed after the suite pinned the image')
     template = docker.call('GET', f'/containers/{args.template_container}/json')
     environment = template['Config']['Env']
     if not (template['Config'].get('Labels', {}).get(stand.LABEL, '').startswith('communityos-test-stand')
@@ -273,7 +296,7 @@ def main():
     secret = secrets.token_bytes(32)
     digest = hashlib.sha256(secret).hexdigest()
     docker.call('POST', '/containers/create?name=' + name, {
-        'Image': args.image, 'Env': environment, 'Labels': {stand.LABEL: prefix},
+        'Image': image, 'Env': environment, 'Labels': {stand.LABEL: prefix},
         'HostConfig': {
             'NetworkMode': template['HostConfig']['NetworkMode'],
             'LogConfig': {'Type': 'json-file', 'Config': {'max-size': '10m', 'max-file': '3'}},

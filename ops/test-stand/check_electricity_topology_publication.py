@@ -90,7 +90,7 @@ def main():
         'water-import-race-import-first': 'recognize',
         'water-import-race-replacement-first': 'replace',
     }
-    parser.add_argument('--scenario', choices=['topology', 'forest-replacement', 'installation-history', 'common-electricity', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation', 'water-registration', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-import-revocation', 'water-topology', 'water-street-balance', 'water-balance', 'water-root-replacement-balance', 'water-verification', 'water-verification-history', *water_races], default='topology')
+    parser.add_argument('--scenario', choices=['topology', 'forest-replacement', 'installation-history', 'common-electricity', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation', 'water-registration', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-import-revocation', 'water-topology', 'water-street-balance', 'water-balance', 'water-root-replacement-balance', 'water-verification', 'water-verification-history', 'water-verification-types', *water_races], default='topology')
     args = parser.parse_args()
     dual_import = args.scenario == 'csv-import-dual'
     dual = args.scenario == 'dual-readings' or dual_import
@@ -111,7 +111,8 @@ def main():
     water_balance = args.scenario == 'water-balance'
     water_root_balance = args.scenario == 'water-root-replacement-balance'
     verification_history = args.scenario == 'water-verification-history'
-    water_verification = args.scenario in ('water-verification', 'water-verification-history')
+    verification_types = args.scenario == 'water-verification-types'
+    water_verification = args.scenario == 'water-verification' or verification_history or verification_types
     water = args.scenario.startswith('water-')
     reading_schema = 'community_water' if water else 'community_electricity'
     manual = args.scenario not in ('topology', 'forest-replacement')
@@ -193,7 +194,7 @@ def main():
         COMMIT;
     """)
     commands = ['BEGIN;']
-    if water_topology or water_balance or water_root_balance:
+    if water_topology or water_balance or water_root_balance or verification_types:
         for label in ('Root', 'Street'):
             point, meter = str(uuid.uuid4()), str(uuid.uuid4())
             commands.extend([
@@ -232,6 +233,22 @@ def main():
             f"INSERT INTO community_electricity.installation (community_id,id,point_id,meter_id,starts_on,admission_id,account_id,subject_id,basis,reading_multiplier) VALUES ('{community}','{installation}','{point}','{meter}','2026-01-01',gen_random_uuid(),'{account}','{subject}','Synthetic fixture',{40 if manual else 1});",
         ])
     sql(register, '\n'.join(commands + ['COMMIT;']))
+    if verification_types:
+        sql(register, f"""
+            BEGIN;
+            INSERT INTO community_water.topology_revision
+                (community_id,starts_on,admission_id,account_id,subject_id,basis)
+            VALUES ('{community}','2026-01-01',gen_random_uuid(),'{account}','{subject}','Synthetic fixture');
+            WITH edges(point_name, parent_name) AS (VALUES
+                ('Root', NULL), ('Street', 'Root'), ('Water 0', 'Street'), ('Water 1', 'Root')
+            )
+            INSERT INTO community_water.topology_point (community_id, starts_on, point_id, parent_id)
+            SELECT point.community_id, '2026-01-01', point.id, parent.id
+            FROM edges JOIN community_water.accounting_point point ON point.designation=edges.point_name
+            LEFT JOIN community_water.accounting_point parent
+                ON (parent.community_id,parent.designation)=(point.community_id,edges.parent_name)
+            WHERE point.community_id='{community}';
+            COMMIT;""")
     def balance_fingerprint():
         tables = ('accounting_point',)
         if not water_street_balance:
@@ -319,6 +336,7 @@ def main():
                 child = subprocess.Popen([args.node, str(script)],
                     env=dict(os.environ, STAND_PROBE_COOKIE=secret.hex(), STAND_COMMUNITY=community,
                              STAND_HELP_SCREENSHOT=str(args.screenshot), STAND_VERIFICATION_HISTORY=str(verification_history).lower(),
+                             STAND_VERIFICATION_TYPES=str(verification_types).lower(),
                              STAND_IMPORT_HISTORY=str(import_history).lower(),
                              STAND_ELECTRICITY_IMPORT_HISTORY=str(electricity_import_history).lower(),
                              STAND_ELECTRICITY_FOREST_REPLACEMENT=str(forest_replacement).lower(),
@@ -407,7 +425,8 @@ def main():
             rows = sql(register, f"SELECT admission_id,meter_id,verified_on FROM community_water.meter_verification WHERE community_id='{community}';").splitlines()
             admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE community_id='{community}' AND action='verify-meter';")
             attributed = sql(register, f"SELECT count(*) FROM community_water.meter_verification WHERE community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND basis='{basis}';")
-            if len(rows) != 4 or admissions != '6' or attributed != '4':
+            expected_records = 6 if verification_types else 4
+            if len(rows) != expected_records or admissions != str(expected_records + 2) or attributed != str(expected_records):
                 raise RuntimeError('Unexpected verification/admission count or attribution')
             from datetime import date
             for row in rows:
@@ -417,7 +436,18 @@ def main():
                 linked = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE id='{admission}' AND community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND action='verify-meter' AND target_id='{meter}' AND effective_on='{verified}' AND basis='{basis}';")
                 if linked != '1':
                     raise RuntimeError('Verification does not reference its Platform admission')
-            print('PASS: four verifications linked to six Platform admissions, no verification after revocation')
+            if verification_types:
+                by_point = sql(register, f"""
+                    SELECT p.designation,count(*) FROM community_water.meter_verification v
+                    JOIN community_water.installation i ON (i.community_id,i.meter_id)=(v.community_id,v.meter_id)
+                    JOIN community_water.accounting_point p ON (p.community_id,p.id)=(i.community_id,i.point_id)
+                    WHERE v.community_id='{community}' AND i.ends_before IS NULL
+                    GROUP BY p.designation ORDER BY p.designation;""").splitlines()
+                if by_point != ['Root|1', 'Street|1', 'Water 0|4']:
+                    raise RuntimeError('Verification records are not associated with the expected three point types')
+                print('PASS: six verifications on three point types linked to eight Platform admissions')
+            else:
+                print('PASS: four verifications linked to six Platform admissions, no verification after revocation')
             if verification_history:
                 changes = sql(register, f"SELECT admission_id,old_installation_id,request_id,effective_on FROM community_water.replacement WHERE community_id='{community}';").splitlines()
                 count = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE community_id='{community}' AND action='replace';")

@@ -90,7 +90,7 @@ def main():
         'water-import-race-import-first': 'recognize',
         'water-import-race-replacement-first': 'replace',
     }
-    parser.add_argument('--scenario', choices=['topology', 'forest-replacement', 'installation-history', 'common-electricity', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-import-revocation', 'water-topology', 'water-balance', 'water-root-replacement-balance', 'water-verification', 'water-verification-history', *water_races], default='topology')
+    parser.add_argument('--scenario', choices=['topology', 'forest-replacement', 'installation-history', 'common-electricity', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation', 'water-registration', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-import-revocation', 'water-topology', 'water-balance', 'water-root-replacement-balance', 'water-verification', 'water-verification-history', *water_races], default='topology')
     args = parser.parse_args()
     dual_import = args.scenario == 'csv-import-dual'
     dual = args.scenario == 'dual-readings' or dual_import
@@ -106,6 +106,7 @@ def main():
     water_race_order = water_races.get(args.scenario)
     water_import = water_race_order is not None or args.scenario in ('water-import', 'water-import-history', 'water-import-revocation')
     water_topology = args.scenario == 'water-topology'
+    water_registration = args.scenario == 'water-registration'
     water_balance = args.scenario == 'water-balance'
     water_root_balance = args.scenario == 'water-root-replacement-balance'
     verification_history = args.scenario == 'water-verification-history'
@@ -141,6 +142,9 @@ def main():
     if water_topology:
         grant_column = 'water_setup_basis'
         basis = 'Synthetic water topology acceptance'
+    if water_registration:
+        grant_column = 'water_setup_basis'
+        basis = 'Synthetic water point registration'
     if water_balance:
         basis = 'Synthetic water balance acceptance'
     if water_root_balance:
@@ -201,6 +205,9 @@ def main():
         installation = first_installation if index == 0 else str(uuid.uuid4())
         if water:
             if index == 2:
+                continue
+            if water_registration:
+                commands.append(f"INSERT INTO community_register.plot VALUES ('{community}',gen_random_uuid(),'Plot {index}');")
                 continue
             plot, point, meter = (str(uuid.uuid4()) for _ in range(3))
             commands.extend([
@@ -263,7 +270,7 @@ def main():
                 WHERE community_id='{community}' AND account_id='{account}';""")
         if electricity_import_history or forest_replacement:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET can_replace_electricity=true, electricity_replacement_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
-        if water_replacement:
+        if water_replacement or water_registration:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET water_recognition_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         if verification_history or import_history or water_race_order or water_root_balance:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET water_replacement_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
@@ -290,6 +297,8 @@ def main():
                     script = Path(__file__).with_name('check_water_readings.cjs')
                 if water_replacement:
                     script = Path(__file__).with_name('check_water_replacement.cjs')
+                if water_registration:
+                    script = Path(__file__).with_name('check_water_registration.cjs')
                 if water_import:
                     script = Path(__file__).with_name('check_water_csv_import.cjs')
                 if water_topology:
@@ -443,6 +452,12 @@ def main():
                 if linked != '1':
                     raise RuntimeError('Water topology does not reference its Platform admission')
             print('PASS: two water topology versions linked to four Platform admissions, no publication after revocation')
+            return
+        if water_registration:
+            from water_registration_fixture import verify
+            verify(lambda command: sql(register, command), lambda command: sql(platform, command),
+                   community, account, subject, basis)
+            print('PASS: two water installations, four readings, and seven linked or attempted Platform admissions')
             return
         if water:
             rows = sql(register, f"SELECT admission_id,installation_id,measured_on FROM community_water.reading WHERE community_id='{community}' ORDER BY measured_on;").splitlines()
@@ -625,7 +640,7 @@ def main():
                     extra = ', can_setup_common_electricity=false, can_recognize_electricity=false, electricity_recognition_basis=NULL'
                 if electricity_import_history or forest_replacement:
                     extra = ', can_replace_electricity=false, electricity_replacement_basis=NULL'
-                if water_replacement:
+                if water_replacement or water_registration:
                     extra = ', water_recognition_basis=NULL'
                 if verification_history or import_history or water_race_order or water_root_balance:
                     extra = ', water_replacement_basis=NULL'

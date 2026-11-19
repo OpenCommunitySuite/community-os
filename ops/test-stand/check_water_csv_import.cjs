@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
 const readline = require('node:readline');
 const checkCsvImportRevocation = require('./check_csv_import_revocation.cjs');
+const checkWaterCsvReplacementRace = require('./check_water_csv_replacement_race.cjs');
 
 (async () => {
   const origin = 'https://127.0.0.1:5543';
@@ -41,6 +42,7 @@ const checkCsvImportRevocation = require('./check_csv_import_revocation.cjs');
     const seriesPath = `${base}/installations/${installation.id}/readings`;
     const historical = process.env.STAND_IMPORT_HISTORY === 'true';
     const revokeDuringApply = process.env.STAND_CSV_IMPORT_REVOCATION === 'true';
+    const raceOrder = process.env.STAND_WATER_IMPORT_RACE;
     let next;
     if (historical) {
       const series = page.waitForResponse(response => response.url().endsWith(seriesPath));
@@ -63,7 +65,7 @@ const checkCsvImportRevocation = require('./check_csv_import_revocation.cjs');
       assert.notEqual(next, installation.id);
       await page.getByText('Заміну водоміра зареєстровано.', { exact: true }).waitFor();
     }
-    const rowsToImport = revokeDuringApply ? ['2026-01-01,10', '2026-01-02,11', '2026-01-03,12.5'] : [
+    const rowsToImport = raceOrder ? ['2026-01-04,10'] : revokeDuringApply ? ['2026-01-01,10', '2026-01-02,11', '2026-01-03,12.5'] : [
       '2026-01-01,10', '2026-01-03,12.5', '2026-01-02,13',
       '2026-01-02,11', '2026-01-01,10', '2026-01-01,12',
       'not-a-date,14', '2025-12-31,1',
@@ -93,6 +95,10 @@ const checkCsvImportRevocation = require('./check_csv_import_revocation.cjs');
     assert.deepEqual(empty.readings, []);
     const preview = await click('Переглянути CSV', previewPath);
     assert.equal(preview.digest, digest);
+    if (raceOrder) {
+      await checkWaterCsvReplacementRace({ page, base, point, area, writes, read, preview, applyPath, order: raceOrder, errors });
+      return;
+    }
     if (revokeDuringApply) {
       await checkCsvImportRevocation({
         page, area, applyPath, previewPath, click, read, empty, preview, errors, firstValue: '10',

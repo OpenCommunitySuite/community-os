@@ -90,7 +90,7 @@ def main():
         'water-import-race-import-first': 'recognize',
         'water-import-race-replacement-first': 'replace',
     }
-    parser.add_argument('--scenario', choices=['topology', 'forest-replacement', 'installation-history', 'common-electricity', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation', 'water-registration', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-import-revocation', 'water-topology', 'water-balance', 'water-root-replacement-balance', 'water-verification', 'water-verification-history', *water_races], default='topology')
+    parser.add_argument('--scenario', choices=['topology', 'forest-replacement', 'installation-history', 'common-electricity', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation', 'water-registration', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-import-revocation', 'water-topology', 'water-street-balance', 'water-balance', 'water-root-replacement-balance', 'water-verification', 'water-verification-history', *water_races], default='topology')
     args = parser.parse_args()
     dual_import = args.scenario == 'csv-import-dual'
     dual = args.scenario == 'dual-readings' or dual_import
@@ -105,7 +105,8 @@ def main():
     import_history = args.scenario == 'water-import-history'
     water_race_order = water_races.get(args.scenario)
     water_import = water_race_order is not None or args.scenario in ('water-import', 'water-import-history', 'water-import-revocation')
-    water_topology = args.scenario == 'water-topology'
+    water_street_balance = args.scenario == 'water-street-balance'
+    water_topology = args.scenario in ('water-topology', 'water-street-balance')
     water_registration = args.scenario == 'water-registration'
     water_balance = args.scenario == 'water-balance'
     water_root_balance = args.scenario == 'water-root-replacement-balance'
@@ -141,7 +142,7 @@ def main():
         basis = 'Synthetic water CSV acceptance'
     if water_topology:
         grant_column = 'water_setup_basis'
-        basis = 'Synthetic water topology acceptance'
+        basis = 'Synthetic water street balance' if water_street_balance else 'Synthetic water topology acceptance'
     if water_registration:
         grant_column = 'water_setup_basis'
         basis = 'Synthetic water point registration'
@@ -232,7 +233,9 @@ def main():
         ])
     sql(register, '\n'.join(commands + ['COMMIT;']))
     def balance_fingerprint():
-        tables = ('accounting_point', 'topology_revision', 'topology_point')
+        tables = ('accounting_point',)
+        if not water_street_balance:
+            tables += ('topology_revision', 'topology_point')
         if not water_root_balance:
             tables += ('installation', 'replacement')
         parts = [f"SELECT to_jsonb(t)::text AS value FROM community_water.{table} t WHERE community_id='{community}'" for table in tables]
@@ -243,6 +246,10 @@ def main():
     if water_balance or water_root_balance:
         from water_balance_fixture import seed
         seed(lambda command: sql(register, command), community, account, subject, root_replacement=water_root_balance)
+        fingerprint = balance_fingerprint()
+    if water_street_balance:
+        from water_balance_fixture import seed_street_readings
+        seed_street_readings(lambda command: sql(register, command), community, account, subject)
         fingerprint = balance_fingerprint()
     prefix = 'communityos-test-stand-topology-' + secrets.token_hex(4)
     name = prefix + '-web'
@@ -315,6 +322,7 @@ def main():
                              STAND_IMPORT_HISTORY=str(import_history).lower(),
                              STAND_ELECTRICITY_IMPORT_HISTORY=str(electricity_import_history).lower(),
                              STAND_ELECTRICITY_FOREST_REPLACEMENT=str(forest_replacement).lower(),
+                             STAND_WATER_STREET_BALANCE=str(water_street_balance).lower(),
                              STAND_ELECTRICITY_IMPORT_DUAL=str(dual_import).lower(),
                              STAND_CSV_IMPORT_REVOCATION=str(csv_revocation).lower(),
                              STAND_WATER_IMPORT_RACE=water_race_order or ''),
@@ -440,18 +448,26 @@ def main():
             return
         if water_topology:
             rows = sql(register, f"SELECT r.admission_id,r.starts_on,p.point_id FROM community_water.topology_revision r JOIN community_water.topology_point p USING (community_id,starts_on) WHERE r.community_id='{community}' AND p.parent_id IS NULL;").splitlines()
-            admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE community_id='{community}' AND action='publish-topology';")
-            if len(rows) != 2 or admissions != '4':
+            admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE community_id='{community}';")
+            expected_dates = {'2026-01-01', '2026-01-04' if water_street_balance else '2026-01-02'}
+            if len(rows) != 2 or admissions != ('2' if water_street_balance else '4'):
                 raise RuntimeError('Unexpected water topology/admission count')
+            seen_dates = set()
             for row in rows:
                 admission, date, root = row.split('|')
                 admission, root = str(uuid.UUID(admission)), str(uuid.UUID(root))
-                if date not in ('2026-01-01', '2026-01-02'):
-                    raise RuntimeError('Unexpected topology date')
+                seen_dates.add(date)
                 linked = sql(platform, f"SELECT count(*) FROM platform_provisioning.water_admission WHERE id='{admission}' AND community_id='{community}' AND account_id='{account}' AND subject_id='{subject}' AND action='publish-topology' AND target_id='{root}' AND effective_on='{date}' AND basis='{basis}';")
                 if linked != '1':
                     raise RuntimeError('Water topology does not reference its Platform admission')
-            print('PASS: two water topology versions linked to four Platform admissions, no publication after revocation')
+            if seen_dates != expected_dates:
+                raise RuntimeError('Unexpected topology dates')
+            if water_street_balance:
+                if balance_fingerprint() != fingerprint:
+                    raise RuntimeError('Topology publication or balance changed existing points, installations or readings')
+                print('PASS: two exact publication admissions and unchanged points, installations and readings')
+            else:
+                print('PASS: two water topology versions linked to four Platform admissions, no publication after revocation')
             return
         if water_registration:
             from water_registration_fixture import verify

@@ -90,11 +90,12 @@ def main():
         'water-import-race-import-first': 'recognize',
         'water-import-race-replacement-first': 'replace',
     }
-    parser.add_argument('--scenario', choices=['topology', 'forest-replacement', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-import-revocation', 'water-topology', 'water-balance', 'water-root-replacement-balance', 'water-verification', 'water-verification-history', *water_races], default='topology')
+    parser.add_argument('--scenario', choices=['topology', 'forest-replacement', 'installation-history', 'manual-readings', 'dual-readings', 'replacement', 'csv-import', 'csv-import-history', 'csv-import-dual', 'csv-import-revocation', 'water-readings', 'water-replacement', 'water-import', 'water-import-history', 'water-import-revocation', 'water-topology', 'water-balance', 'water-root-replacement-balance', 'water-verification', 'water-verification-history', *water_races], default='topology')
     args = parser.parse_args()
     dual_import = args.scenario == 'csv-import-dual'
     dual = args.scenario == 'dual-readings' or dual_import
     forest_replacement = args.scenario == 'forest-replacement'
+    installation_history = args.scenario == 'installation-history'
     replacement = args.scenario == 'replacement'
     electricity_import_history = args.scenario == 'csv-import-history'
     csv_revocation = args.scenario in ('csv-import-revocation', 'water-import-revocation')
@@ -120,6 +121,9 @@ def main():
     if replacement:
         grant_column = 'electricity_replacement_basis'
         basis = 'Synthetic replacement acceptance'
+    if installation_history:
+        grant_column = 'electricity_replacement_basis'
+        basis = 'Synthetic installation history'
     if csv_import:
         basis = 'Synthetic CSV acceptance'
     if water:
@@ -176,7 +180,7 @@ def main():
           VALUES ('{community}',true,true,{str(not water).lower()},{str(water).lower()});
         INSERT INTO platform_provisioning.register_operator
           (community_id,account_id,subject_id,linked,can_read,can_read_electricity,can_recognize_electricity,can_read_water,{grant_column})
-          VALUES ('{community}','{account}','{subject}',true,true,{str(not water).lower()},{str(manual and not water).lower()},{str(water).lower()},NULL);
+          VALUES ('{community}','{account}','{subject}',true,true,{str(not water).lower()},{str(manual and not water and not installation_history).lower()},{str(water).lower()},NULL);
         COMMIT;
     """)
     commands = ['BEGIN;']
@@ -189,7 +193,7 @@ def main():
                 f"INSERT INTO community_water.installation (community_id,id,point_id,meter_id,starts_on,admission_id,account_id,subject_id,basis) VALUES ('{community}',gen_random_uuid(),'{point}','{meter}','2026-01-01',gen_random_uuid(),'{account}','{subject}','Synthetic fixture');",
             ])
     first_installation = str(uuid.uuid4())
-    for index in range(3):
+    for index in range(1 if installation_history else 3):
         installation = first_installation if index == 0 else str(uuid.uuid4())
         if water:
             if index == 2:
@@ -201,6 +205,9 @@ def main():
                 f"INSERT INTO community_water.meter (community_id,id,designation) VALUES ('{community}','{meter}','Meter {index}');",
                 f"INSERT INTO community_water.installation (community_id,id,point_id,meter_id,starts_on,admission_id,account_id,subject_id,basis) VALUES ('{community}','{installation}','{point}','{meter}','2026-01-01',gen_random_uuid(),'{account}','{subject}','Synthetic fixture');",
             ])
+            continue
+        if installation_history:
+            commands.append(f"INSERT INTO community_register.plot VALUES ('{community}',gen_random_uuid(),'Plot 0');")
             continue
         for label in (f'Root {index}', f'Street {index}'):
             commands.append(f"INSERT INTO community_electricity.accounting_point (community_id,id,common_designation,measurement_boundary) VALUES ('{community}',gen_random_uuid(),'{label}','Synthetic boundary');")
@@ -241,6 +248,10 @@ def main():
             sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         if replacement:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET can_replace_electricity=true, electricity_recognition_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
+        if installation_history:
+            sql(platform, f"""UPDATE platform_provisioning.register_operator
+                SET can_replace_electricity=true, can_setup_electricity=true, electricity_setup_basis='{basis}'
+                WHERE community_id='{community}' AND account_id='{account}';""")
         if electricity_import_history or forest_replacement:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET can_replace_electricity=true, electricity_replacement_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         if water_replacement:
@@ -260,6 +271,8 @@ def main():
                     script = Path(__file__).with_name('check_electricity_dual_readings.cjs')
                 if replacement:
                     script = Path(__file__).with_name('check_electricity_replacement.cjs')
+                if installation_history:
+                    script = Path(__file__).with_name('check_electricity_installation_history.cjs')
                 if csv_import:
                     script = Path(__file__).with_name('check_electricity_csv_import.cjs')
                 if water:
@@ -464,6 +477,38 @@ def main():
                     raise RuntimeError('Water replacement does not reference its Platform admission')
                 print('PASS: one water replacement linked to Platform admission' if import_history or water_race_order else 'PASS: one water replacement linked to four Platform admissions, no replacement after revocation')
             return
+        if installation_history:
+            rows = [row.split('|') for row in sql(register, f"""
+                SELECT i.id, i.point_id, i.admission_id, p.plot_id, i.starts_on, i.ends_before, m.register_mode,
+                    i.account_id, i.subject_id, i.basis
+                FROM community_electricity.installation i
+                JOIN community_electricity.accounting_point p ON (p.community_id,p.id)=(i.community_id,i.point_id)
+                JOIN community_electricity.meter m ON (m.community_id,m.id)=(i.community_id,i.meter_id)
+                WHERE i.community_id='{community}' ORDER BY i.starts_on;""").splitlines()]
+            if [row[4:] for row in rows] != [
+                ['2026-01-02', '2026-01-04', 'dual', account, subject, basis],
+                ['2026-01-04', '', 'dual', account, subject, basis],
+            ]:
+                raise RuntimeError('Expected two attributed, non-overlapping dual installations')
+            old, current = rows
+            if old[1] != current[1] or old[3] != current[3]:
+                raise RuntimeError('Replacement changed the original point or plot')
+            changes = [row.split('|') for row in sql(register, f"""
+                SELECT request_id, old_installation_id, new_installation_id, admission_id, effective_on, account_id, subject_id, basis
+                FROM community_electricity.replacement WHERE community_id='{community}';""").splitlines()]
+            if [row[1:] for row in changes] != [[old[0], current[0], current[2], current[4], account, subject, basis]]:
+                raise RuntimeError('Expected one attributed replacement connecting both installations')
+            issued = [row.split('|') for row in sql(platform, f"""
+                SELECT id, action, target_id, effective_on, register_mode, request_id, account_id, subject_id, basis
+                FROM platform_provisioning.electricity_admission WHERE community_id='{community}'
+                ORDER BY effective_on;""").splitlines()]
+            if issued != [
+                [old[2], 'setup', old[3], old[4], 'dual', '', account, subject, basis],
+                [current[2], 'replace', old[0], current[4], '', changes[0][0], account, subject, basis],
+            ]:
+                raise RuntimeError('Installation and replacement must match exactly two Platform admissions')
+            print('PASS: one point, two installations and two matching Platform admissions after invalid and revoked submissions')
+            return
         if manual:
             rows = sql(register, f"SELECT admission_id,installation_id,measured_on,channel FROM community_electricity.reading WHERE community_id='{community}' ORDER BY measured_on;").splitlines()
             admissions = sql(platform, f"SELECT count(*) FROM platform_provisioning.electricity_admission WHERE community_id='{community}' AND action='recognize';")
@@ -557,6 +602,8 @@ def main():
         finally:
             try:
                 extra = ', electricity_recognition_basis=NULL' if replacement else ''
+                if installation_history:
+                    extra = ', can_replace_electricity=false, can_setup_electricity=false, electricity_setup_basis=NULL'
                 if electricity_import_history or forest_replacement:
                     extra = ', can_replace_electricity=false, electricity_replacement_basis=NULL'
                 if water_replacement:

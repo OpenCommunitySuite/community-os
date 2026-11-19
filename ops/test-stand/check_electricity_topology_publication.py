@@ -106,7 +106,7 @@ def main():
     parser.add_argument('--login', required=True)
     parser.add_argument('--node', required=True)
     parser.add_argument('--screenshot', type=Path, required=True)
-    parser.add_argument('--scenario', choices=(*SCENARIOS, 'water-charge-preview'), default='topology')
+    parser.add_argument('--scenario', choices=(*SCENARIOS, 'water-charge-preview', 'water-period-posting'), default='topology')
     args = parser.parse_args()
     dual_import = args.scenario == 'csv-import-dual'
     dual = args.scenario == 'dual-readings' or dual_import
@@ -125,6 +125,8 @@ def main():
     water_topology = args.scenario in ('water-topology', 'water-street-balance')
     water_registration = args.scenario == 'water-registration'
     water_charge_preview = args.scenario == 'water-charge-preview'
+    water_period_posting = args.scenario == 'water-period-posting'
+    water_billing = water_charge_preview or water_period_posting
     water_balance = args.scenario == 'water-balance'
     water_root_balance = args.scenario == 'water-root-replacement-balance'
     verification_history = args.scenario == 'water-verification-history'
@@ -166,6 +168,9 @@ def main():
         basis = 'Synthetic water point registration'
     if water_charge_preview:
         basis = 'Synthetic water charge preview'
+    if water_period_posting:
+        grant_column = 'billing_post_basis'
+        basis = 'Synthetic water period posting'
     if water_balance:
         basis = 'Synthetic water balance acceptance'
     if water_root_balance:
@@ -213,10 +218,10 @@ def main():
           VALUES (gen_random_uuid(),'{community}','{account}',gen_random_uuid(),'{account}','{basis}');
         INSERT INTO platform_provisioning.register_availability
           (community_id,community_active,register_enabled,electricity_enabled,water_enabled,billing_enabled)
-          VALUES ('{community}',true,true,{str(not water).lower()},{str(water).lower()},{str(water_charge_preview).lower()});
+          VALUES ('{community}',true,true,{str(not water or water_period_posting).lower()},{str(water).lower()},{str(water_billing).lower()});
         INSERT INTO platform_provisioning.register_operator
           (community_id,account_id,subject_id,linked,can_read,can_read_electricity,can_recognize_electricity,can_read_water,{grant_column})
-          VALUES ('{community}','{account}','{subject}',true,true,{str(not water).lower()},{str(manual and not water and not installation_history).lower()},{str(water).lower()},NULL);
+          VALUES ('{community}','{account}','{subject}',true,true,{str(not water or water_period_posting).lower()},{str(manual and not water and not installation_history).lower()},{str(water).lower()},NULL);
         COMMIT;
     """)
     commands = ['BEGIN;']
@@ -229,7 +234,7 @@ def main():
                 f"INSERT INTO community_water.installation (community_id,id,point_id,meter_id,starts_on,admission_id,account_id,subject_id,basis) VALUES ('{community}',gen_random_uuid(),'{point}','{meter}','2026-01-01',gen_random_uuid(),'{account}','{subject}','Synthetic fixture');",
             ])
     first_installation = str(uuid.uuid4())
-    fixture_count = 0 if water_charge_preview else 1 if installation_history or common_electricity else 3
+    fixture_count = 0 if water_billing else 1 if installation_history or common_electricity else 3
     for index in range(fixture_count):
         installation = first_installation if index == 0 else str(uuid.uuid4())
         if water:
@@ -267,6 +272,9 @@ def main():
             return sql(register, command)
         preview_tariff = seed_water_charge(preview_sql, community, account, subject)
         preview_fingerprint = source_fingerprint(preview_sql, community)
+    if water_period_posting:
+        from water_charge_fixture import seed_period
+        seed_period(lambda command: sql(register, command), community, account, subject)
     if verification_types:
         sql(register, f"""
             BEGIN;
@@ -314,9 +322,9 @@ def main():
         },
     })
     try:
-        if water_charge_preview:
+        if water_billing:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET can_read_billing=true WHERE community_id='{community}' AND account_id='{account}';")
-        elif not water_balance:
+        if not (water_balance or water_charge_preview):
             sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
         if replacement:
             sql(platform, f"UPDATE platform_provisioning.register_operator SET can_replace_electricity=true, electricity_recognition_basis='{basis}' WHERE community_id='{community}' AND account_id='{account}';")
@@ -357,6 +365,8 @@ def main():
                     script = Path(__file__).with_name('check_water_readings.cjs')
                 if water_charge_preview:
                     script = Path(__file__).with_name('check_water_charge_preview.cjs')
+                if water_period_posting:
+                    script = Path(__file__).with_name('check_water_period_posting.cjs')
                 if water_replacement:
                     script = Path(__file__).with_name('check_water_replacement.cjs')
                 if water_registration:
@@ -474,6 +484,12 @@ def main():
             if source_fingerprint(preview_sql, community) != preview_fingerprint:
                 raise RuntimeError('Water preview changed its source facts')
             print('PASS: zero periods, accruals, obligations or write admissions, and unchanged preview source facts')
+            return
+        if water_period_posting:
+            from water_charge_fixture import verify_periods
+            verify_periods(lambda command: sql(register, command), lambda command: sql(platform, command),
+                           community, account, subject, basis)
+            print('PASS: two posted periods, five linked obligations and four Platform posting admissions')
             return
         if water_verification:
             rows = sql(register, f"SELECT admission_id,meter_id,verified_on FROM community_water.meter_verification WHERE community_id='{community}';").splitlines()
@@ -746,7 +762,7 @@ def main():
                     extra = ', water_replacement_basis=NULL'
                 if water_balance:
                     extra = ', can_read_water=false'
-                if water_charge_preview:
+                if water_billing:
                     extra = ', can_read_billing=false'
                 sql(platform, f"UPDATE platform_provisioning.register_operator SET {grant_column}=NULL{extra} WHERE community_id='{community}' AND account_id='{account}';")
             finally:

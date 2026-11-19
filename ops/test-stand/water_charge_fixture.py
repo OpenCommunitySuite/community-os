@@ -1,4 +1,4 @@
-"""Synthetic one-account facts for a real, read-only water charge preview."""
+"""Synthetic one-account facts for water preview and period posting."""
 
 import uuid
 
@@ -53,3 +53,77 @@ def source_fingerprint(sql, community):
     parts = ' UNION ALL '.join(f"SELECT to_jsonb(t)::text AS value FROM {table} t WHERE community_id='{community}'"
                                for table in tables)
     return sql(f"SELECT md5(string_agg(value,'|' ORDER BY value)) FROM ({parts}) records;")
+
+
+def seed_period(sql, community, account, subject):
+    seed(sql, community, account, subject)
+    point, meter, installation = (str(uuid.uuid4()) for _ in range(3))
+    sql(f"""
+        BEGIN;
+        INSERT INTO community_electricity.accounting_point (community_id,id,plot_id)
+            SELECT community_id,'{point}',plot_id FROM community_register.personal_account
+            WHERE community_id='{community}' AND number='WATER-001';
+        INSERT INTO community_electricity.meter (community_id,id,designation,register_mode)
+            VALUES ('{community}','{meter}','Synthetic billing electricity meter','total');
+        INSERT INTO community_electricity.installation
+            (community_id,id,point_id,meter_id,starts_on,admission_id,account_id,subject_id,basis,reading_multiplier)
+            VALUES ('{community}','{installation}','{point}','{meter}','2026-01-01',
+                    gen_random_uuid(),'{account}','{subject}','Synthetic fixture',40);
+        INSERT INTO community_electricity.reading
+            (community_id,id,installation_id,measured_on,value_kwh,channel,source,recognition_rule,admission_id,account_id,subject_id,basis)
+        SELECT '{community}',gen_random_uuid(),'{installation}',day::date,value,'total','manual-observation',
+            'synthetic-fixture',gen_random_uuid(),'{account}','{subject}','Synthetic fixture'
+        FROM (VALUES ('2026-01-01',100),('2026-01-03',103),('2026-01-05',104)) fixture(day,value);
+        INSERT INTO community_billing.tariff (community_id,id,applicable_from,basis,rates)
+            VALUES ('{community}',gen_random_uuid(),'2026-01-01','Synthetic electricity tariff','{{"total":4}}');
+        INSERT INTO community_billing.member_fee (community_id,id,applicable_from,basis,amount_uah)
+            VALUES ('{community}',gen_random_uuid(),'2026-01-01','Synthetic membership fee',25);
+        COMMIT;""")
+
+
+def verify_periods(register, platform, community, account, subject, basis):
+    periods = [row.split('|') for row in register(f"""
+        SELECT id,admission_id,digest,starts_on,ends_on,calculated_on,due_on,
+            coalesce(snapshot->>'includeWater','false'),account_id,subject_id,basis
+        FROM community_billing.posted_period WHERE community_id='{community}' ORDER BY starts_on;""").splitlines()]
+    if [row[3:] for row in periods] != [
+        ['2026-01-01', '2026-01-03', '2026-01-04', '2026-01-15', 'true', account, subject, basis],
+        ['2026-01-03', '2026-01-05', '2026-01-06', '2026-01-16', 'false', account, subject, basis],
+    ]:
+        raise RuntimeError('Expected two attributed snapshots with distinct water inclusion')
+    wet, dry = periods
+    rows = register(f"""
+        SELECT p.starts_on,a.kind,trim_scale(a.amount_uah),pa.number,a.debtor_id,
+            (o.id IS NOT NULL)::text
+        FROM community_billing.accrual a
+        JOIN community_billing.posted_period p ON (p.community_id,p.id)=(a.community_id,a.period_id)
+        JOIN community_register.personal_account pa ON (pa.community_id,pa.id)=(a.community_id,a.personal_account_id)
+        LEFT JOIN community_billing.obligation o ON (o.community_id,o.accrual_id)=(a.community_id,a.id)
+        WHERE a.community_id='{community}' ORDER BY p.starts_on,a.kind;""").splitlines()
+    if rows != [
+        f'2026-01-01|electricity|480|WATER-001|{subject}|true',
+        f'2026-01-01|member-fee|25|WATER-001|{subject}|true',
+        f'2026-01-01|water|50|WATER-001|{subject}|true',
+        f'2026-01-03|electricity|160|WATER-001|{subject}|true',
+        f'2026-01-03|member-fee|25|WATER-001|{subject}|true',
+    ]:
+        raise RuntimeError('Unexpected accruals or obligations after posting, replay and conflict')
+    for table in ('accrual', 'obligation'):
+        if register(f"SELECT count(*) FROM community_billing.{table} WHERE community_id='{community}';") != '5':
+            raise RuntimeError('Expected exactly five accruals and obligations in the synthetic community')
+
+    admissions = [row.split('|') for row in platform(f"""
+        SELECT id,digest,starts_on,ends_on,account_id,subject_id,basis
+        FROM platform_provisioning.billing_admission WHERE community_id='{community}';""").splitlines()]
+    if len(admissions) != 4 or any(row[4:] != [account, subject, basis] for row in admissions):
+        raise RuntimeError('Expected four attributed Platform admissions before access revocation')
+    for period in periods:
+        if period[1:5] not in [row[:4] for row in admissions]:
+            raise RuntimeError('Posted snapshot does not reference its exact Platform admission')
+    remaining = [row[1:4] for row in admissions if row[0] not in {wet[1], dry[1]}]
+    replay = wet[2:5]
+    if replay not in remaining:
+        raise RuntimeError('Expected admission for the identical wet-period replay')
+    remaining.remove(replay)
+    if len(remaining) != 1 or remaining[0][0] == wet[2] or remaining[0][1:] != wet[3:5]:
+        raise RuntimeError('Expected one conflicting digest on the same period bounds')

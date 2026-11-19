@@ -113,7 +113,8 @@ def main():
     parser.add_argument('--node', required=True)
     parser.add_argument('--screenshot', type=Path, required=True)
     parser.add_argument('--scenario', choices=(*SCENARIOS, 'water-charge-preview', 'water-period-posting',
-                                               'water-partial-payment', 'water-posting-race'), default='topology')
+                                               'water-partial-payment', 'water-posting-race',
+                                               'water-stale-posting'), default='topology')
     args = parser.parse_args()
     dual_import = args.scenario == 'csv-import-dual'
     dual = args.scenario == 'dual-readings' or dual_import
@@ -134,7 +135,9 @@ def main():
     water_charge_preview = args.scenario == 'water-charge-preview'
     water_partial_payment = args.scenario == 'water-partial-payment'
     water_posting_race = args.scenario == 'water-posting-race'
-    water_period_posting = args.scenario == 'water-period-posting' or water_partial_payment or water_posting_race
+    water_stale_posting = args.scenario == 'water-stale-posting'
+    water_period_posting = args.scenario in ('water-period-posting', 'water-partial-payment',
+                                            'water-posting-race', 'water-stale-posting')
     water_billing = water_charge_preview or water_period_posting
     water_balance = args.scenario == 'water-balance'
     water_root_balance = args.scenario == 'water-root-replacement-balance'
@@ -184,6 +187,8 @@ def main():
         basis = 'Synthetic water partial payment'
     if water_posting_race:
         basis = 'Synthetic water posting race'
+    if water_stale_posting:
+        basis = 'Synthetic stale water posting'
     if water_balance:
         basis = 'Synthetic water balance acceptance'
     if water_root_balance:
@@ -287,7 +292,7 @@ def main():
         preview_fingerprint = source_fingerprint(preview_sql, community)
     if water_period_posting:
         from water_charge_fixture import seed_period
-        seed_period(lambda command: sql(register, command), community, account, subject)
+        period_tariff = seed_period(lambda command: sql(register, command), community, account, subject)
     if verification_types:
         sql(register, f"""
             BEGIN;
@@ -409,6 +414,7 @@ def main():
                              STAND_WATER_PREVIEW_TARIFF=preview_tariff,
                              STAND_WATER_PARTIAL_PAYMENT=str(water_partial_payment).lower(),
                              STAND_WATER_POSTING_RACE=str(water_posting_race).lower(),
+                             STAND_WATER_STALE_POSTING=str(water_stale_posting).lower(),
                              STAND_ELECTRICITY_IMPORT_DUAL=str(dual_import).lower(),
                              STAND_CSV_IMPORT_REVOCATION=str(csv_revocation).lower(),
                              STAND_WATER_IMPORT_RACE=water_race_order or ''),
@@ -421,6 +427,8 @@ def main():
                 threading.Thread(target=output, daemon=True).start()
                 revoked = False
                 raced = False
+                tariff_changed = False
+                stale_admission = None
                 try:
                     while True:
                         message = messages.get(timeout=90)
@@ -451,6 +459,21 @@ def main():
                                 verify_posting_admissions(lambda command: sql(platform, command), community, account, subject, basis)
                             raced = True
                             child.stdin.write('RELEASED\n')
+                            child.stdin.flush()
+                        elif message == 'CHANGE_BILLING_TARIFF' and water_stale_posting and not tariff_changed:
+                            changed = sql(register, f"""UPDATE community_billing.water_tariff SET rate_uah=24
+                                WHERE community_id='{community}' AND id='{period_tariff}' AND rate_uah=20 RETURNING id;""")
+                            if changed != period_tariff:
+                                raise RuntimeError('The selected synthetic water tariff was not updated')
+                            tariff_changed = True
+                            child.stdin.write('TARIFF_CHANGED\n')
+                            child.stdin.flush()
+                        elif message == 'CHECK_STALE_BILLING' and water_stale_posting and tariff_changed and stale_admission is None:
+                            from water_charge_fixture import verify_rejected_posting
+                            stale_admission = verify_rejected_posting(lambda command: sql(register, command),
+                                                                       lambda command: sql(platform, command),
+                                                                       community, account, subject, basis)
+                            child.stdin.write('STALE_CHECKED\n')
                             child.stdin.flush()
                         elif message == 'REVOKE_DURING_APPLY' and csv_revocation and not revoked:
                             with hold_installation(docker, postgres, register, community, first_installation, reading_schema):
@@ -497,7 +520,9 @@ def main():
                             print(message)
                         else:
                             raise RuntimeError('Unexpected browser probe output')
-                    if child.wait(timeout=10) != 0 or not (raced if water_race_order or water_posting_race else revoked):
+                    completed = stale_admission is not None if water_stale_posting else (
+                        raced if water_race_order or water_posting_race else revoked)
+                    if child.wait(timeout=10) != 0 or not completed:
                         raise RuntimeError('Browser acceptance failed')
                 finally:
                     if child.poll() is None:
@@ -527,6 +552,12 @@ def main():
             verify_posting_race(lambda command: sql(register, command), lambda command: sql(platform, command),
                                 community, account, subject, basis)
             print('PASS: both posts waited at insertion; one snapshot, three linked obligations and two matching Platform admissions')
+            return
+        if water_stale_posting:
+            from water_charge_fixture import verify_refreshed_posting
+            verify_refreshed_posting(lambda command: sql(register, command), lambda command: sql(platform, command),
+                                     community, account, subject, basis, stale_admission)
+            print('PASS: zero financial records after stale rejection; one updated snapshot and three linked obligations after refresh')
             return
         if water_period_posting:
             from water_charge_fixture import verify_periods

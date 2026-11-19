@@ -1,7 +1,7 @@
 """Synthetic one-account facts for water preview and period posting."""
 
-import uuid
 import time
+import uuid
 
 
 def seed(sql, community, account, subject):
@@ -57,7 +57,7 @@ def source_fingerprint(sql, community):
 
 
 def seed_period(sql, community, account, subject):
-    seed(sql, community, account, subject)
+    water_tariff = seed(sql, community, account, subject)
     point, meter, installation = (str(uuid.uuid4()) for _ in range(3))
     sql(f"""
         BEGIN;
@@ -80,6 +80,7 @@ def seed_period(sql, community, account, subject):
         INSERT INTO community_billing.member_fee (community_id,id,applicable_from,basis,amount_uah)
             VALUES ('{community}',gen_random_uuid(),'2026-01-01','Synthetic membership fee',25);
         COMMIT;""")
+    return water_tariff
 
 
 def posted_periods(register, community):
@@ -89,7 +90,7 @@ def posted_periods(register, community):
         FROM community_billing.posted_period WHERE community_id='{community}' ORDER BY starts_on;""").splitlines()]
 
 
-def verify_period_accruals(register, community, subject, *, include_dry=False):
+def verify_period_accruals(register, community, subject, *, include_dry=False, water_amount=50):
     rows = register(f"""
         SELECT p.starts_on,a.kind,trim_scale(a.amount_uah),pa.number,a.debtor_id,
             (o.id IS NOT NULL)::text
@@ -101,7 +102,7 @@ def verify_period_accruals(register, community, subject, *, include_dry=False):
     expected = [
         f'2026-01-01|electricity|480|WATER-001|{subject}|true',
         f'2026-01-01|member-fee|25|WATER-001|{subject}|true',
-        f'2026-01-01|water|50|WATER-001|{subject}|true',
+        f'2026-01-01|water|{water_amount}|WATER-001|{subject}|true',
     ]
     if include_dry:
         expected.extend([
@@ -196,6 +197,32 @@ def verify_posting_race(register, platform, community, account, subject, basis):
     admissions = verify_posting_admissions(platform, community, account, subject, basis)
     if posted[1:5] not in [row[:4] for row in admissions]:
         raise RuntimeError('The saved snapshot must reference the admission that posted it')
+
+
+def verify_rejected_posting(register, platform, community, account, subject, basis):
+    for table in ('posted_period', 'accrual', 'obligation'):
+        if register(f"SELECT count(*) FROM community_billing.{table} WHERE community_id='{community}';") != '0':
+            raise RuntimeError(f'Stale confirmation must leave {table} empty')
+    admissions = billing_admissions(platform, community)
+    if len(admissions) != 1 or admissions[0][2:] != ['2026-01-01', '2026-01-03', account, subject, basis]:
+        raise RuntimeError('Expected only the admitted stale confirmation before recalculation')
+    return admissions[0]
+
+
+def verify_refreshed_posting(register, platform, community, account, subject, basis, stale_admission):
+    periods = posted_periods(register, community)
+    if [row[3:] for row in periods] != [
+        ['2026-01-01', '2026-01-03', '2026-01-04', '2026-01-15', 'true', account, subject, basis],
+    ]:
+        raise RuntimeError('Expected one attributed snapshot for the refreshed water project')
+    verify_period_accruals(register, community, subject, water_amount=60)
+    admissions = billing_admissions(platform, community)
+    if len(admissions) != 2 or stale_admission not in admissions:
+        raise RuntimeError('Expected one admission for each confirmation')
+    admissions.remove(stale_admission)
+    [fresh] = admissions
+    if fresh[1] == stale_admission[1] or fresh[2:] != stale_admission[2:] or periods[0][1:5] != fresh[:4]:
+        raise RuntimeError('The only posted period must reference the refreshed project admission')
 
 
 def verify_partial_payment(register, platform, community, account, subject, basis):

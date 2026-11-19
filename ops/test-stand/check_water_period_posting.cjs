@@ -4,16 +4,18 @@ const assert = require('node:assert/strict');
 const readline = require('node:readline');
 const checkPartialPayment = require('./check_water_partial_payment.cjs');
 
-async function revokeGrant() {
+async function standStep(command, expected) {
   const input = readline.createInterface({ input: process.stdin });
   try {
     const acknowledged = new Promise(resolve => input.once('line', resolve));
-    console.log('REVOKE');
-    assert.equal(await acknowledged, 'REVOKED');
+    console.log(command);
+    assert.equal(await acknowledged, expected);
   } finally {
     input.close();
   }
 }
+
+const revokeGrant = () => standStep('REVOKE', 'REVOKED');
 
 (async () => {
   const origin = 'https://127.0.0.1:5543';
@@ -22,6 +24,7 @@ async function revokeGrant() {
   const base = `/community/billing/${community}`;
   const partialPayment = process.env.STAND_WATER_PARTIAL_PAYMENT === 'true';
   const postingRace = process.env.STAND_WATER_POSTING_RACE === 'true';
+  const stalePosting = process.env.STAND_WATER_STALE_POSTING === 'true';
   const writes = new Set([base + '/post']);
   if (partialPayment) {
     for (const path of ['record', 'preview', 'allocate']) writes.add(`${base}/payments/${path}`);
@@ -73,7 +76,7 @@ async function revokeGrant() {
     const first = { from: '2026-01-01', until: '2026-01-03', calculatedOn: '2026-01-04', dueOn: '2026-01-15' };
     const second = { from: '2026-01-03', until: '2026-01-05', calculatedOn: '2026-01-06', dueOn: '2026-01-16' };
     const labels = { from: 'Початок споживання', until: 'Кінець споживання', calculatedOn: 'Дата розрахунку', dueOn: 'Сплатити до' };
-    async function preview(period, includeWater, electricity, tab = page) {
+    async function preview(period, includeWater, electricity, tab = page, waterRate = 20) {
       const target = billing(tab);
       for (const [field, value] of Object.entries(period))
         await target.getByLabel(labels[field], { exact: true }).fill(value);
@@ -94,7 +97,7 @@ async function revokeGrant() {
       assert.equal(line.fee.amountUah, 25);
       if (includeWater) {
         assert.deepEqual([line.water.status, line.water.volume, line.water.rate, line.water.amountUah],
-          ['Ready', 2.5, 20, 50]);
+          ['Ready', 2.5, waterRate, 2.5 * waterRate]);
         for (const id of [line.water.installationId, line.water.openingReadingId, line.water.closingReadingId, line.water.tariffId])
           assert.match(id, /^[0-9a-f-]{36}$/);
       } else {
@@ -102,7 +105,7 @@ async function revokeGrant() {
       }
       await confirmation(target).waitFor();
       const waterLine = target.getByText(/^Вода ·/);
-      if (includeWater) await waterLine.filter({ hasText: /2\.5 м³ × 20 грн\/м³ · 50,00/ }).waitFor();
+      if (includeWater) await waterLine.filter({ hasText: `2.5 м³ × ${waterRate} грн/м³ · ${2.5 * waterRate},00` }).waitFor();
       else assert.equal(await waterLine.count(), 0);
       return quote;
     }
@@ -123,6 +126,29 @@ async function revokeGrant() {
       return result?.result;
     }
     const history = period => get(base + '/history?' + new URLSearchParams({ from: period.from, until: period.until }));
+    if (stalePosting) {
+      const original = await preview(first, true, 480);
+      await standStep('CHANGE_BILLING_TARIFF', 'TARIFF_CHANGED');
+      await post(original, 409, 'StalePreview', 'Вихідні дані змінилися. Сформуйте новий розрахунок.');
+      assert.deepEqual(await get(base + '/periods'), []);
+      await standStep('CHECK_STALE_BILLING', 'STALE_CHECKED');
+
+      const refreshed = await preview(first, true, 480, page, 24);
+      assert.notEqual(refreshed.digest, original.digest);
+      const expected = structuredClone(original.plan);
+      Object.assign(expected.lines[0].water, { rate: 24, amountUah: 60 });
+      assert.deepEqual(refreshed.plan, expected);
+      const saved = await post(refreshed, 200, 'Posted', 'Період проведено.');
+      assert.equal(saved.digest, refreshed.digest);
+      assert.deepEqual(saved.snapshot, expected);
+      assert.deepEqual(await history(first), saved);
+      assert.deepEqual((await get(base + '/periods')).map(item => item.id), [saved.id]);
+      await page.screenshot({ path: process.env.STAND_HELP_SCREENSHOT, fullPage: true });
+      assert.deepEqual(unexpected, []);
+      assert.deepEqual(errors, []);
+      console.log('PASS: stale water quote was rejected; refreshed quote posted with 60 UAH and identical source references');
+      return;
+    }
     if (postingRace) {
       const other = await openBilling();
       const quotes = await Promise.all([preview(first, true, 480), preview(first, true, 480, other)]);

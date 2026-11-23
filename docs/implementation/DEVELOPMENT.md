@@ -60,6 +60,36 @@ Secrets, production credentials и real personal data запрещены в test
 
 Применяется root [AGENTS.md](../../AGENTS.md): clean baseline, task branch, complete diff review, task-only commit, normal push и PR в `main`. Merge, force push, history rewrite и branch deletion выполняются только в пределах явно разрешённой policy.
 
+### Проверка выделенной рабочей копии
+
+Перед изменениями выполните команды в выделенной рабочей копии. Сравните корень, ветку и полный SHA `HEAD` с ожидаемыми значениями. Если корень отличается, остановитесь и сверьте выбранную рабочую копию. Сохраняйте чужие изменения.
+
+```text
+git rev-parse --show-toplevel
+git branch --show-current
+git rev-parse HEAD
+git status --short
+git diff --cached
+git diff
+```
+
+`git diff --cached` показывает подготовленные к коммиту изменения, а `git diff` показывает разницу между рабочей копией и индексом для отслеживаемых файлов. Неотслеживаемые файлы видны в `git status --short`.
+
+Если `rg` недоступен, найдите документ по имени среди путей в индексе. В PowerShell выполните следующую команду.
+
+```powershell
+git ls-files | Select-String -Pattern '(^|/)DEVELOPMENT\.md$'
+```
+
+Чтобы проверить наличие документа в дереве конкретного коммита, подставьте полный согласованный SHA и путь от корня репозитория. В примере `$sha` получает полный SHA текущего `HEAD` после его сверки.
+
+```powershell
+$sha = git rev-parse HEAD
+git cat-file -e "${sha}:docs/implementation/DEVELOPMENT.md"
+```
+
+`git ls-files` ищет среди файлов, отслеживаемых в текущем индексе. `git cat-file -e` проверяет путь в дереве указанного коммита и при успехе завершается с кодом `0` без вывода.
+
 ## 7. Первый implementation increment
 
 Первый code-producing increment — ограниченный **Application Bootstrap** согласно [B4](IMPLEMENTATION_BASELINE.md#b4-первый-application-bootstrap), не business vertical slice. Он создаёт только согласованные hosts, Community Functional Module и architecture/integration test boundaries; business functionality, domain schema и reliable-work engine в него не входят.
